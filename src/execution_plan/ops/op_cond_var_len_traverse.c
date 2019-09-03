@@ -61,6 +61,7 @@ OpBase *NewCondVarLenTraverseOp(Graph *g, RecordMap *record_map, AlgebraicExpres
 
 	condVarLenTraverse->srcNodeIdx = RecordMap_FindOrAddID(record_map, ae->src_node->id);
 	condVarLenTraverse->destNodeIdx = RecordMap_FindOrAddID(record_map, ae->dest_node->id);
+	condVarLenTraverse->edgesIdx = RecordMap_LookupID(record_map, ae->edge->id);
 
 	condVarLenTraverse->minHops = ae->edge->minHops;
 	condVarLenTraverse->maxHops = ae->edge->maxHops;
@@ -130,6 +131,11 @@ compute_path:
 		if(ENTITY_GET_ID(&n) != ENTITY_GET_ID(destNode)) goto compute_path;
 	} else {
 		Record_AddNode(op->r, op->destNodeIdx, n);
+	}
+
+	if(op->edgesIdx != IDENTIFIER_NOT_FOUND) {
+		// todo
+		// Record_AddScalar(op->r, op->edgesIdx, p->nodes);
 	}
 
 	return Record_Clone(op->r);
