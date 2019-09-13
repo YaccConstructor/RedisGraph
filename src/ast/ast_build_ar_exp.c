@@ -358,3 +358,4 @@ AR_ExpNode *AR_EXP_FromExpression(const cypher_astnode_t *expr) {
 	AR_EXP_ReduceToScalar(&root);
 	return root;
 }
+
