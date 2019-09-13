@@ -101,6 +101,7 @@ AR_ExpNode *AR_EXP_NewOpNode(const char *func_name, uint child_count) {
 
 AR_ExpNode *AR_EXP_NewVariableOperandNode(const char *alias, const char *prop) {
 	AR_ExpNode *node = rm_malloc(sizeof(AR_ExpNode));
+	node->resolved_name = NULL;
 	node->type = AR_EXP_OPERAND;
 	node->operand.type = AR_EXP_VARIADIC;
 	node->operand.variadic.entity_alias = alias;
