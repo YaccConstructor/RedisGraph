@@ -14,10 +14,10 @@
 #include "./op_cond_var_len_traverse.h"
 
 /* Forward declarations. */
-static OpResult Init(OpBase *opBase);
-static Record Consume(OpBase *opBase);
-static OpResult Reset(OpBase *opBase);
-static void Free(OpBase *opBase);
+static OpResult CondVarLenTraverseInit(OpBase *opBase);
+static Record CondVarLenTraverseConsume(OpBase *opBase);
+static OpResult CondVarLenTraverseReset(OpBase *opBase);
+static void CondVarLenTraverseFree(OpBase *opBase);
 
 static void _setupTraversedRelations(CondVarLenTraverse *op, QGEdge *e) {
 	uint reltype_count = array_len(e->reltypeIDs);
@@ -74,7 +74,8 @@ OpBase *NewCondVarLenTraverseOp(const ExecutionPlan *plan, Graph *g, AlgebraicEx
 
 	// Set our Op operations
 	OpBase_Init((OpBase *)op, OPType_CONDITIONAL_VAR_LEN_TRAVERSE,
-				"Conditional Variable Length Traverse", NULL, Consume, Reset, ToString, Free, plan);
+				"Conditional Variable Length Traverse", NULL, CondVarLenTraverseConsume, CondVarLenTraverseReset,
+				ToString, CondVarLenTraverseFree, plan);
 
 	assert(OpBase_Aware((OpBase *)op, ae->src_node->alias, &op->srcNodeIdx));
 	op->destNodeIdx = OpBase_Modifies((OpBase *)op, ae->dest_node->alias);
@@ -82,7 +83,7 @@ OpBase *NewCondVarLenTraverseOp(const ExecutionPlan *plan, Graph *g, AlgebraicEx
 	return (OpBase *)op;
 }
 
-static Record Consume(OpBase *opBase) {
+static Record CondVarLenTraverseConsume(OpBase *opBase) {
 	CondVarLenTraverse *op = (CondVarLenTraverse *)opBase;
 	OpBase *child = op->op.children[0];
 	Path p = NULL;
@@ -130,7 +131,7 @@ compute_path:
 	return Record_Clone(op->r);
 }
 
-static OpResult Reset(OpBase *ctx) {
+static OpResult CondVarLenTraverseReset(OpBase *ctx) {
 	CondVarLenTraverse *op = (CondVarLenTraverse *)ctx;
 	if(op->r) Record_Free(op->r);
 	op->r = NULL;
@@ -139,7 +140,7 @@ static OpResult Reset(OpBase *ctx) {
 	return OP_OK;
 }
 
-static void Free(OpBase *ctx) {
+static void CondVarLenTraverseFree(OpBase *ctx) {
 	CondVarLenTraverse *op = (CondVarLenTraverse *)ctx;
 
 	if(op->edgeRelationTypes) {
@@ -162,3 +163,4 @@ static void Free(OpBase *ctx) {
 		op->allPathsCtx = NULL;
 	}
 }
+
