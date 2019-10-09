@@ -1,17 +1,19 @@
 #include <stdio.h>
 #include <assert.h>
 #include "grammar.h"
-#include "grammar_impl.h"
+#include "item_mapper.h"
 #include "helpers.h"
+
+void Grammar_Init(Grammar *gr) {
+    gr->complex_rules_count = 0;
+    gr->simple_rules_count = 0;
+
+    ItemMapper_Init((ItemMapper *) &gr->nontermMapper);
+    ItemMapper_Init((ItemMapper *) &gr->tokenMapper);
+}
 
 void Grammar_Load(Grammar *gr, FILE *f) {
     Grammar_Init(gr);
-
-    NontermDict nontermDict;
-    FixedDict_Init((FixedDict *) &nontermDict);
-
-    TokenDict tokenDict;
-    FixedDict_Init((FixedDict *) &tokenDict);
 
     char *grammar_buf;
     size_t buf_size = 0;
@@ -23,26 +25,21 @@ void Grammar_Load(Grammar *gr, FILE *f) {
         int nitems = sscanf(grammar_buf, "%c %c %c", &l, &r1, &r2);
 
         if (nitems == 2) {
-            int gr_l = FixedDict_InsertOrGet((FixedDict *) &nontermDict, l);
-            int gr_r = FixedDict_InsertOrGet((FixedDict *) &tokenDict, r1);
+            int gr_l = ItemMapper_Insert((ItemMapper *) &gr->nontermMapper, l);
+            int gr_r = ItemMapper_Insert((ItemMapper *) &gr->tokenMapper, r1);
 
             Grammar_AddSimpleRule(gr, gr_l, gr_r);
         } else if (nitems == 3) {
-            int gr_l = FixedDict_InsertOrGet((FixedDict *) &nontermDict, l);
-            int gr_r1 = FixedDict_InsertOrGet((FixedDict *) &nontermDict, r1);
-            int gr_r2 = FixedDict_InsertOrGet((FixedDict *) &nontermDict, r2);
+            int gr_l = ItemMapper_Insert((ItemMapper *) &gr->nontermMapper, l);
+            int gr_r1 = ItemMapper_Insert((ItemMapper *) &gr->nontermMapper, r1);
+            int gr_r2 = ItemMapper_Insert((ItemMapper *) &gr->nontermMapper, r2);
 
             Grammar_AddComplexRule(gr, gr_l, gr_r1, gr_r2);
         }
     }
 }
 
-void Grammar_Init(Grammar *gr) {
-    gr->complex_rules_count = 0;
-    gr->simple_rules_count = 0;
-}
-
-void Grammar_AddSimpleRule(Grammar *gr, RuleItem l, RuleItem r) {
+void Grammar_AddSimpleRule(Grammar *gr, MapperIndex l, MapperIndex r) {
     // TODO: replace assert to something else
     assert(gr->simple_rules_count != MAX_GRAMMAR_SIZE);
 
@@ -51,7 +48,7 @@ void Grammar_AddSimpleRule(Grammar *gr, RuleItem l, RuleItem r) {
     gr->simple_rules_count++;
 }
 
-void Grammar_AddComplexRule(Grammar *gr, RuleItem l, RuleItem r1, RuleItem r2) {
+void Grammar_AddComplexRule(Grammar *gr, MapperIndex l, MapperIndex r1, MapperIndex r2) {
     // TODO: replace assert to something else
     assert(gr->complex_rules_count != MAX_GRAMMAR_SIZE);
 
