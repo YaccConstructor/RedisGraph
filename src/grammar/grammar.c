@@ -12,7 +12,7 @@ void Grammar_Init(Grammar *gr) {
     ItemMapper_Init((ItemMapper *) &gr->tokenMapper);
 }
 
-void Grammar_Load(Grammar *gr, FILE *f) {
+int Grammar_Load(Grammar *gr, FILE *f) {
     Grammar_Init(gr);
 
     char *grammar_buf;
@@ -21,8 +21,8 @@ void Grammar_Load(Grammar *gr, FILE *f) {
     while (getline(&grammar_buf, &buf_size, f) != -1) {
         str_strip(grammar_buf);
 
-        char l, r1, r2;
-        int nitems = sscanf(grammar_buf, "%c %c %c", &l, &r1, &r2);
+        char l[MAX_ITEM_NAME_LEN], r1[MAX_ITEM_NAME_LEN], r2[MAX_ITEM_NAME_LEN];
+        int nitems = sscanf(grammar_buf, "%s %s %s", l, r1, r2);
 
         if (nitems == 2) {
             int gr_l = ItemMapper_Insert((ItemMapper *) &gr->nontermMapper, l);
@@ -35,8 +35,11 @@ void Grammar_Load(Grammar *gr, FILE *f) {
             int gr_r2 = ItemMapper_Insert((ItemMapper *) &gr->nontermMapper, r2);
 
             Grammar_AddComplexRule(gr, gr_l, gr_r1, gr_r2);
+        } else {
+            return GRAMMAR_LOAD_ERROR;
         }
     }
+    return GRAMMAR_LOAD_SUCCESS;
 }
 
 void Grammar_AddSimpleRule(Grammar *gr, MapperIndex l, MapperIndex r) {

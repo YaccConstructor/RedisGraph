@@ -3,18 +3,17 @@
 #include <stdint.h>
 #include "conf.h"
 
+#define ITEM_NOT_EXIST 0
+#define ITEM_EXIST 1
+
 typedef struct {
     MapperIndex count;
-    char items[];
+    char items[][MAX_ITEM_NAME_LEN];
 } ItemMapper;
-
-typedef enum {
-    ItemMapper_EXIST,
-    ItemMapper_NOT_EXIST
-} IM_FindRes;
 
 void ItemMapper_Init(ItemMapper *dict);
 
-MapperIndex ItemMapper_Insert(ItemMapper *dict, char token);
-IM_FindRes ItemMapper_Find(ItemMapper *dict, char token);
-char ItemMapper_Map(ItemMapper *dict, char mapperIdex);
+MapperIndex ItemMapper_GetPlaceIndex(ItemMapper *dict, const char *token);
+MapperIndex ItemMapper_Insert(ItemMapper *dict, const char* token);
+int ItemMapper_Find(ItemMapper *dict, const char* token);
+char* ItemMapper_Map(ItemMapper *dict, MapperIndex mapperIdex);

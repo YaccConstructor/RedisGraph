@@ -1,9 +1,11 @@
 #include <assert.h>
-#include "item_mapper.h"
 
-MapperIndex _ItemMapper_GetPlaceIndex(ItemMapper *dict, char token) {
+#include "item_mapper.h"
+#include "string.h"
+
+MapperIndex ItemMapper_GetPlaceIndex(ItemMapper *dict, const char *token) {
     for (MapperIndex i = 0; i < dict->count; i++) {
-        if (dict->items[i] == token) {
+        if (strcmp(dict->items[i], token) ==  0) {
             return i;
         }
     }
@@ -14,21 +16,21 @@ void ItemMapper_Init(ItemMapper *dict) {
     dict->count = 0;
 }
 
-MapperIndex ItemMapper_Insert(ItemMapper *dict, char token) {
-    MapperIndex i = _ItemMapper_GetPlaceIndex(dict, token);
+MapperIndex ItemMapper_Insert(ItemMapper *dict, const char* token) {
+    MapperIndex i = ItemMapper_GetPlaceIndex(dict, token);
     if (i < dict->count) {
         return i;
     } else {
-        dict->items[dict->count] = token;
+        strcpy(dict->items[dict->count], token);
         return dict->count++;
     }
 }
 
-IM_FindRes ItemMapper_Find(ItemMapper *dict, char token) {
-    return _ItemMapper_GetPlaceIndex(dict, token) == dict->count ? ItemMapper_NOT_EXIST : ItemMapper_EXIST;
+int ItemMapper_Find(ItemMapper *dict, const char* token) {
+    return ItemMapper_GetPlaceIndex(dict, token) == dict->count ? ITEM_NOT_EXIST : ITEM_EXIST;
 }
 
-char ItemMapper_Map(ItemMapper *dict, char mapperIdex) {
+char* ItemMapper_Map(ItemMapper *dict, MapperIndex mapperIdex) {
     assert(mapperIdex < dict->count);
     return dict->items[mapperIdex];
 }

@@ -1,7 +1,5 @@
+S A B
+S A S1
+S1 S B
 A a
-A B C
-A b
-A B D
-B D C
-C b
-D z
+B b

@@ -3,14 +3,17 @@
 #include <bits/types/FILE.h>
 #include "conf.h"
 
+#define GRAMMAR_LOAD_ERROR 0
+#define GRAMMAR_LOAD_SUCCESS 1
+
 typedef struct {
     MapperIndex count;
-    char items[3 * MAX_GRAMMAR_SIZE];
+    char items[MAX_NONTERM_COUNT][MAX_ITEM_NAME_LEN];
 } NontermMapper;
 
 typedef struct {
     MapperIndex count;
-    char items[MAX_GRAMMAR_SIZE];
+    char items[MAX_GRAMMAR_SIZE][MAX_ITEM_NAME_LEN];
 } TokenMapper;
 
 typedef struct {
@@ -35,7 +38,7 @@ typedef struct {
     TokenMapper tokenMapper;
 } Grammar;
 
-void Grammar_Load(Grammar *gr, FILE *f);
+int Grammar_Load(Grammar *gr, FILE *f);
 void Grammar_Init(Grammar *gr);
 
 void Grammar_AddSimpleRule(Grammar *gr, MapperIndex l, MapperIndex r);

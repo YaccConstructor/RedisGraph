@@ -22,6 +22,7 @@
 #include "arithmetic/arithmetic_expression.h"
 #include "graph/serializers/graphcontext_type.h"
 #include "redisearch_api.h"
+#include "cfpq_algorithms/algo_restrator.h"
 
 //------------------------------------------------------------------------------
 // Module-level global variables
@@ -160,6 +161,12 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 								 1) == REDISMODULE_ERR) {
 		return REDISMODULE_ERR;
 	}
+
+    AlgoStorage_RegisterAlgorithms();
+    if(RedisModule_CreateCommand(ctx, "graph.CFG", MGraph_CFPQ, "write", 1, 1,
+                                 1) == REDISMODULE_ERR) {
+        return REDISMODULE_ERR;
+    }
 
 	return REDISMODULE_OK;
 }

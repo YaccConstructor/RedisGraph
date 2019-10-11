@@ -13,3 +13,4 @@
 #include "cmd_explain.h"
 #include "cmd_profile.h"
 #include "cmd_bulk_insert.h"
+#include "cmd_cfg_query.h"
