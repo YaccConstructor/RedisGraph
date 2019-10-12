@@ -170,7 +170,7 @@ workflows:
             - build
           filters:
             branches:
-              only: master      
+              only: CFPQ      
       - package_release:
           requires:
             - build
@@ -194,4 +194,4 @@ workflows:
       - deploy_docs:
           filters:
             branches:
-              only: master
+              only: CFPQ
