@@ -1,17 +1,29 @@
 #pragma once
 
-#include <bits/types/FILE.h>
 #include "conf.h"
 
+#define GRAMMAR_LOAD_ERROR 0
+#define GRAMMAR_LOAD_SUCCESS 1
+
 typedef struct {
-    RuleItem l;
-    RuleItem r1;
-    RuleItem r2;
+    MapperIndex count;
+    char items[MAX_NONTERM_COUNT][MAX_ITEM_NAME_LEN];
+} NontermMapper;
+
+typedef struct {
+    MapperIndex count;
+    char items[MAX_GRAMMAR_SIZE][MAX_ITEM_NAME_LEN];
+} TokenMapper;
+
+typedef struct {
+    MapperIndex l;
+    MapperIndex r1;
+    MapperIndex r2;
 } ComplexRule;
 
 typedef struct {
-    RuleItem l;
-    RuleItem r;
+    MapperIndex l;
+    MapperIndex r;
 } SimpleRule;
 
 typedef struct {
@@ -20,9 +32,13 @@ typedef struct {
 
     SimpleRule simple_rules[MAX_GRAMMAR_SIZE];
     int simple_rules_count;
+
+    NontermMapper nontermMapper;
+    TokenMapper tokenMapper;
 } Grammar;
 
-void Grammar_Load(Grammar *gr, FILE *f);
+int Grammar_Load(Grammar *gr, FILE *f);
 void Grammar_Init(Grammar *gr);
-void Grammar_AddSimpleRule(Grammar *gr, RuleItem l, RuleItem r);
-void Grammar_AddComplexRule(Grammar *gr, RuleItem l, RuleItem r1, RuleItem r2);
+
+void Grammar_AddSimpleRule(Grammar *gr, MapperIndex l, MapperIndex r);
+void Grammar_AddComplexRule(Grammar *gr, MapperIndex l, MapperIndex r1, MapperIndex r2);

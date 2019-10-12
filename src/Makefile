@@ -72,6 +72,7 @@ CC_SOURCES += $(wildcard $(SOURCEDIR)/util/datablock/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/util/thpool/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/util/range/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/grammar/*.c)
+CC_SOURCES += $(wildcard $(SOURCEDIR)/cfpq_algorithms/*.c)
 
 # Convert all sources to .o files
 CC_OBJECTS = $(patsubst %.c, %.o, $(CC_SOURCES) )
