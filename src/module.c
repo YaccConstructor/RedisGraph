@@ -22,7 +22,7 @@
 #include "arithmetic/arithmetic_expression.h"
 #include "graph/serializers/graphcontext_type.h"
 #include "redisearch_api.h"
-#include "cfpq_algorithms/algo_restrator.h"
+#include "cfpq_algorithms/algo_registrator.h"
 
 //------------------------------------------------------------------------------
 // Module-level global variables

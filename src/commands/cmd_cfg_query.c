@@ -1,7 +1,7 @@
 #include "../redismodule.h"
 #include "../graph/graphcontext.h"
 #include "../grammar/grammar.h"
-#include "../cfpq_algorithms/algo_restrator.h"
+#include "../cfpq_algorithms/algo_registrator.h"
 #include "../cfpq_algorithms/response.h"
 #include "../util/simple_timer.h"
 

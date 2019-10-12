@@ -1,6 +1,5 @@
 #pragma once
 
-#include <bits/types/FILE.h>
 #include "conf.h"
 
 #define GRAMMAR_LOAD_ERROR 0

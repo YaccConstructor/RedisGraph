@@ -1,4 +1,4 @@
-#include "algo_restrator.h"
+#include "algo_registrator.h"
 
 AlgoStorage CfpqAlgoStorage;
 
