@@ -185,13 +185,3 @@ workflows:
       - run_automation:
           requires:
             - deploy_branch
-      - deploy_release:
-          filters:
-            tags:
-              only: '/^v[0-9].*/'
-          requires:
-            - package_release
-      - deploy_docs:
-          filters:
-            branches:
-              only: CFPQ
