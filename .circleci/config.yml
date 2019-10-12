@@ -53,20 +53,7 @@ jobs:
       - run:
           name: Test
           command: make test
-      
-      - run:
-          name: Persist Artifacts
-          command: |
-            strip src/$MODULE_ARTIFACT
-            mkdir -p /workspace/build && cp src/$MODULE_ARTIFACT /workspace
-            cp ramp.yml /workspace/
-      
-      - persist_to_workspace:
-          root: /workspace
-          paths:
-            - '*.so'
-            - ramp.yml
-            - build  
+  
   package_branch:
     docker:
       - image: 'redislabsmodules/rmbuilder:latest'
@@ -164,24 +151,4 @@ workflows:
       - build:
           filters:
             tags:
-              only: /.*/      
-      - package_branch:
-          requires:
-            - build
-          filters:
-            branches:
-              only: CFPQ      
-      - package_release:
-          requires:
-            - build
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: '/^v[0-9].*/'
-      - deploy_branch:
-          requires:
-            - package_branch
-      - run_automation:
-          requires:
-            - deploy_branch
+              only: /.*/
