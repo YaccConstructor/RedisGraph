@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 #include "response.h"
 
 void CfpqResponse_Init(CfpqResponse *resp) {

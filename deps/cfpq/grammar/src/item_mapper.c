@@ -1,7 +1,7 @@
 #include <assert.h>
 
 #include "item_mapper.h"
-#include "string.h"
+#include <string.h>
 
 MapperIndex ItemMapper_GetPlaceIndex(ItemMapper *dict, const char *token) {
     for (MapperIndex i = 0; i < dict->count; i++) {

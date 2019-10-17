@@ -1,6 +1,5 @@
-#include "../grammar.h"
-#include "../item_mapper.h"
-#include <stdio.h>
+#include "grammar.h"
+#include "item_mapper.h"
 
 int main() {
     // Small example of loading and out grammar.

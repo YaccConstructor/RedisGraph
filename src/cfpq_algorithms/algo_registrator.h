@@ -1,7 +1,6 @@
 #include "../redismodule.h"
 #include "../graph/graphcontext.h"
 #include "cfpq_algorithms.h"
-#include "response.h"
 
 #define MAX_ALGO_COUNT 100 // why not :D
 #define MAX_ALGO_NAME 100

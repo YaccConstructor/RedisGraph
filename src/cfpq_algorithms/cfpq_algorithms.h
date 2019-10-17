@@ -2,7 +2,7 @@
 
 #include "../redismodule.h"
 #include "../graph/graphcontext.h"
-#include "../grammar/grammar.h"
-#include "response.h"
+#include <grammar/include/grammar.h>
+#include <response/include/response.h>
 
 int CFPQ_cpu1(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);

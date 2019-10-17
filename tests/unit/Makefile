@@ -56,8 +56,9 @@ LIBXXHASH=$(ROOT)/deps/xxHash/libxxhash.a
 REDISEARCH=../../deps/RediSearch/build/libredisearch.a
 LIBGRAPHBLAS=../../deps/GraphBLAS/build/libgraphblas.a
 LIBCYPHER-PARSER=../../deps/libcypher-parser/lib/src/.libs/libcypher-parser.a
+CFPQ=../../deps/cfpq/build/grammar/libgrammar.a ../../deps/cfpq/build/response/libresponse.a ../../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a
 
-LIBS=$(LIBGRAPHBLAS) $(REDISEARCH) $(LIBXXHASH) $(LIBCYPHER-PARSER)
+LIBS=$(CFPQ) $(LIBGRAPHBLAS) $(REDISEARCH) $(LIBXXHASH) $(LIBCYPHER-PARSER)
 DEPS=$(CC_OBJECTS) $(RAX) $(LIBS)
 
 # Build and run a test for each cpp file in directory

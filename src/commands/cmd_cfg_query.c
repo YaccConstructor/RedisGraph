@@ -1,8 +1,8 @@
 #include "../redismodule.h"
 #include "../graph/graphcontext.h"
-#include "../grammar/grammar.h"
+#include <grammar/include/grammar.h>
+#include <response/include/response.h>
 #include "../cfpq_algorithms/algo_registrator.h"
-#include "../cfpq_algorithms/response.h"
 #include "../util/simple_timer.h"
 
 int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {

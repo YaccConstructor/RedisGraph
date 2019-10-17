@@ -9,6 +9,8 @@ RAX_DIR = ../deps/rax
 XXHASH_DIR = ../deps/xxHash
 REDISEARCH_DIR = ../deps/RediSearch/src
 LIBCYPHER-PARSER_DIR = ../deps/libcypher-parser/lib/src
+GRAPHBLAS_DIR = ../deps/GraphBLAS/Include
+CFPQ_DIR = ../deps/cfpq ../deps/cfpq/grammar/include ../deps/cfpq/response/include ../deps/cfpq/algorithms/cpu-graphblas/include
 
 # if DEBUG env var is set, we compile with "debug" cflags
 DEBUGFLAGS = -g -ggdb -O3 
@@ -71,7 +73,6 @@ CC_SOURCES += $(wildcard $(SOURCEDIR)/util/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/util/datablock/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/util/thpool/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/util/range/*.c)
-CC_SOURCES += $(wildcard $(SOURCEDIR)/grammar/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/cfpq_algorithms/*.c)
 
 # Convert all sources to .o files
@@ -88,9 +89,10 @@ LIBXXHASH=../deps/xxHash/libxxhash.a
 GRAPHBLAS=../deps/GraphBLAS/build/libgraphblas.a
 REDISEARCH=../deps/RediSearch/build/libredisearch.a
 LIBCYPHER-PARSER=../deps/libcypher-parser/lib/src/.libs/libcypher-parser.a
+CFPQ=../deps/cfpq/build/grammar/libgrammar.a ../deps/cfpq/build/response/libresponse.a ../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a
 
 # Compilation deps for the module
-LIBS=$(RAX) $(GRAPHBLAS) $(REDISEARCH) $(LIBXXHASH) $(LIBCYPHER-PARSER)
+LIBS=$(RAX) $(CFPQ) $(GRAPHBLAS) $(REDISEARCH) $(LIBXXHASH) $(LIBCYPHER-PARSER)
 MODULE= $(LIBS) $(CC_OBJECTS)
 
 REDISGRAPH_CC=$(QUIET_CC)$(CC)
@@ -108,12 +110,21 @@ endif
 # Compile C file while generating a .d file for it
 %.o: %.c
 %.o: %.c
-	$(REDISGRAPH_CC) $(CFLAGS) -I$(RAX_DIR) -I$(LIBCYPHER-PARSER_DIR) -I$(XXHASH_DIR) -I$(REDISEARCH_DIR) -c $< -o $@ -MMD -MF $(@:.o=.d)
+	$(REDISGRAPH_CC) $(CFLAGS) -I$(RAX_DIR) -I$(LIBCYPHER-PARSER_DIR) -I$(XXHASH_DIR) -I$(REDISEARCH_DIR) -I$(GRAPHBLAS_DIR) $(addprefix -I, $(CFPQ_DIR)) -c $< -o $@ -MMD -MF $(@:.o=.d)
 
 all: redisgraph.so
 
 # Include all dependency files for C files
 -include $(CC_DEPS)
+
+$(CFPQ): $(GRAPHBLAS)
+ifeq (,$(wildcard $(CFPQ)))
+	mkdir -p ../deps/cfpq/build; \
+	cd ../deps/cfpq/build; \
+	cmake -DCMAKE_C_FLAGS=-fPIC -DCMAKE_CXX_FLAGS=-fPIC -DGRAPH_BLAS_HEADER=$(PWD)/deps/GraphBLAS/Include -DGRAPH_BLAS_LIBRARY=$(PWD)/deps/GraphBLAS/build/libgraphblas.a .. ;\
+	make;
+endif
+.PHONY: $(CFPQ)
 
 $(RAX):
 	@$(MAKE) -C ../deps/rax
@@ -163,6 +174,7 @@ redisgraph.so: $(MODULE)
 clean:
 	@find . -name '*.[oad]' -type f -delete
 	@-rm -f redisgraph.so
+	@-rm -rf../deps/cfpq/build
 ifeq ($(ALL),1)
 	@$(MAKE) -C ../deps/rax clean
 	@$(MAKE) -C ../deps/xxHash clean

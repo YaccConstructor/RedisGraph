@@ -1,9 +1,14 @@
 #pragma once
 
+#include <stdio.h>
 #include "conf.h"
 
 #define GRAMMAR_LOAD_ERROR 0
 #define GRAMMAR_LOAD_SUCCESS 1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
     MapperIndex count;
@@ -42,3 +47,7 @@ void Grammar_Init(Grammar *gr);
 
 void Grammar_AddSimpleRule(Grammar *gr, MapperIndex l, MapperIndex r);
 void Grammar_AddComplexRule(Grammar *gr, MapperIndex l, MapperIndex r1, MapperIndex r2);
+
+#ifdef __cplusplus
+}
+#endif

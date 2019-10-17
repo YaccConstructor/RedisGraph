@@ -1,7 +1,11 @@
 #pragma once
 
-#include "../grammar/conf.h"
-#include "../../deps/GraphBLAS/Include/GraphBLAS.h"
+#include <conf.h>
+#include <GraphBLAS.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
     MapperIndex count;
@@ -11,3 +15,7 @@ typedef struct {
 
 void CfpqResponse_Init(CfpqResponse *resp);
 int CfpqResponse_Append(CfpqResponse *resp, const char* nonterm, GrB_Index control_sum);
+
+#ifdef __cplusplus
+}
+#endif

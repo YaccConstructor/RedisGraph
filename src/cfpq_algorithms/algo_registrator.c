@@ -28,7 +28,7 @@ int AlgoStorage_Count() {
     return CfpqAlgoStorage.count;
 }
 
-inline void AlgoStorage_RegisterAlgorithms() {
+void AlgoStorage_RegisterAlgorithms() {
     AlgoStorage_Init();
     AlgoStorage_Add("cpu", CFPQ_cpu1);
 }
