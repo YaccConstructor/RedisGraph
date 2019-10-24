@@ -56,20 +56,17 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
     // Super-puper algorithm
     bool matrices_is_changed = true;
     while(matrices_is_changed) {
+        response->iteration_count++;
 #ifdef DEBUG
         printf("-----------------%lu-----------------\n", response->iteration_count);
 #endif
 
-        response->iteration_count++;
 
         // Initialize new A_top and B matrices
         GrB_Matrix A_new[nonterm_count];
-        GrB_Matrix B_new[nonterm_count];
         for (uint64_t i = 0; i < nonterm_count; ++i) {
             GrB_Matrix_new(&A_new[i], GrB_BOOL, graph_size, graph_size);
-            GrB_Matrix_new(&B_new[i], GrB_BOOL, graph_size, graph_size);
-            GrB_eWiseAdd_Matrix_BinaryOp(B_new[i], NULL, NULL, GrB_LOR, A_top[i], B[i], NULL);
-        }
+            }
 
         for (int i = 0; i < grammar->complex_rules_count; ++i) {
             MapperIndex nonterm_l = grammar->complex_rules[i].l;
@@ -82,19 +79,18 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
             GrB_Matrix_new(&BA, GrB_BOOL, graph_size, graph_size);
             GrB_Matrix_new(&AA, GrB_BOOL, graph_size, graph_size);
 
-            // Compute product matrices
-            GrB_mxm(AB, B_new[nonterm_l], NULL, semiring,
-                    A_top[nonterm_r1], B[nonterm_r2], reversed_mask);
-            GrB_mxm(BA, B_new[nonterm_l], NULL, semiring,
-                    B[nonterm_r1], A_top[nonterm_r2], reversed_mask);
-            GrB_mxm(AA, B_new[nonterm_l], NULL, semiring,
-                    A_top[nonterm_r1], A_top[nonterm_r2], reversed_mask);
+            // Compute product matrices: TODO: check with mask B[nonterm_l]
+            GrB_mxm(AB, NULL, NULL, semiring,
+                    A_top[nonterm_r1], B[nonterm_r2], NULL);
+            GrB_mxm(BA, NULL, NULL, semiring,
+                    B[nonterm_r1], A_top[nonterm_r2], NULL);
+            GrB_mxm(AA, NULL, NULL, semiring,
+                    A_top[nonterm_r1], A_top[nonterm_r2], NULL);
 
             // Compute total A_new
             GrB_eWiseAdd_Matrix_BinaryOp(A_new[nonterm_l], NULL, NULL, GrB_LOR, A_new[nonterm_l], AB, NULL);
             GrB_eWiseAdd_Matrix_BinaryOp(A_new[nonterm_l], NULL, NULL, GrB_LOR, A_new[nonterm_l], BA, NULL);
             GrB_eWiseAdd_Matrix_BinaryOp(A_new[nonterm_l], NULL, NULL, GrB_LOR, A_new[nonterm_l], AA, NULL);
-
 
             GrB_Matrix_clear(AB);
             GrB_Matrix_free(&AB);
@@ -117,26 +113,27 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
 #endif
         }
 
+        for (int i = 0; i < nonterm_count; ++i) {
+            // Compute new B
+            GrB_eWiseAdd_Matrix_BinaryOp(B[i], NULL, NULL, GrB_LOR, B[i], A_top[i], NULL);
+        }
+
+
         // Check existing new elements and write result to next step
         matrices_is_changed = false;
         for (uint64_t i = 0; i < nonterm_count; ++i) {
-            GrB_Index nvals_new;
-            GrB_Matrix_nvals(&nvals_new, A_new[i]);
-
-            if (nvals_new != 0)
-                matrices_is_changed = true;
-
-            GrB_Matrix_dup(&A_top[i], A_new[i]);
+            GrB_Matrix_clear(A_top[i]);
+            GrB_eWiseAdd_Matrix_BinaryOp(A_top[i], B[i], NULL, GrB_LOR, A_top[i], A_new[i], reversed_mask);
 
             GrB_Matrix_clear(A_new[i]);
             GrB_Matrix_free(&A_new[i]);
             GrB_free(&A_new[i]);
 
-            GrB_Matrix_dup(&B[i], B_new[i]);
+            GrB_Index nvals_new;
+            GrB_Matrix_nvals(&nvals_new, A_top[i]);
 
-            GrB_Matrix_clear(B_new[i]);
-            GrB_Matrix_free(&B_new[i]);
-            GrB_free(&B_new[i]);
+            if (nvals_new != 0)
+                matrices_is_changed = true;
         }
 #ifdef DEBUG
         printf("-----------------%lu-----------------\n", response->iteration_count);
@@ -145,6 +142,7 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
 
     // clean and write response
     for (int i = 0; i < nonterm_count; i++) {
+
         char* nonterm;
 
         GrB_Index nvals_B, nvals_A_top;

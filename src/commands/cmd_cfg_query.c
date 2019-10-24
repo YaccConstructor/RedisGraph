@@ -6,7 +6,6 @@
 #include "../util/simple_timer.h"
 
 int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    printf("shit");
     if (argc != 4) {
         RedisModule_ReplyWithError(ctx, "expected 3 args: algorithm name, graph name, grammar file path");
     }
