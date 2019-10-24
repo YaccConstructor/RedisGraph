@@ -30,5 +30,6 @@ int AlgoStorage_Count() {
 
 inline void AlgoStorage_RegisterAlgorithms() {
     AlgoStorage_Init();
-    AlgoStorage_Add("cpu", CFPQ_cpu1);
+    AlgoStorage_Add("cpu1", CFPQ_cpu1);
+    AlgoStorage_Add("cpu3", CFPQ_cpu3);
 }

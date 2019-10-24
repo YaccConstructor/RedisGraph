@@ -3,6 +3,7 @@
 
 void CfpqResponse_Init(CfpqResponse *resp) {
     resp->count = 0;
+    resp->iteration_count = 0;
 }
 
 int CfpqResponse_Append(CfpqResponse *resp, const char* nonterm, GrB_Index control_sum) {

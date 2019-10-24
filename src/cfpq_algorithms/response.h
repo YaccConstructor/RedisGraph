@@ -4,6 +4,8 @@
 #include "../../deps/GraphBLAS/Include/GraphBLAS.h"
 
 typedef struct {
+    uint64_t iteration_count;
+
     MapperIndex count;
     char nonterms[MAX_NONTERM_COUNT][MAX_ITEM_NAME_LEN];
     GrB_Index control_sums[MAX_NONTERM_COUNT];

@@ -1,5 +1,4 @@
 #include "cfpq_algorithms.h"
-#include "../redismodule.h"
 #include "../grammar/item_mapper.h"
 
 int CFPQ_cpu1(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response) {
@@ -45,6 +44,8 @@ int CFPQ_cpu1(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
     bool matrices_is_changed = true;
     while(matrices_is_changed) {
         matrices_is_changed = false;
+
+        response->iteration_count++;
 
         for (int i = 0; i < grammar->complex_rules_count; ++i) {
             MapperIndex nonterm1 = grammar->complex_rules[i].l;
