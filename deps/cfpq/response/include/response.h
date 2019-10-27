@@ -1,11 +1,11 @@
 #pragma once
 
-#include <conf.h>
-#include <GraphBLAS.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <conf.h>
+#include <GraphBLAS.h>
 
 typedef struct {
     MapperIndex count;

@@ -22,6 +22,8 @@ message(STATUS "Using ${GRAPH_BLAS_LIBRARY} as GraphBLAS library path")
 
 include_directories(${GRAPH_BLAS_HEADER})
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 add_subdirectory(grammar)
 add_subdirectory(response)
 add_subdirectory(algorithms)

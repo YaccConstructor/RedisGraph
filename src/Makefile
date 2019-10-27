@@ -10,10 +10,10 @@ XXHASH_DIR = ../deps/xxHash
 REDISEARCH_DIR = ../deps/RediSearch/src
 LIBCYPHER-PARSER_DIR = ../deps/libcypher-parser/lib/src
 GRAPHBLAS_DIR = ../deps/GraphBLAS/Include
-CFPQ_DIR = ../deps/cfpq ../deps/cfpq/grammar/include ../deps/cfpq/response/include ../deps/cfpq/algorithms/cpu-graphblas/include
+CFPQ_DIR = ../deps/cfpq ../deps/cfpq/grammar/include ../deps/cfpq/response/include ../deps/cfpq/algorithms/cpu-graphblas/include ../deps/cfpq/algorithms/cuda/m4ri/include
 
 # if DEBUG env var is set, we compile with "debug" cflags
-DEBUGFLAGS = -g -ggdb -O3 
+DEBUGFLAGS = -g -ggdb -O3
 ifeq ($(DEBUG), 1)
 	DEBUGFLAGS = -g -ggdb -O0
 endif
@@ -89,7 +89,10 @@ LIBXXHASH=../deps/xxHash/libxxhash.a
 GRAPHBLAS=../deps/GraphBLAS/build/libgraphblas.a
 REDISEARCH=../deps/RediSearch/build/libredisearch.a
 LIBCYPHER-PARSER=../deps/libcypher-parser/lib/src/.libs/libcypher-parser.a
-CFPQ=../deps/cfpq/build/grammar/libgrammar.a ../deps/cfpq/build/response/libresponse.a ../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a
+CFPQ=../deps/cfpq/build/grammar/libgrammar.a ../deps/cfpq/build/response/libresponse.a ../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a ../deps/cfpq/build/algorithms/cuda/m4ri/libm4ri.a
+# Deps fo CFPQ
+CFPQ-RUNTIME-DEPS=-L/usr/local/cuda/lib64 -lcudart -lstdc++
+SHOBJ_LDFLAGS += $(CFPQ-RUNTIME-DEPS)
 
 # Compilation deps for the module
 LIBS=$(RAX) $(CFPQ) $(GRAPHBLAS) $(REDISEARCH) $(LIBXXHASH) $(LIBCYPHER-PARSER)
@@ -121,7 +124,7 @@ $(CFPQ): $(GRAPHBLAS)
 ifeq (,$(wildcard $(CFPQ)))
 	mkdir -p ../deps/cfpq/build; \
 	cd ../deps/cfpq/build; \
-	cmake -DCMAKE_C_FLAGS=-fPIC -DCMAKE_CXX_FLAGS=-fPIC -DGRAPH_BLAS_HEADER=$(PWD)/deps/GraphBLAS/Include -DGRAPH_BLAS_LIBRARY=$(PWD)/deps/GraphBLAS/build/libgraphblas.a .. ;\
+	cmake -DGRAPH_BLAS_HEADER=$(PWD)/deps/GraphBLAS/Include -DGRAPH_BLAS_LIBRARY=$(PWD)/deps/GraphBLAS/build/libgraphblas.a .. ;\
 	make;
 endif
 .PHONY: $(CFPQ)
@@ -174,7 +177,7 @@ redisgraph.so: $(MODULE)
 clean:
 	@find . -name '*.[oad]' -type f -delete
 	@-rm -f redisgraph.so
-	@-rm -rf../deps/cfpq/build
+	@-rm -rf ../deps/cfpq/build
 ifeq ($(ALL),1)
 	@$(MAKE) -C ../deps/rax clean
 	@$(MAKE) -C ../deps/xxHash clean
