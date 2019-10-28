@@ -3,7 +3,6 @@
 #include "cfpq_algorithms.h"
 #include "../grammar/item_mapper.h"
 
-//#define DEBUG
 
 int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response) {
     // Create matrices
@@ -57,16 +56,13 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
     bool matrices_is_changed = true;
     while(matrices_is_changed) {
         response->iteration_count++;
-#ifdef DEBUG
-        printf("-----------------%lu-----------------\n", response->iteration_count);
-#endif
-
 
         // Initialize new A_top and B matrices
         GrB_Matrix A_new[nonterm_count];
         for (uint64_t i = 0; i < nonterm_count; ++i) {
             GrB_Matrix_new(&A_new[i], GrB_BOOL, graph_size, graph_size);
-            }
+            GrB_Matrix_dup(&A_new[i], A_top[i]);
+        }
 
         for (int i = 0; i < grammar->complex_rules_count; ++i) {
             MapperIndex nonterm_l = grammar->complex_rules[i].l;
@@ -88,9 +84,9 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
                     A_top[nonterm_r1], A_top[nonterm_r2], NULL);
 
             // Compute total A_new
-            GrB_eWiseAdd_Matrix_BinaryOp(A_new[nonterm_l], NULL, NULL, GrB_LOR, A_new[nonterm_l], AB, NULL);
-            GrB_eWiseAdd_Matrix_BinaryOp(A_new[nonterm_l], NULL, NULL, GrB_LOR, A_new[nonterm_l], BA, NULL);
-            GrB_eWiseAdd_Matrix_BinaryOp(A_new[nonterm_l], NULL, NULL, GrB_LOR, A_new[nonterm_l], AA, NULL);
+            GrB_eWiseAdd_Matrix_BinaryOp(A_top[nonterm_l], NULL, NULL, GrB_LOR, A_top[nonterm_l], AB, NULL);
+            GrB_eWiseAdd_Matrix_BinaryOp(A_top[nonterm_l], NULL, NULL, GrB_LOR, A_top[nonterm_l], BA, NULL);
+            GrB_eWiseAdd_Matrix_BinaryOp(A_top[nonterm_l], NULL, NULL, GrB_LOR, A_top[nonterm_l], AA, NULL);
 
             GrB_Matrix_clear(AB);
             GrB_Matrix_free(&AB);
@@ -103,29 +99,23 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
             GrB_Matrix_clear(AA);
             GrB_Matrix_free(&AA);
             GrB_free(&AA);
-
-#ifdef DEBUG
-            printf("%s -> %s %s\n",
-                    grammar->nontermMapper.items[nonterm_l],
-                    grammar->nontermMapper.items[nonterm_r1],
-                    grammar->nontermMapper.items[nonterm_r2]);
-            GxB_print(A_new[nonterm_l], GxB_SHORT);
-#endif
         }
 
+        // Compute new B
         for (int i = 0; i < nonterm_count; ++i) {
-            // Compute new B
-            GrB_eWiseAdd_Matrix_BinaryOp(B[i], NULL, NULL, GrB_LOR, B[i], A_top[i], NULL);
+            GrB_eWiseAdd_Matrix_BinaryOp(B[i], NULL, NULL, GrB_LOR, B[i], A_new[i], NULL);
+            GrB_Matrix_clear(A_new[i]);
         }
 
 
         // Check existing new elements and write result to next step
         matrices_is_changed = false;
         for (uint64_t i = 0; i < nonterm_count; ++i) {
+            GrB_Matrix_dup(&A_new[i], A_top[i]);
             GrB_Matrix_clear(A_top[i]);
+
             GxB_select(A_top[i], B[i], NULL, GxB_NONZERO, A_new[i], NULL, reversed_mask);
 
-            GrB_Matrix_clear(A_new[i]);
             GrB_Matrix_free(&A_new[i]);
             GrB_free(&A_new[i]);
 
@@ -135,9 +125,6 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
             if (nvals_new != 0)
                 matrices_is_changed = true;
         }
-#ifdef DEBUG
-        printf("-----------------%lu-----------------\n", response->iteration_count);
-#endif
     }
 
     // clean and write response
