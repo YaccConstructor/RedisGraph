@@ -52,21 +52,16 @@ int CFPQ_cpu1(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
             MapperIndex nonterm2 = grammar->complex_rules[i].r1;
             MapperIndex nonterm3 = grammar->complex_rules[i].r2;
 
-            GrB_Matrix m_old;
-            GrB_Matrix_dup(&m_old, matrices[nonterm1]);
+            GrB_Index nvals_new, nvals_old;
+            GrB_Matrix_nvals(&nvals_old, matrices[nonterm1]);
 
             GrB_mxm(matrices[nonterm1], GrB_NULL, GrB_LOR, semiring,
                     matrices[nonterm2], matrices[nonterm3], GrB_NULL);
 
-            GrB_Index nvals_new, nvals_old;
             GrB_Matrix_nvals(&nvals_new, matrices[nonterm1]);
-            GrB_Matrix_nvals(&nvals_old, m_old);
             if (nvals_new != nvals_old) {
                 matrices_is_changed = true;
             }
-
-            GrB_Matrix_free(&m_old);
-            GrB_free(&m_old);
         }
     }
 
