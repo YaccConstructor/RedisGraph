@@ -60,7 +60,6 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
         // Initialize new A_top and B matrices
         GrB_Matrix A_new[nonterm_count];
         for (uint64_t i = 0; i < nonterm_count; ++i) {
-            GrB_Matrix_new(&A_new[i], GrB_BOOL, graph_size, graph_size);
             GrB_Matrix_dup(&A_new[i], A_top[i]);
         }
 
@@ -104,7 +103,7 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
         // Compute new B
         for (int i = 0; i < nonterm_count; ++i) {
             GrB_eWiseAdd_Matrix_BinaryOp(B[i], NULL, NULL, GrB_LOR, B[i], A_new[i], NULL);
-            GrB_Matrix_clear(A_new[i]);
+            GrB_Matrix_free(&A_new[i]);
         }
 
 
