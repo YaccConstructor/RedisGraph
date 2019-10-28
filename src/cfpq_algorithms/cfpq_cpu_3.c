@@ -79,7 +79,7 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
             GrB_Matrix_new(&BA, GrB_BOOL, graph_size, graph_size);
             GrB_Matrix_new(&AA, GrB_BOOL, graph_size, graph_size);
 
-            // Compute product matrices: TODO: check with mask B[nonterm_l]
+            // Compute product matrices
             GrB_mxm(AB, NULL, NULL, semiring,
                     A_top[nonterm_r1], B[nonterm_r2], NULL);
             GrB_mxm(BA, NULL, NULL, semiring,
@@ -123,7 +123,7 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
         matrices_is_changed = false;
         for (uint64_t i = 0; i < nonterm_count; ++i) {
             GrB_Matrix_clear(A_top[i]);
-            GrB_eWiseAdd_Matrix_BinaryOp(A_top[i], B[i], NULL, GrB_LOR, A_top[i], A_new[i], reversed_mask);
+            GxB_select(A_top[i], B[i], NULL, GxB_NONZERO, A_new[i], NULL, reversed_mask);
 
             GrB_Matrix_clear(A_new[i]);
             GrB_Matrix_free(&A_new[i]);
