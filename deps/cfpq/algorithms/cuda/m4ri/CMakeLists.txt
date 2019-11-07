@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7.2)
+cmake_minimum_required(VERSION 3.10)
 project(m4ri CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 11)

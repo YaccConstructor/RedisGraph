@@ -31,5 +31,6 @@ int AlgoStorage_Count() {
 void AlgoStorage_RegisterAlgorithms() {
     AlgoStorage_Init();
     AlgoStorage_Add("cpu", CFPQ_cpu1);
-    AlgoStorage_Add("gpu", CFPQ_gpu1);
+    AlgoStorage_Add("gpu1", CFPQ_gpu1);
+    AlgoStorage_Add("gpu2", CFPQ_gpu2);
 }
