@@ -57,9 +57,18 @@ int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     // Reply
     char raw_response[MAX_ITEM_NAME_LEN + 40];
-    RedisModule_ReplyWithArray(ctx, response.count + 2);
+    RedisModule_ReplyWithArray(ctx, response.count + 5);
 
     sprintf(raw_response, "Time spent: %f", time_spent);
+    RedisModule_ReplyWithSimpleString(ctx, raw_response);
+
+    sprintf(raw_response, "VMS delta: %d", response.vms_dif);
+    RedisModule_ReplyWithSimpleString(ctx, raw_response);
+
+    sprintf(raw_response, "RSS delta: %d", response.rss_dif);
+    RedisModule_ReplyWithSimpleString(ctx, raw_response);
+
+    sprintf(raw_response, "Shared delta: %d", response.shared_dif);
     RedisModule_ReplyWithSimpleString(ctx, raw_response);
 
     sprintf(raw_response, "Iteration count: %lu", response.iteration_count);

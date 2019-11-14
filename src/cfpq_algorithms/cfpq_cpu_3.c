@@ -2,9 +2,14 @@
 
 #include "cfpq_algorithms.h"
 #include "../grammar/item_mapper.h"
+#include "../util/mem_prof/mem_prof.h"
 
 
 int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response) {
+    // Start memory profile
+    MemInfo mem_start;
+    mem_usage_tick(&mem_start);
+
     // Create matrices
     uint64_t nonterm_count = grammar->nontermMapper.count;
     uint64_t graph_size = Graph_RequiredMatrixDim(gc->g);
@@ -149,5 +154,12 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
 
     GrB_Semiring_free(&semiring);
     GrB_Monoid_free(&monoid);
+
+    MemInfo mem_delta;
+    mem_usage_tok(&mem_delta, mem_start);
+    response->vms_dif = mem_delta.vms;
+    response->rss_dif = mem_delta.rss;
+    response->shared_dif = mem_delta.share;
+
     return 0;
 }
