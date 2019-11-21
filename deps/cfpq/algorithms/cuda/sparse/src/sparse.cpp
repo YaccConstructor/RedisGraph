@@ -7,10 +7,14 @@
 #include <item_mapper.h>
 #include <map>
 #include <set>
+#include <chrono>
+
+using namespace std::chrono;
 
 int sparse(const Grammar *grammar, CfpqResponse *response,
            const GrB_Matrix *relations, const char **relations_names,
            size_t relations_count, size_t graph_size) {
+  auto t1 = high_resolution_clock::now();
 
   std::map<MapperIndex, std::set<std::pair<GrB_Index, GrB_Index>>>
       sparse_matrices;
@@ -39,6 +43,9 @@ int sparse(const Grammar *grammar, CfpqResponse *response,
       }
     }
   }
+
+  auto t2 = high_resolution_clock::now();
+  response->time_to_prepare += duration<double, seconds::period>(t2 - t1).count();
 
   sparse_impl(grammar, response, sparse_matrices, graph_size);
 

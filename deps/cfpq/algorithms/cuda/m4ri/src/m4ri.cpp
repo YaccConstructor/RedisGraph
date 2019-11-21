@@ -2,10 +2,15 @@
 #include "methodOf4RusBooleanSemiringMatrix.h"
 #include <algorithm>
 #include <item_mapper.h>
+#include <chrono>
+
+using namespace std::chrono;
 
 int m4ri(const Grammar *grammar, CfpqResponse *response,
          const GrB_Matrix *relations, const char **relations_names,
          size_t relations_count, size_t graph_size) {
+  auto t1 = high_resolution_clock::now();
+
   // Create matrices
   uint64_t nonterm_count = grammar->nontermMapper.count;
   std::vector<Matrix *> matrices;
@@ -40,10 +45,13 @@ int m4ri(const Grammar *grammar, CfpqResponse *response,
   MethodOf4RusMatricesEnv env;
   env.environment_preprocessing(matrices);
 
+  auto t2 = high_resolution_clock::now();
+  response->time_to_prepare += duration<double, seconds::period>(t2 - t1).count();
+
   bool matrices_is_changed = true;
   while (matrices_is_changed) {
     matrices_is_changed = false;
-
+    response->iteration_count++;
     for (int i = 0; i < grammar->complex_rules_count; ++i) {
       MapperIndex nonterm1 = grammar->complex_rules[i].l;
       MapperIndex nonterm2 = grammar->complex_rules[i].r1;

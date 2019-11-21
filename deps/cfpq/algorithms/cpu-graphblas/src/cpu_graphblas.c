@@ -46,7 +46,7 @@ int cpu_graphblas(const Grammar *grammar, CfpqResponse *response,
   bool matrices_is_changed = true;
   while(matrices_is_changed) {
     matrices_is_changed = false;
-
+    response->iteration_count++;
     for (int i = 0; i < grammar->complex_rules_count; ++i) {
       MapperIndex nonterm1 = grammar->complex_rules[i].l;
       MapperIndex nonterm2 = grammar->complex_rules[i].r1;

@@ -8,6 +8,9 @@ extern "C" {
 #include <GraphBLAS.h>
 
 typedef struct {
+    uint64_t iteration_count;
+    double time_to_prepare;
+
     MapperIndex count;
     char nonterms[MAX_NONTERM_COUNT][MAX_ITEM_NAME_LEN];
     GrB_Index control_sums[MAX_NONTERM_COUNT];
