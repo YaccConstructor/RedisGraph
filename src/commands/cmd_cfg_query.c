@@ -57,7 +57,7 @@ int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     // Reply
     char raw_response[MAX_ITEM_NAME_LEN + 40];
-    RedisModule_ReplyWithArray(ctx, response.count + 3);
+    RedisModule_ReplyWithArray(ctx, 4);
 
     sprintf(raw_response, "Time spent: %f", time_spent);
     RedisModule_ReplyWithSimpleString(ctx, raw_response);
@@ -68,6 +68,7 @@ int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     sprintf(raw_response, "Iteration count: %lu", response.iteration_count);
     RedisModule_ReplyWithSimpleString(ctx, raw_response);
 
+    RedisModule_ReplyWithArray(ctx, response.count);
     for (int i = 0; i < response.count; ++i) {
         sprintf(raw_response, "%s: %lu", response.nonterms[i], response.control_sums[i]);
         RedisModule_ReplyWithSimpleString(ctx, raw_response);

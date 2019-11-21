@@ -19,6 +19,7 @@ int sparse(const Grammar *grammar, CfpqResponse *response,
   std::map<MapperIndex, std::set<std::pair<GrB_Index, GrB_Index>>>
       sparse_matrices;
 
+  std::vector<GrB_Index> I, J;
   for (size_t i = 0; i < relations_count; i++) {
     const char *terminal = relations_names[i];
 
@@ -28,7 +29,6 @@ int sparse(const Grammar *grammar, CfpqResponse *response,
       for (int j = 0; j < grammar->simple_rules_count; j++) {
         const SimpleRule *simpleRule = &grammar->simple_rules[j];
         if (simpleRule->r == terminal_id) {
-          std::vector<GrB_Index> I, J;
           GrB_Index nvals;
           GrB_Matrix_nvals(&nvals, relations[i]);
           I.resize(nvals);
