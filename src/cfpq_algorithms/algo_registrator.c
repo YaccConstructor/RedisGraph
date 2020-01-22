@@ -33,4 +33,5 @@ void AlgoStorage_RegisterAlgorithms() {
     AlgoStorage_Add("cpu", CFPQ_cpu1);
     AlgoStorage_Add("m4ri", CFPQ_gpu1);
     AlgoStorage_Add("cusp", CFPQ_gpu2);
+    AlgoStorage_Add("graphblast", CFPQ_gpu3);
 }

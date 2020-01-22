@@ -9,6 +9,8 @@ if (NOT DEFINED GRAPH_BLAS_HEADER)
     endif ()
 endif ()
 
+message(STATUS "Using ${GRAPH_BLAS_HEADER} as GraphBLAS include path")
+
 # find GraphBLAS library path if not specified
 if (NOT DEFINED GRAPH_BLAS_LIBRARY)
     find_library(GRAPH_BLAS_LIBRARY graphblas)
@@ -17,7 +19,6 @@ if (NOT DEFINED GRAPH_BLAS_LIBRARY)
     endif ()
 endif ()
 
-message(STATUS "Using ${GRAPH_BLAS_HEADER} as GraphBLAS include path")
 message(STATUS "Using ${GRAPH_BLAS_LIBRARY} as GraphBLAS library path")
 
 include_directories(${GRAPH_BLAS_HEADER})

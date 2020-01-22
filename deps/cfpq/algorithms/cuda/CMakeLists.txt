@@ -5,4 +5,4 @@ find_package(CUDA REQUIRED)
 
 add_subdirectory(m4ri)
 add_subdirectory(sparse)
-
+add_subdirectory(graphblast)
