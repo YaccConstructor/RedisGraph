@@ -25,6 +25,15 @@ include_directories(${GRAPH_BLAS_HEADER})
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# fetch googletest
+include(cmake/googletest.cmake)
+fetch_googletest(
+        ${PROJECT_SOURCE_DIR}/cmake
+        ${PROJECT_BINARY_DIR}/googletest
+)
+
+enable_testing()
+
 add_subdirectory(grammar)
 add_subdirectory(response)
 add_subdirectory(algorithms)

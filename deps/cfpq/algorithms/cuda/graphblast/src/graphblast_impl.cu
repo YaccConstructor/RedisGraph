@@ -34,7 +34,7 @@ int graphblast_impl(
       });
 
       std::vector<float> value(pair.second.size(), 1);
-
+      matrices[pair.first] = graphblas::Matrix<float>(graph_size, graph_size);
       matrices[pair.first].build(&rows, &cols, &value, pair.second.size(),
                                  GrB_NULL);
     }

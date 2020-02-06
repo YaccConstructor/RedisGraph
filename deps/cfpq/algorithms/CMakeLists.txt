@@ -3,3 +3,4 @@ project(algorithms)
 
 add_subdirectory(cpu-graphblas)
 add_subdirectory(cuda)
+add_subdirectory(test)

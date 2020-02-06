@@ -56,9 +56,9 @@ LIBXXHASH=$(ROOT)/deps/xxHash/libxxhash.a
 REDISEARCH=../../deps/RediSearch/build/libredisearch.a
 LIBGRAPHBLAS=../../deps/GraphBLAS/build/libgraphblas.a
 LIBCYPHER-PARSER=../../deps/libcypher-parser/lib/src/.libs/libcypher-parser.a
-CFPQ=../../deps/cfpq/build/grammar/libgrammar.a ../../deps/cfpq/build/response/libresponse.a ../../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a ../../deps/cfpq/build/algorithms/cuda/m4ri/libm4ri.a ../../deps/cfpq/build/algorithms/cuda/sparse/libsparse.a ../../deps/cfpq/build/algorithms/cuda/graphblast/libgraphblast.a
+CFPQ=../../deps/cfpq/build/grammar/libgrammar.a ../../deps/cfpq/build/response/libresponse.a ../../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a ../../deps/cfpq/build/algorithms/cuda/m4ri/libm4ri.a ../../deps/cfpq/build/algorithms/cuda/sparse/libsparse.a
 # Deps for CFPQ
-CFPQ-RUNTIME-DEPS=-L/usr/local/cuda/lib64 -lcudart -lstdc++ -lboost_program_options
+CFPQ-RUNTIME-DEPS=-L/usr/local/cuda/lib64 -lcudart -lstdc++
 LDFLAGS += $(CFPQ-RUNTIME-DEPS)
 
 LIBS=$(CFPQ) $(LIBGRAPHBLAS) $(REDISEARCH) $(LIBXXHASH) $(LIBCYPHER-PARSER)

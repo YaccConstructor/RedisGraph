@@ -55,5 +55,3 @@ int graphblast(const Grammar *grammar, CfpqResponse *response,
 
   return 0;
 }
-
-int main() {}

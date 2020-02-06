@@ -1,10 +1,13 @@
-#include "sparse_impl.h"
+#include "sparse.h"
 #include <thrust/detail/config/compiler_fence.h>
 #include <cusp/coo_matrix.h>
 #include <cusp/elementwise.h>
 #include <cusp/multiply.h>
 #include <item_mapper.h>
 #include <chrono>
+#include <map>
+#include <set>
+#include <vector>
 
 using namespace std::chrono;
 

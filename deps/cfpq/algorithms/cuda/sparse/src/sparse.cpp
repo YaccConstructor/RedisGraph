@@ -1,5 +1,4 @@
 #include "sparse.h"
-#include "sparse_impl.h"
 
 #include <GraphBLAS.h>
 #include <cusp/coo_matrix.h>
@@ -10,6 +9,12 @@
 #include <chrono>
 
 using namespace std::chrono;
+
+int sparse_impl(
+    const Grammar *grammar, CfpqResponse *response,
+    const std::map<MapperIndex, std::set<std::pair<GrB_Index, GrB_Index>>>
+    &sparse_matrices,
+    size_t graph_size);
 
 int sparse(const Grammar *grammar, CfpqResponse *response,
            const GrB_Matrix *relations, const char **relations_names,
