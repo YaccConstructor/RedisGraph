@@ -1,0 +1,112 @@
+#include "matrix.h"
+#include "mult.h"
+#include "nsparse.h"
+
+#include <chrono>
+#include <grammar.h>
+#include <item_mapper.h>
+#include <map>
+#include <response.h>
+#include <set>
+#include <vector>
+#include <iostream>
+
+using namespace std::chrono;
+
+int nsparse_cfpq(const Grammar *grammar, CfpqResponse *response,
+                 const GrB_Matrix *relations, const char **relations_names,
+                 size_t relations_count, size_t graph_size) {
+  auto t1 = high_resolution_clock::now();
+
+  size_t nonterm_count = grammar->nontermMapper.count;
+
+  std::vector<nsparse::matrix<bool, unsigned int>> matrices(
+      nonterm_count, {graph_size, graph_size});
+
+  // Initialize matrices
+  for (int i = 0; i < relations_count; i++) {
+    const char *terminal = relations_names[i];
+
+    MapperIndex terminal_id =
+        ItemMapper_GetPlaceIndex((ItemMapper *)&grammar->tokenMapper, terminal);
+    if (terminal_id != grammar->tokenMapper.count) {
+      for (int j = 0; j < grammar->simple_rules_count; j++) {
+        const SimpleRule *simpleRule = &grammar->simple_rules[j];
+        if (simpleRule->r == terminal_id) {
+          GrB_Matrix tmp_matrix;
+          GrB_Matrix_dup(&tmp_matrix, relations[i]);
+
+          GrB_Type tp;
+          GrB_Index nrows, ncols, nvals;
+          int64_t nonempty;
+
+          GrB_Index *col_idx;
+          GrB_Index *row_idx;
+          void *vals;
+
+          GrB_Descriptor desc;
+          GrB_Descriptor_new(&desc);
+
+          GxB_Matrix_export_CSR(&tmp_matrix, &tp, &nrows, &ncols, &nvals,
+                                &nonempty, &row_idx, &col_idx, &vals, desc);
+
+          thrust::device_vector<unsigned int> col_index(col_idx,
+                                                        col_idx + nvals);
+          thrust::device_vector<unsigned int> row_index(row_idx,
+                                                        row_idx + nrows + 1);
+
+          matrices[simpleRule->l] = {std::move(col_index), std::move(row_index),
+                                     graph_size, graph_size};
+
+          delete[] col_idx;
+          delete[] row_idx;
+          delete[](bool *) vals;
+
+          GrB_Descriptor_free(&desc);
+        }
+      }
+    }
+  }
+
+  auto t2 = high_resolution_clock::now();
+  response->time_to_prepare +=
+      duration<double, seconds::period>(t2 - t1).count();
+
+
+  bool matrices_is_changed = true;
+  while (matrices_is_changed) {
+    matrices_is_changed = false;
+    response->iteration_count++;
+
+    for (int i = 0; i < grammar->complex_rules_count; ++i) {
+      MapperIndex nonterm1 = grammar->complex_rules[i].l;
+      MapperIndex nonterm2 = grammar->complex_rules[i].r1;
+      MapperIndex nonterm3 = grammar->complex_rules[i].r2;
+
+      GrB_Index nvals_new, nvals_old;
+
+      nvals_old = matrices[nonterm1].m_row_index.back();
+
+      auto new_mat = nsparse::spgemm(matrices[nonterm1], matrices[nonterm2],
+                                     matrices[nonterm3]);
+      nvals_new = new_mat.m_row_index.back();
+
+      if (nvals_new != nvals_old) {
+        matrices_is_changed = true;
+      }
+
+      matrices[nonterm1] = std::move(new_mat);
+    }
+  }
+
+  for (int i = 0; i < grammar->nontermMapper.count; i++) {
+    size_t nvals;
+    char *nonterm;
+
+    nvals = matrices[i].m_row_index.back();
+    nonterm = ItemMapper_Map((ItemMapper *)&grammar->nontermMapper, i);
+    CfpqResponse_Append(response, nonterm, nvals);
+  }
+
+  return 0;
+}

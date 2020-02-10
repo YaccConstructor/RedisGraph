@@ -7,9 +7,14 @@
 
 namespace nsparse {
 
+// inline size_t div_round_up(size_t m, size_t n) { return ceil((double)m / n);
+// }
+
 template <typename index_type>
 thrust::device_vector<index_type>
 fill_nz_per_row(index_type n_rows,
+                const thrust::device_vector<index_type> &c_col_idx,
+                const thrust::device_vector<index_type> &c_row_idx,
                 const thrust::device_vector<index_type> &a_col_idx,
                 const thrust::device_vector<index_type> &a_row_idx,
                 const thrust::device_vector<index_type> &b_col_idx,
@@ -92,54 +97,63 @@ fill_nz_per_row(index_type n_rows,
     switch (bin_num) {
     case 0:
       fill_nz_block_row_global<index_type><<<(unsigned int)bin_size[0], 1024>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[0],
-          col_idx.data(), row_idx.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[0], col_idx.data(),
+          row_idx.data());
       break;
     case 1:
       fill_nz_block_row<index_type, 8192><<<(unsigned int)bin_size[1], 1024>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[1],
-          col_idx.data(), row_idx.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[1], col_idx.data(),
+          row_idx.data());
       break;
     case 2:
       fill_nz_block_row<index_type, 4096><<<(unsigned int)bin_size[2], 512>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[2],
-          col_idx.data(), row_idx.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[2], col_idx.data(),
+          row_idx.data());
       break;
     case 3:
       fill_nz_block_row<index_type, 2048><<<(unsigned int)bin_size[3], 256>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[3],
-          col_idx.data(), row_idx.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[3], col_idx.data(),
+          row_idx.data());
       break;
     case 4:
       fill_nz_block_row<index_type, 1024><<<(unsigned int)bin_size[4], 128>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[4],
-          col_idx.data(), row_idx.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[4], col_idx.data(),
+          row_idx.data());
       break;
     case 5:
       fill_nz_block_row<index_type, 512><<<(unsigned int)bin_size[5], 64>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[5],
-          col_idx.data(), row_idx.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[5], col_idx.data(),
+          row_idx.data());
       break;
     case 6:
       fill_nz_pwarp_row<index_type>
           <<<div_round_up(bin_size[6] * 4, 256), 256>>>(
-              a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-              b_col_idx.data(), permutation_buffer.data() + bin_offset[6],
-              col_idx.data(), row_idx.data(), bin_size[6]);
+              c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+              a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+              permutation_buffer.data() + bin_offset[6], col_idx.data(),
+              row_idx.data(), bin_size[6]);
       break;
     }
   }
 
-  for (auto i = 0; i < n_rows; i++) {
-    thrust::sort(col_idx.begin() + row_idx[i],
-                 col_idx.begin() + row_idx[i + 1]);
-  }
+//  thrust::host_vector<index_type> row_idx_host = row_idx;
+//
+//  for (auto i = 0; i < n_rows; i++) {
+//    thrust::sort(col_idx.begin() + row_idx_host[i],
+//                 col_idx.begin() + row_idx_host[i + 1]);
+//  }
 
   return std::move(col_idx);
 }

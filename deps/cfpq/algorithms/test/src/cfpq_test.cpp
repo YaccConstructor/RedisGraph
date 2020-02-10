@@ -3,6 +3,7 @@
 #include <grammar.h>
 #include <gtest/gtest.h>
 #include <m4ri.h>
+#include <nsparse.h>
 #include <sparse.h>
 #include <triplet_loader.h>
 
@@ -64,6 +65,10 @@ protected:
 
 void check(const CfpqResponse &lhs,
            const std::map<std::string, GrB_Index> &rhs) {
+  std::cout << "Time to prepare: " << int(lhs.time_to_prepare * 1000) << " ms"
+            << std::endl;
+  std::cout << "Iterations: " << lhs.iteration_count << std::endl;
+
   for (const auto &item : rhs) {
     auto idx = std::find_if(lhs.nonterms, lhs.nonterms + lhs.count,
                             [&](const char *it) {
@@ -78,28 +83,53 @@ void check(const CfpqResponse &lhs,
 
 class CFPQTestAll : public CFPQRun {};
 INSTANTIATE_TEST_CASE_P(CFPQTestAll, CFPQTestAll,
-                        ::testing::Values(sparse, cpu_graphblas, m4ri));
+                        ::testing::Values(sparse, m4ri, nsparse_cfpq));
 
 class CFPQTestAllWithoutM4ri : public CFPQRun {};
 INSTANTIATE_TEST_CASE_P(CFPQTestAllWithoutM4ri, CFPQTestAllWithoutM4ri,
-                        ::testing::Values(sparse, cpu_graphblas));
+                        ::testing::Values(nsparse_cfpq));
 
-TEST_P(CFPQTestAll, SmallGraph) {
+// TEST_P(CFPQTestAll, SmallGraph) {
+//  auto solver = GetParam();
+//  auto response = run("resources/small/matrices/paper.txt",
+//                      "resources/small/grammars/paper.txt", solver);
+//  check(response, {{"s", 6}, {"s1", 6}, {"a", 3}, {"b", 2}});
+//}
+//
+// TEST_P(CFPQTestAllWithoutM4ri, RdfGo) {
+//  auto solver = GetParam();
+//  auto response = run("resources/rdf/matrices/go.txt",
+//                      "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
+//  check(response, {{"s", 304068},
+//                   {"s1", 90512},
+//                   {"s2", 90512},
+//                   {"s3", 58483},
+//                   {"s4", 58483},
+//                   {"s5", 278610},
+//                   {"s6", 39642}});
+//}
+
+TEST_P(CFPQTestAllWithoutM4ri, RdfGoHierarchy) {
   auto solver = GetParam();
-  auto response = run("resources/small/matrices/paper.txt",
-                      "resources/small/grammars/paper.txt", solver);
-  check(response, {{"s", 6}, {"s1", 6}, {"a", 3}, {"b", 2}});
+  auto response = run("resources/rdf/matrices/go-hierarchy.txt",
+                      "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
+  check(response, {{"s", 588976},
+                   {"s1", 490109},
+                   {"s2", 490109},
+                   {"s3", 0},
+                   {"s4", 0},
+                   {"s5", 324016},
+                   {"s6", 0}});
 }
 
-TEST_P(CFPQTestAllWithoutM4ri, RdfGo) {
+TEST_P(CFPQTestAllWithoutM4ri, RdfGeospecies) {
   auto solver = GetParam();
-  auto response = run("resources/rdf/matrices/go.txt",
-                      "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
-  check(response, {{"s", 304068},
-                   {"s1", 90512},
-                   {"s2", 90512},
-                   {"s3", 58483},
-                   {"s4", 58483},
-                   {"s5", 278610},
-                   {"s6", 39642}});
+  auto response = run("resources/rdf/matrices/geospeices.txt",
+                      "resources/rdf/grammars/geo.cnf", solver);
+  check(response, {
+                      {"s", 226669749},
+                      {"bt", 20867},
+                      {"s1", 21361542},
+                      {"btr", 20867},
+                  });
 }

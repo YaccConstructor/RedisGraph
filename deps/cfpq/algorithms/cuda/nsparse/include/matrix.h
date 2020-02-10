@@ -14,7 +14,7 @@ public:
   matrix() : m_col_index{}, m_row_index{}, m_n_rows{0}, m_n_cols{0} {}
 
   matrix(index_type n_rows, index_type n_cols)
-      : m_col_index{}, m_row_index{}, m_n_rows{n_rows}, m_n_cols{n_cols} {}
+      : m_col_index{}, m_row_index{n_rows + 1, 0}, m_n_rows{n_rows}, m_n_cols{n_cols} {}
 
   matrix(thrust::device_vector<index_type> col_index,
          thrust::device_vector<index_type> row_index, index_type n_rows,

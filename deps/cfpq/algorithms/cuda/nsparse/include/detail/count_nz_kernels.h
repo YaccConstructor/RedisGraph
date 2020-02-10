@@ -9,6 +9,7 @@ namespace nsparse {
 
 template <typename T>
 __global__ void count_nz_block_row_large_global(
+    thrust::device_ptr<const T> rpt_c, thrust::device_ptr<const T> col_c,
     thrust::device_ptr<const T> rpt_a, thrust::device_ptr<const T> col_a,
     thrust::device_ptr<const T> rpt_b, thrust::device_ptr<const T> col_b,
     thrust::device_ptr<const T> rows_in_bins, thrust::device_ptr<T> nz_per_row,
@@ -38,6 +39,30 @@ __global__ void count_nz_block_row_large_global(
 
   rid = rows_in_bins[rid]; // permutation
   T nz = 0;
+
+  for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
+    T c_col = col_c[j];
+
+    T hash = (c_col * 107) % table_sz;
+    T offset = hash;
+
+    while (true) {
+      T table_value = hash_table[offset];
+      if (table_value == c_col) {
+        break;
+      } else if (table_value == hash_invalidated) {
+        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
+        if (old_value == hash_invalidated) {
+          nz++;
+          break;
+        }
+      } else {
+        hash = (hash + 1) % table_sz;
+        offset = hash;
+      }
+    }
+  }
+
   for (T j = rpt_a[rid] + wid; j < rpt_a[rid + 1]; j += warpCount) {
     T a_col = col_a[j];
     for (T k = rpt_b[a_col] + i; k < rpt_b[a_col + 1]; k += warpSize) {
@@ -81,6 +106,7 @@ __global__ void count_nz_block_row_large_global(
 
 template <typename T, unsigned int table_sz>
 __global__ void count_nz_block_row_large(
+    thrust::device_ptr<const T> rpt_c, thrust::device_ptr<const T> col_c,
     thrust::device_ptr<const T> rpt_a, thrust::device_ptr<const T> col_a,
     thrust::device_ptr<const T> rpt_b, thrust::device_ptr<const T> col_b,
     thrust::device_ptr<const T> rows_in_bins, thrust::device_ptr<T> nz_per_row,
@@ -107,6 +133,34 @@ __global__ void count_nz_block_row_large(
 
   T fail_count = 0;
   rid = rows_in_bins[rid]; // permutation
+
+  for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
+    T c_col = col_c[j];
+
+    T hash = (c_col * 107) % table_sz;
+    T offset = hash;
+
+    while (fail_count < table_sz / 2 && nz < table_sz / 2) {
+      T table_value = hash_table[offset];
+      if (table_value == c_col) {
+        break;
+      } else if (table_value == hash_invalidated) {
+        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
+        if (old_value == hash_invalidated) {
+          atomicAdd(&nz, 1);
+          break;
+        }
+      } else {
+        hash = (hash + 1) % table_sz;
+        offset = hash;
+        fail_count++;
+      }
+    }
+    if (fail_count >= table_sz / 2 || nz >= table_sz / 2) {
+      break;
+    }
+  }
+
   for (T j = rpt_a[rid] + wid; j < rpt_a[rid + 1]; j += warpCount) {
     T a_col = col_a[j];
     for (T k = rpt_b[a_col] + i; k < rpt_b[a_col + 1]; k += warpSize) {
@@ -155,7 +209,9 @@ __global__ void count_nz_block_row_large(
 }
 
 template <typename T, unsigned int table_sz>
-__global__ void count_nz_block_row(thrust::device_ptr<const T> rpt_a,
+__global__ void count_nz_block_row(thrust::device_ptr<const T> rpt_c,
+                                   thrust::device_ptr<const T> col_c,
+                                   thrust::device_ptr<const T> rpt_a,
                                    thrust::device_ptr<const T> col_a,
                                    thrust::device_ptr<const T> rpt_b,
                                    thrust::device_ptr<const T> col_b,
@@ -178,6 +234,30 @@ __global__ void count_nz_block_row(thrust::device_ptr<const T> rpt_a,
 
   rid = rows_in_bins[rid]; // permutation
   T nz = 0;
+
+  for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
+    T c_col = col_c[j];
+
+    T hash = (c_col * 107) % table_sz;
+    T offset = hash;
+
+    while (true) {
+      T table_value = hash_table[offset];
+      if (table_value == c_col) {
+        break;
+      } else if (table_value == hash_invalidated) {
+        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
+        if (old_value == hash_invalidated) {
+          nz++;
+          break;
+        }
+      } else {
+        hash = (hash + 1) % table_sz;
+        offset = hash;
+      }
+    }
+  }
+
   for (T j = rpt_a[rid] + wid; j < rpt_a[rid + 1]; j += warpCount) {
     T a_col = col_a[j];
     for (T k = rpt_b[a_col] + i; k < rpt_b[a_col + 1]; k += warpSize) {
@@ -228,7 +308,9 @@ __global__ void count_nz_block_row(thrust::device_ptr<const T> rpt_a,
 }
 
 template <typename T>
-__global__ void count_nz_pwarp_row(thrust::device_ptr<const T> rpt_a,
+__global__ void count_nz_pwarp_row(thrust::device_ptr<const T> rpt_c,
+                                   thrust::device_ptr<const T> col_c,
+                                   thrust::device_ptr<const T> rpt_a,
                                    thrust::device_ptr<const T> col_a,
                                    thrust::device_ptr<const T> rpt_b,
                                    thrust::device_ptr<const T> col_b,
@@ -254,6 +336,30 @@ __global__ void count_nz_pwarp_row(thrust::device_ptr<const T> rpt_a,
 
   rid = rows_in_bins[rid]; // permutation
   T nz = 0;
+
+  for (T j = rpt_c[rid] + i; j < rpt_c[rid + 1]; j += 4) {
+    T c_col = col_c[j];
+
+    T hash = (c_col * 107) % 32;
+    T offset = hash + local_rid * 32;
+
+    while (true) {
+      T table_value = hash_table[offset];
+      if (table_value == c_col) {
+        break;
+      } else if (table_value == hash_invalidated) {
+        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
+        if (old_value == hash_invalidated) {
+          nz++;
+          break;
+        }
+      } else {
+        hash = (hash + 1) % 32;
+        offset = hash + local_rid * 32;
+      }
+    }
+  }
+
   for (T j = rpt_a[rid] + i; j < rpt_a[rid + 1]; j += 4) {
     T a_col = col_a[j];
     for (T k = rpt_b[a_col]; k < rpt_b[a_col + 1]; k++) {

@@ -7,9 +7,13 @@
 
 namespace nsparse {
 
+inline size_t div_round_up(size_t m, size_t n) { return ceil((double)m / n); }
+
 template <typename index_type>
 thrust::device_vector<index_type>
-calc_nz_per_row(index_type n_rows,
+calc_nz_per_row(index_type n_rows, index_type n_cols,
+                const thrust::device_vector<index_type> &c_col_idx,
+                const thrust::device_vector<index_type> &c_row_idx,
                 const thrust::device_vector<index_type> &a_col_idx,
                 const thrust::device_vector<index_type> &a_row_idx,
                 const thrust::device_vector<index_type> &b_col_idx,
@@ -24,12 +28,18 @@ calc_nz_per_row(index_type n_rows,
                    thrust::counting_iterator<index_type>(n_rows),
                    [rpt_a = a_row_idx.data(), col_a = a_col_idx.data(),
                     rpt_b = b_row_idx.data(), col_b = b_col_idx.data(),
+                    rpt_c = c_row_idx.data(),
                     prod_per_row = products_per_row.data(),
-                    row_per_bin = bin_size.data()] __device__(index_type tid) {
-                     size_t prod = 0;
+                    row_per_bin = bin_size.data(),
+                    max_c_cols = n_cols] __device__(index_type tid) {
+                     index_type prod = 0;
                      for (size_t j = rpt_a[tid]; j < rpt_a[tid + 1]; j++) {
                        prod += rpt_b[col_a[j] + 1] - rpt_b[col_a[j]];
                      }
+
+                     prod += (rpt_c[tid + 1] - rpt_c[tid]);
+
+                     prod = min(prod, max_c_cols);
 
                      prod_per_row[tid] = prod;
                      if (prod > 8192)
@@ -97,8 +107,9 @@ calc_nz_per_row(index_type n_rows,
       thrust::device_vector<index_type> fail_row(bin_size[0]);
       count_nz_block_row_large<index_type, 8192>
           <<<(unsigned int)bin_size[0], 1024>>>(
-              a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-              b_col_idx.data(), permutation_buffer.data() + bin_offset[0],
+              c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+              a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+              permutation_buffer.data() + bin_offset[0],
               products_per_row.data(), fail_count.data(), fail_row.data());
       index_type fail_cnt = fail_count[0];
       if (fail_cnt > 0) {
@@ -118,47 +129,49 @@ calc_nz_per_row(index_type n_rows,
             fail_row_product_per_row.begin(), fail_row_product_per_row.end()));
 
         count_nz_block_row_large_global<index_type><<<fail_cnt, 1024>>>(
-            a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-            b_col_idx.data(), fail_row.data(), products_per_row.data(),
-            hash_table.data(), fail_row_hash_table_offsets.data(),
+            c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+            a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+            fail_row.data(), products_per_row.data(), hash_table.data(),
+            fail_row_hash_table_offsets.data(),
             fail_row_product_per_row.data());
       }
     } break;
     case 1:
       count_nz_block_row<index_type, 8192><<<(unsigned int)bin_size[1], 1024>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[1],
-          products_per_row.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[1], products_per_row.data());
       break;
     case 2:
       count_nz_block_row<index_type, 4096><<<(unsigned int)bin_size[2], 512>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[2],
-          products_per_row.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[2], products_per_row.data());
       break;
     case 3:
       count_nz_block_row<index_type, 2048><<<(unsigned int)bin_size[3], 256>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[3],
-          products_per_row.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[3], products_per_row.data());
       break;
     case 4:
       count_nz_block_row<index_type, 1024><<<(unsigned int)bin_size[4], 128>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[4],
-          products_per_row.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[4], products_per_row.data());
       break;
     case 5:
       count_nz_block_row<index_type, 512><<<(unsigned int)bin_size[5], 64>>>(
-          a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-          b_col_idx.data(), permutation_buffer.data() + bin_offset[5],
-          products_per_row.data());
+          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+          permutation_buffer.data() + bin_offset[5], products_per_row.data());
       break;
     case 6:
       count_nz_pwarp_row<index_type>
           <<<div_round_up(bin_size[6] * 4, 256), 256>>>(
-              a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-              b_col_idx.data(), permutation_buffer.data() + bin_offset[6],
+              c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
+              a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
+              permutation_buffer.data() + bin_offset[6],
               products_per_row.data(), bin_size[6]);
       break;
     }
