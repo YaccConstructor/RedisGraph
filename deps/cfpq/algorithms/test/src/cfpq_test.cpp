@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cpu_graphblas.h>
 #include <fstream>
 #include <grammar.h>
@@ -56,8 +57,17 @@ protected:
     GrB_Index size;
     GrB_Matrix_nrows(&size, relations.front());
 
+    auto t1 = std::chrono::high_resolution_clock::now();
+
     func(&grammar_it->second, &response, relations.data(),
          relations_names.data(), relations.size(), size);
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::cout << "Nodes: " << size << std::endl;
+    std::cout << "Eval time: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)
+                     .count()
+              << " ms" << std::endl;
 
     return response;
   }
@@ -93,34 +103,43 @@ INSTANTIATE_TEST_CASE_P(CFPQTestAllWithoutM4ri, CFPQTestAllWithoutM4ri,
 //  auto solver = GetParam();
 //  auto response = run("resources/small/matrices/paper.txt",
 //                      "resources/small/grammars/paper.txt", solver);
-//  check(response, {{"s", 6}, {"s1", 6}, {"a", 3}, {"b", 2}});
+//  check(response, {
+//                      {"s", 6},
+//                      {"s1", 6},
+//                      {"a", 3},
+//                      {"b", 2},
+//                  });
 //}
-//
-// TEST_P(CFPQTestAllWithoutM4ri, RdfGo) {
+
+//TEST_P(CFPQTestAllWithoutM4ri, RdfGo) {
 //  auto solver = GetParam();
 //  auto response = run("resources/rdf/matrices/go.txt",
 //                      "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
-//  check(response, {{"s", 304068},
-//                   {"s1", 90512},
-//                   {"s2", 90512},
-//                   {"s3", 58483},
-//                   {"s4", 58483},
-//                   {"s5", 278610},
-//                   {"s6", 39642}});
+//  check(response, {
+//                      {"s", 304068},
+//                      {"s1", 90512},
+//                      {"s2", 90512},
+//                      {"s3", 58483},
+//                      {"s4", 58483},
+//                      {"s5", 278610},
+//                      {"s6", 39642},
+//                  });
 //}
-
-TEST_P(CFPQTestAllWithoutM4ri, RdfGoHierarchy) {
-  auto solver = GetParam();
-  auto response = run("resources/rdf/matrices/go-hierarchy.txt",
-                      "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
-  check(response, {{"s", 588976},
-                   {"s1", 490109},
-                   {"s2", 490109},
-                   {"s3", 0},
-                   {"s4", 0},
-                   {"s5", 324016},
-                   {"s6", 0}});
-}
+//
+//TEST_P(CFPQTestAllWithoutM4ri, RdfGoHierarchy) {
+//  auto solver = GetParam();
+//  auto response = run("resources/rdf/matrices/go-hierarchy.txt",
+//                      "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
+//  check(response, {
+//                      {"s", 588976},
+//                      {"s1", 490109},
+//                      {"s2", 490109},
+//                      {"s3", 0},
+//                      {"s4", 0},
+//                      {"s5", 324016},
+//                      {"s6", 0},
+//                  });
+//}
 
 TEST_P(CFPQTestAllWithoutM4ri, RdfGeospecies) {
   auto solver = GetParam();

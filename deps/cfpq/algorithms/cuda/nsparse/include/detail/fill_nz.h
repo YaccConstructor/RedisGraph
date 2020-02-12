@@ -1,6 +1,7 @@
 #pragma once
 #include <detail/fill_nz_kernels.h>
 
+#include <iostream>
 #include <thrust/device_ptr.h>
 #include <thrust/device_vector.h>
 #include <utility>
@@ -90,7 +91,7 @@ fill_nz_per_row(index_type n_rows,
   thrust::device_vector<index_type> col_idx(
       values_count, std::numeric_limits<index_type>::max());
 
-  for (auto bin_num = 0; bin_num < bin_count; bin_num++) {
+  for (auto bin_num = 1; bin_num < bin_count; bin_num++) {
     if (bin_size[bin_num] == 0)
       continue;
 

@@ -8,6 +8,40 @@
 namespace nsparse {
 
 template <typename T>
+__global__ void
+filter_hash_table(thrust::device_ptr<const T> row_index,
+                  thrust::device_ptr<const T> hash_table,
+                  thrust::device_ptr<const T> hash_table_offsets,
+                  thrust::device_ptr<const T> hash_table_sizes,
+                  thrust::device_ptr<const T> rows_in_table,
+                  thrust::device_ptr<T> col_index) {
+  constexpr T hash_invalidated = std::numeric_limits<T>::max();
+  auto i = blockIdx.x;
+  T hash_table_size = hash_table_sizes[i];
+  T hash_table_offset = hash_table_offsets[i];
+
+  T row_id = rows_in_table[i];
+
+  T col_offset = row_index[row_id];
+
+  __shared__ T offset;
+
+  if (threadIdx.x == 0) {
+    offset = 0;
+  }
+
+  __syncthreads();
+
+  for (T j = threadIdx.x; j < hash_table_size; j += blockDim.x) {
+    T value = hash_table[j + hash_table_offset];
+    if (value != hash_invalidated) {
+      T idx = atomicAdd(&offset, 1);
+      col_index[col_offset + idx] = value;
+    }
+  }
+}
+
+template <typename T>
 __global__ void fill_nz_block_row_global(
     thrust::device_ptr<const T> rpt_c, thrust::device_ptr<const T> col_c,
     thrust::device_ptr<const T> rpt_a, thrust::device_ptr<const T> col_a,

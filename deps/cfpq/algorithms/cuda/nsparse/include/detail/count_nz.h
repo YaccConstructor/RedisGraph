@@ -1,16 +1,28 @@
 #pragma once
 #include <detail/count_nz_kernels.h>
 
+#include <algorithm>
 #include <thrust/device_ptr.h>
 #include <thrust/device_vector.h>
 #include <utility>
+#include <vector>
+
+#include <iostream>
 
 namespace nsparse {
 
 inline size_t div_round_up(size_t m, size_t n) { return ceil((double)m / n); }
 
+template <typename index_type> struct nz_per_row_res_t {
+  thrust::device_vector<index_type> row_index;
+  thrust::device_vector<index_type> hash_table;
+  thrust::device_vector<index_type> hash_table_offsets;
+  thrust::device_vector<index_type> hash_table_sizes;
+  thrust::device_vector<index_type> rows_in_table;
+};
+
 template <typename index_type>
-thrust::device_vector<index_type>
+nz_per_row_res_t<index_type>
 calc_nz_per_row(index_type n_rows, index_type n_cols,
                 const thrust::device_vector<index_type> &c_col_idx,
                 const thrust::device_vector<index_type> &c_row_idx,
@@ -18,6 +30,7 @@ calc_nz_per_row(index_type n_rows, index_type n_cols,
                 const thrust::device_vector<index_type> &a_row_idx,
                 const thrust::device_vector<index_type> &b_col_idx,
                 const thrust::device_vector<index_type> &b_row_idx) {
+  nz_per_row_res_t<index_type> res;
 
   constexpr size_t bin_count = 7;
 
@@ -113,13 +126,14 @@ calc_nz_per_row(index_type n_rows, index_type n_cols,
               products_per_row.data(), fail_count.data(), fail_row.data());
       index_type fail_cnt = fail_count[0];
       if (fail_cnt > 0) {
+        fail_row.resize(fail_cnt);
         thrust::device_vector<index_type> fail_row_product_per_row(fail_cnt);
         thrust::device_vector<index_type> fail_row_hash_table_offsets(fail_cnt);
 
         thrust::transform(fail_row.begin(), fail_row.begin() + fail_cnt,
                           fail_row_product_per_row.begin(),
                           [ptr = products_per_row.data()] __device__(
-                              auto item) { return ptr[item]; });
+                              auto item) { return ptr[item] * 1.1; });
 
         thrust::exclusive_scan(fail_row_product_per_row.begin(),
                                fail_row_product_per_row.end(),
@@ -128,12 +142,19 @@ calc_nz_per_row(index_type n_rows, index_type n_cols,
         thrust::device_vector<index_type> hash_table(thrust::reduce(
             fail_row_product_per_row.begin(), fail_row_product_per_row.end()));
 
+        thrust::device_vector<index_type> max_colisions(fail_cnt, 0);
+
         count_nz_block_row_large_global<index_type><<<fail_cnt, 1024>>>(
             c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
             a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
             fail_row.data(), products_per_row.data(), hash_table.data(),
             fail_row_hash_table_offsets.data(),
             fail_row_product_per_row.data());
+
+        res.hash_table = std::move(hash_table);
+        res.hash_table_offsets = std::move(fail_row_hash_table_offsets);
+        res.hash_table_sizes = std::move(fail_row_product_per_row);
+        res.rows_in_table = std::move(fail_row);
       }
     } break;
     case 1:
@@ -180,7 +201,9 @@ calc_nz_per_row(index_type n_rows, index_type n_cols,
   thrust::exclusive_scan(products_per_row.begin(), products_per_row.end(),
                          products_per_row.begin());
 
-  return std::move(products_per_row);
+  res.row_index = std::move(products_per_row);
+
+  return res;
 }
 
 } // namespace nsparse
