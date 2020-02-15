@@ -13,9 +13,7 @@ __global__ void count_nz_block_row_large_global(
     thrust::device_ptr<const T> rpt_a, thrust::device_ptr<const T> col_a,
     thrust::device_ptr<const T> rpt_b, thrust::device_ptr<const T> col_b,
     thrust::device_ptr<const T> rows_in_bins, thrust::device_ptr<T> nz_per_row,
-    thrust::device_ptr<T> global_hash_table,
-    thrust::device_ptr<const T> hash_table_offset,
-    thrust::device_ptr<const T> hash_table_size) {
+    thrust::device_ptr<T> global_hash_table, thrust::device_ptr<const T> hash_table_offset) {
   constexpr T hash_invalidated = std::numeric_limits<T>::max();
 
   auto rid = blockIdx.x;
@@ -23,8 +21,8 @@ __global__ void count_nz_block_row_large_global(
   auto i = threadIdx.x % warpSize;
   auto warpCount = blockDim.x / warpSize;
 
-  T *hash_table = global_hash_table.get() + hash_table_offset[rid];
-  T table_sz = hash_table_size[rid];
+  T* hash_table = global_hash_table.get() + hash_table_offset[rid];
+  T table_sz = hash_table_offset[rid + 1] - hash_table_offset[rid];
   __shared__ T snz;
 
   for (auto m = threadIdx.x; m < table_sz; m += blockDim.x) {
@@ -37,7 +35,7 @@ __global__ void count_nz_block_row_large_global(
 
   __syncthreads();
 
-  rid = rows_in_bins[rid]; // permutation
+  rid = rows_in_bins[rid];  // permutation
   T nz = 0;
 
   for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
@@ -132,7 +130,7 @@ __global__ void count_nz_block_row_large(
   __syncthreads();
 
   T fail_count = 0;
-  rid = rows_in_bins[rid]; // permutation
+  rid = rows_in_bins[rid];  // permutation
 
   for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
     T c_col = col_c[j];
@@ -209,14 +207,11 @@ __global__ void count_nz_block_row_large(
 }
 
 template <typename T, unsigned int table_sz>
-__global__ void count_nz_block_row(thrust::device_ptr<const T> rpt_c,
-                                   thrust::device_ptr<const T> col_c,
-                                   thrust::device_ptr<const T> rpt_a,
-                                   thrust::device_ptr<const T> col_a,
-                                   thrust::device_ptr<const T> rpt_b,
-                                   thrust::device_ptr<const T> col_b,
-                                   thrust::device_ptr<const T> rows_in_bins,
-                                   thrust::device_ptr<T> nz_per_row) {
+__global__ void count_nz_block_row(
+    thrust::device_ptr<const T> rpt_c, thrust::device_ptr<const T> col_c,
+    thrust::device_ptr<const T> rpt_a, thrust::device_ptr<const T> col_a,
+    thrust::device_ptr<const T> rpt_b, thrust::device_ptr<const T> col_b,
+    thrust::device_ptr<const T> rows_in_bins, thrust::device_ptr<T> nz_per_row) {
   constexpr T hash_invalidated = std::numeric_limits<T>::max();
 
   __shared__ T hash_table[table_sz];
@@ -232,7 +227,7 @@ __global__ void count_nz_block_row(thrust::device_ptr<const T> rpt_c,
 
   __syncthreads();
 
-  rid = rows_in_bins[rid]; // permutation
+  rid = rows_in_bins[rid];  // permutation
   T nz = 0;
 
   for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
@@ -307,26 +302,26 @@ __global__ void count_nz_block_row(thrust::device_ptr<const T> rpt_c,
   }
 }
 
-template <typename T>
-__global__ void count_nz_pwarp_row(thrust::device_ptr<const T> rpt_c,
-                                   thrust::device_ptr<const T> col_c,
-                                   thrust::device_ptr<const T> rpt_a,
-                                   thrust::device_ptr<const T> col_a,
-                                   thrust::device_ptr<const T> rpt_b,
-                                   thrust::device_ptr<const T> col_b,
-                                   thrust::device_ptr<const T> rows_in_bins,
-                                   thrust::device_ptr<T> nz_per_row, T n_rows) {
+template <typename T, T pwarp, T block_sz, T max_per_row>
+__global__ void count_nz_pwarp_row(
+    thrust::device_ptr<const T> rpt_c, thrust::device_ptr<const T> col_c,
+    thrust::device_ptr<const T> rpt_a, thrust::device_ptr<const T> col_a,
+    thrust::device_ptr<const T> rpt_b, thrust::device_ptr<const T> col_b,
+    thrust::device_ptr<const T> rows_in_bins, thrust::device_ptr<T> nz_per_row, T n_rows) {
   constexpr T hash_invalidated = std::numeric_limits<T>::max();
 
+  static_assert(block_sz % pwarp == 0);
+  static_assert(block_sz >= pwarp);
+
   auto tid = threadIdx.x + blockDim.x * blockIdx.x;
-  __shared__ T hash_table[2048];
+  __shared__ T hash_table[block_sz / pwarp * max_per_row];
 
-  auto rid = tid / 4;
-  auto i = tid % 4;
-  auto local_rid = rid % (blockDim.x / 4);
+  auto rid = tid / pwarp;
+  auto i = tid % pwarp;
+  auto local_rid = rid % (blockDim.x / pwarp);
 
-  for (auto j = i; j < 32; j += 4) {
-    hash_table[local_rid * 32 + j] = hash_invalidated;
+  for (auto j = i; j < max_per_row; j += pwarp) {
+    hash_table[local_rid * max_per_row + j] = hash_invalidated;
   }
 
   __syncwarp();
@@ -334,14 +329,14 @@ __global__ void count_nz_pwarp_row(thrust::device_ptr<const T> rpt_c,
   if (rid >= n_rows)
     return;
 
-  rid = rows_in_bins[rid]; // permutation
+  rid = rows_in_bins[rid];  // permutation
   T nz = 0;
 
-  for (T j = rpt_c[rid] + i; j < rpt_c[rid + 1]; j += 4) {
+  for (T j = rpt_c[rid] + i; j < rpt_c[rid + 1]; j += pwarp) {
     T c_col = col_c[j];
 
-    T hash = (c_col * 107) % 32;
-    T offset = hash + local_rid * 32;
+    T hash = (c_col * 107) % max_per_row;
+    T offset = hash + local_rid * max_per_row;
 
     while (true) {
       T table_value = hash_table[offset];
@@ -354,19 +349,19 @@ __global__ void count_nz_pwarp_row(thrust::device_ptr<const T> rpt_c,
           break;
         }
       } else {
-        hash = (hash + 1) % 32;
-        offset = hash + local_rid * 32;
+        hash = (hash + 1) % max_per_row;
+        offset = hash + local_rid * max_per_row;
       }
     }
   }
 
-  for (T j = rpt_a[rid] + i; j < rpt_a[rid + 1]; j += 4) {
+  for (T j = rpt_a[rid] + i; j < rpt_a[rid + 1]; j += pwarp) {
     T a_col = col_a[j];
     for (T k = rpt_b[a_col]; k < rpt_b[a_col + 1]; k++) {
       T b_col = col_b[k];
 
-      T hash = (b_col * 107) % 32;
-      T offset = hash + local_rid * 32;
+      T hash = (b_col * 107) % max_per_row;
+      T offset = hash + local_rid * max_per_row;
 
       while (true) {
         T table_value = hash_table[offset];
@@ -379,15 +374,15 @@ __global__ void count_nz_pwarp_row(thrust::device_ptr<const T> rpt_c,
             break;
           }
         } else {
-          hash = (hash + 1) % 32;
-          offset = hash + local_rid * 32;
+          hash = (hash + 1) % max_per_row;
+          offset = hash + local_rid * max_per_row;
         }
       }
     }
   }
 
   auto mask = __activemask();
-  for (auto j = 4 / 2; j >= 1; j /= 2) {
+  for (auto j = pwarp / 2; j >= 1; j /= 2) {
     nz += __shfl_xor_sync(mask, nz, j);
   }
 
@@ -395,4 +390,4 @@ __global__ void count_nz_pwarp_row(thrust::device_ptr<const T> rpt_c,
     nz_per_row[rid] = nz;
   }
 }
-} // namespace nsparse
+}  // namespace nsparse

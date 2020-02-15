@@ -1,4 +1,6 @@
 #pragma once
+#include <detail/meta.h>
+#include <detail/util.h>
 #include <detail/count_nz_kernels.h>
 
 #include <algorithm>
@@ -7,69 +9,158 @@
 #include <utility>
 #include <vector>
 
-#include <iostream>
-
 namespace nsparse {
 
-inline size_t div_round_up(size_t m, size_t n) { return ceil((double)m / n); }
-
-template <typename index_type> struct nz_per_row_res_t {
-  thrust::device_vector<index_type> row_index;
+template <typename index_type>
+struct global_hash_table_state_t {
   thrust::device_vector<index_type> hash_table;
-  thrust::device_vector<index_type> hash_table_offsets;
-  thrust::device_vector<index_type> hash_table_sizes;
-  thrust::device_vector<index_type> rows_in_table;
+  thrust::device_vector<index_type> hashed_row_offsets;
+  thrust::device_vector<index_type> hashed_row_indices;
 };
 
 template <typename index_type>
-nz_per_row_res_t<index_type>
-calc_nz_per_row(index_type n_rows, index_type n_cols,
-                const thrust::device_vector<index_type> &c_col_idx,
-                const thrust::device_vector<index_type> &c_row_idx,
-                const thrust::device_vector<index_type> &a_col_idx,
-                const thrust::device_vector<index_type> &a_row_idx,
-                const thrust::device_vector<index_type> &b_col_idx,
-                const thrust::device_vector<index_type> &b_row_idx) {
-  nz_per_row_res_t<index_type> res;
+struct row_index_res_t {
+  thrust::device_vector<index_type> row_index;
+  global_hash_table_state_t<index_type> global_hash_table_state;
+};
 
-  constexpr size_t bin_count = 7;
+template <typename index_type, typename... Borders>
+void exec_pwarp_row(const thrust::device_vector<index_type>& c_col_idx,
+                    const thrust::device_vector<index_type>& c_row_idx,
+                    const thrust::device_vector<index_type>& a_col_idx,
+                    const thrust::device_vector<index_type>& a_row_idx,
+                    const thrust::device_vector<index_type>& b_col_idx,
+                    const thrust::device_vector<index_type>& b_row_idx,
+                    const thrust::device_vector<index_type>& permutation_buffer,
+                    const thrust::device_vector<index_type>& bin_offset,
+                    const thrust::device_vector<index_type>& bin_size,
+                    thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
+  constexpr index_type pwarp = 4;
+  constexpr index_type block_sz = 256;
+
+  EXPAND_SIDE_EFFECTS(
+      (bin_size[Borders::bin_index] > 0
+           ? count_nz_pwarp_row<index_type, pwarp, block_sz, Borders::max_border>
+           <<<util::div(bin_size[Borders::bin_index] * pwarp, block_sz), block_sz>>>(
+               c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
+               b_row_idx.data(), b_col_idx.data(),
+               permutation_buffer.data() + bin_offset[Borders::bin_index], row_idx.data(),
+               bin_size[Borders::bin_index])
+           : void()));
+}
+
+template <typename index_type, typename... Borders>
+void exec_block_row(const thrust::device_vector<index_type>& c_col_idx,
+                    const thrust::device_vector<index_type>& c_row_idx,
+                    const thrust::device_vector<index_type>& a_col_idx,
+                    const thrust::device_vector<index_type>& a_row_idx,
+                    const thrust::device_vector<index_type>& b_col_idx,
+                    const thrust::device_vector<index_type>& b_row_idx,
+                    const thrust::device_vector<index_type>& permutation_buffer,
+                    const thrust::device_vector<index_type>& bin_offset,
+                    const thrust::device_vector<index_type>& bin_size,
+                    thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
+  static_assert(meta::all_of<(Borders::max_border / 8 % 32 == 0)...>);
+
+  EXPAND_SIDE_EFFECTS(
+      (bin_size[Borders::bin_index] > 0 ? count_nz_block_row<index_type, Borders::max_border>
+           <<<(index_type)bin_size[Borders::bin_index], Borders::max_border / 8>>>(
+               c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
+               b_row_idx.data(), b_col_idx.data(),
+               permutation_buffer.data() + bin_offset[Borders::bin_index], row_idx.data())
+                                        : void()));
+}
+
+template <typename index_type, typename Border>
+global_hash_table_state_t<index_type> exec_global_row(
+    const thrust::device_vector<index_type>& c_col_idx,
+    const thrust::device_vector<index_type>& c_row_idx,
+    const thrust::device_vector<index_type>& a_col_idx,
+    const thrust::device_vector<index_type>& a_row_idx,
+    const thrust::device_vector<index_type>& b_col_idx,
+    const thrust::device_vector<index_type>& b_row_idx,
+    const thrust::device_vector<index_type>& permutation_buffer,
+    const thrust::device_vector<index_type>& bin_offset,
+    const thrust::device_vector<index_type>& bin_size, thrust::device_vector<index_type>& row_idx,
+    std::tuple<Border>) {
+  index_type size = bin_size[Border::bin_index];
+
+  if (size == 0)
+    return {};
+
+  constexpr index_type block_sz = 1024;
+
+  static_assert(block_sz % 32 == 0);
+
+  // extra item for counter in last position
+  thrust::device_vector<index_type> fail_stat(size + 1, 0);
+
+  count_nz_block_row_large<index_type, Border::min_border><<<size, block_sz>>>(
+      c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
+      b_col_idx.data(), permutation_buffer.data() + bin_offset[Border::bin_index], row_idx.data(),
+      fail_stat.data() + size, fail_stat.data());
+
+  index_type fail_count = fail_stat.back();
+  if (fail_count > 0) {
+    fail_stat.resize(fail_count);
+    thrust::device_vector<index_type> hash_table_offsets(fail_count + 1);
+
+    thrust::transform(
+        fail_stat.begin(), fail_stat.end(), hash_table_offsets.begin(),
+        [ptr = row_idx.data()] __device__(index_type item) { return ptr[item] * 1.1; });
+    hash_table_offsets.back() = 0;
+
+    thrust::exclusive_scan(hash_table_offsets.begin(), hash_table_offsets.end(),
+                           hash_table_offsets.begin());
+
+    index_type hash_table_sz = hash_table_offsets.back();
+    thrust::device_vector<index_type> hash_table(hash_table_sz);
+
+    count_nz_block_row_large_global<index_type><<<fail_count, block_sz>>>(
+        c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
+        b_col_idx.data(), fail_stat.data(), row_idx.data(), hash_table.data(),
+        hash_table_offsets.data());
+
+    return {std::move(hash_table), std::move(hash_table_offsets), std::move(fail_stat)};
+  }
+  return {};
+}
+
+template <typename index_type, typename... Borders>
+row_index_res_t<index_type> calc_nz_per_row(index_type n_rows, index_type n_cols,
+                                            const thrust::device_vector<index_type>& c_col_idx,
+                                            const thrust::device_vector<index_type>& c_row_idx,
+                                            const thrust::device_vector<index_type>& a_col_idx,
+                                            const thrust::device_vector<index_type>& a_row_idx,
+                                            const thrust::device_vector<index_type>& b_col_idx,
+                                            const thrust::device_vector<index_type>& b_row_idx,
+                                            std::tuple<Borders...>) {
+  constexpr size_t bin_count = sizeof...(Borders);
+  constexpr size_t unused_bin = meta::max_bin<Borders...> + 1;
 
   thrust::device_vector<index_type> bin_size(bin_count, 0);
   thrust::device_vector<index_type> products_per_row(n_rows + 1, 0);
 
-  thrust::for_each(thrust::counting_iterator<index_type>(0),
-                   thrust::counting_iterator<index_type>(n_rows),
-                   [rpt_a = a_row_idx.data(), col_a = a_col_idx.data(),
-                    rpt_b = b_row_idx.data(), col_b = b_col_idx.data(),
-                    rpt_c = c_row_idx.data(),
-                    prod_per_row = products_per_row.data(),
-                    row_per_bin = bin_size.data(),
-                    max_c_cols = n_cols] __device__(index_type tid) {
-                     index_type prod = 0;
-                     for (size_t j = rpt_a[tid]; j < rpt_a[tid + 1]; j++) {
-                       prod += rpt_b[col_a[j] + 1] - rpt_b[col_a[j]];
-                     }
+  thrust::for_each(
+      thrust::counting_iterator<index_type>(0), thrust::counting_iterator<index_type>(n_rows),
+      [rpt_a = a_row_idx.data(), col_a = a_col_idx.data(), rpt_b = b_row_idx.data(),
+       col_b = b_col_idx.data(), rpt_c = c_row_idx.data(), row_per_bin = bin_size.data(),
+       max_c_cols = n_cols, prod_per_row = products_per_row.data()] __device__(index_type tid) {
+        index_type prod = 0;
+        for (size_t j = rpt_a[tid]; j < rpt_a[tid + 1]; j++) {
+          prod += rpt_b[col_a[j] + 1] - rpt_b[col_a[j]];
+        }
 
-                     prod += (rpt_c[tid + 1] - rpt_c[tid]);
+        prod += (rpt_c[tid + 1] - rpt_c[tid]);
 
-                     prod = min(prod, max_c_cols);
+        prod = min(prod, max_c_cols);
 
-                     prod_per_row[tid] = prod;
-                     if (prod > 8192)
-                       atomicAdd(row_per_bin.get() + 0, 1);
-                     else if (prod > 4096)
-                       atomicAdd(row_per_bin.get() + 1, 1);
-                     else if (prod > 2048)
-                       atomicAdd(row_per_bin.get() + 2, 1);
-                     else if (prod > 1024)
-                       atomicAdd(row_per_bin.get() + 3, 1);
-                     else if (prod > 512)
-                       atomicAdd(row_per_bin.get() + 4, 1);
-                     else if (prod > 32)
-                       atomicAdd(row_per_bin.get() + 5, 1);
-                     else if (prod > 0)
-                       atomicAdd(row_per_bin.get() + 6, 1);
-                   });
+        prod_per_row[tid] = prod;
+
+        size_t bin = meta::select_bin<Borders...>(prod, unused_bin);
+        if (bin != unused_bin)
+          atomicAdd(row_per_bin.get() + bin, 1);
+      });
 
   thrust::device_vector<index_type> bin_offset(bin_count);
   thrust::exclusive_scan(bin_size.begin(), bin_size.end(), bin_offset.begin());
@@ -78,132 +169,38 @@ calc_nz_per_row(index_type n_rows, index_type n_cols,
 
   thrust::device_vector<index_type> permutation_buffer(n_rows);
 
-  thrust::for_each(
-      thrust::counting_iterator<index_type>(0),
-      thrust::counting_iterator<index_type>(n_rows),
-      [prod_per_row = products_per_row.data(), bin_offset = bin_offset.data(),
-       bin_size = bin_size.data(),
-       rows_in_bins = permutation_buffer.data()] __device__(index_type tid) {
-        auto prod = prod_per_row[tid];
+  thrust::for_each(thrust::counting_iterator<index_type>(0),
+                   thrust::counting_iterator<index_type>(n_rows),
+                   [prod_per_row = products_per_row.data(), bin_offset = bin_offset.data(),
+                    bin_size = bin_size.data(),
+                    rows_in_bins = permutation_buffer.data()] __device__(index_type tid) {
+                     auto prod = prod_per_row[tid];
 
-        int bin = -1;
+                     int bin = meta::select_bin<Borders...>(prod, unused_bin);
 
-        if (prod > 8192)
-          bin = 0;
-        else if (prod > 4096)
-          bin = 1;
-        else if (prod > 2048)
-          bin = 2;
-        else if (prod > 1024)
-          bin = 3;
-        else if (prod > 512)
-          bin = 4;
-        else if (prod > 32)
-          bin = 5;
-        else if (prod > 0)
-          bin = 6;
+                     if (bin == unused_bin)
+                       return;
 
-        if (bin == -1)
-          return;
+                     auto curr_bin_size = atomicAdd(bin_size.get() + bin, 1);
+                     rows_in_bins[bin_offset[bin] + curr_bin_size] = tid;
+                   });
 
-        auto curr_bin_size = atomicAdd(bin_size.get() + bin, 1);
-        rows_in_bins[bin_offset[bin] + curr_bin_size] = tid;
-      });
+  exec_pwarp_row(c_col_idx, c_row_idx, a_col_idx, a_row_idx, b_col_idx, b_row_idx,
+                 permutation_buffer, bin_offset, bin_size, products_per_row,
+                 meta::filter<meta::pwarp_row, Borders...>);
 
-  for (auto bin_num = 0; bin_num < bin_count; bin_num++) {
-    if (bin_size[bin_num] == 0)
-      continue;
+  exec_block_row(c_col_idx, c_row_idx, a_col_idx, a_row_idx, b_col_idx, b_row_idx,
+                 permutation_buffer, bin_offset, bin_size, products_per_row,
+                 meta::filter<meta::block_row, Borders...>);
 
-    switch (bin_num) {
-    case 0: {
-      thrust::device_vector<index_type> fail_count(1, 0);
-      thrust::device_vector<index_type> fail_row(bin_size[0]);
-      count_nz_block_row_large<index_type, 8192>
-          <<<(unsigned int)bin_size[0], 1024>>>(
-              c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
-              a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
-              permutation_buffer.data() + bin_offset[0],
-              products_per_row.data(), fail_count.data(), fail_row.data());
-      index_type fail_cnt = fail_count[0];
-      if (fail_cnt > 0) {
-        fail_row.resize(fail_cnt);
-        thrust::device_vector<index_type> fail_row_product_per_row(fail_cnt);
-        thrust::device_vector<index_type> fail_row_hash_table_offsets(fail_cnt);
-
-        thrust::transform(fail_row.begin(), fail_row.begin() + fail_cnt,
-                          fail_row_product_per_row.begin(),
-                          [ptr = products_per_row.data()] __device__(
-                              auto item) { return ptr[item] * 1.1; });
-
-        thrust::exclusive_scan(fail_row_product_per_row.begin(),
-                               fail_row_product_per_row.end(),
-                               fail_row_hash_table_offsets.begin());
-
-        thrust::device_vector<index_type> hash_table(thrust::reduce(
-            fail_row_product_per_row.begin(), fail_row_product_per_row.end()));
-
-        thrust::device_vector<index_type> max_colisions(fail_cnt, 0);
-
-        count_nz_block_row_large_global<index_type><<<fail_cnt, 1024>>>(
-            c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
-            a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
-            fail_row.data(), products_per_row.data(), hash_table.data(),
-            fail_row_hash_table_offsets.data(),
-            fail_row_product_per_row.data());
-
-        res.hash_table = std::move(hash_table);
-        res.hash_table_offsets = std::move(fail_row_hash_table_offsets);
-        res.hash_table_sizes = std::move(fail_row_product_per_row);
-        res.rows_in_table = std::move(fail_row);
-      }
-    } break;
-    case 1:
-      count_nz_block_row<index_type, 8192><<<(unsigned int)bin_size[1], 1024>>>(
-          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
-          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
-          permutation_buffer.data() + bin_offset[1], products_per_row.data());
-      break;
-    case 2:
-      count_nz_block_row<index_type, 4096><<<(unsigned int)bin_size[2], 512>>>(
-          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
-          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
-          permutation_buffer.data() + bin_offset[2], products_per_row.data());
-      break;
-    case 3:
-      count_nz_block_row<index_type, 2048><<<(unsigned int)bin_size[3], 256>>>(
-          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
-          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
-          permutation_buffer.data() + bin_offset[3], products_per_row.data());
-      break;
-    case 4:
-      count_nz_block_row<index_type, 1024><<<(unsigned int)bin_size[4], 128>>>(
-          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
-          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
-          permutation_buffer.data() + bin_offset[4], products_per_row.data());
-      break;
-    case 5:
-      count_nz_block_row<index_type, 512><<<(unsigned int)bin_size[5], 64>>>(
-          c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
-          a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
-          permutation_buffer.data() + bin_offset[5], products_per_row.data());
-      break;
-    case 6:
-      count_nz_pwarp_row<index_type>
-          <<<div_round_up(bin_size[6] * 4, 256), 256>>>(
-              c_row_idx.data(), c_col_idx.data(), a_row_idx.data(),
-              a_col_idx.data(), b_row_idx.data(), b_col_idx.data(),
-              permutation_buffer.data() + bin_offset[6],
-              products_per_row.data(), bin_size[6]);
-      break;
-    }
-  }
+  auto global_hash_table_state = exec_global_row(
+      c_col_idx, c_row_idx, a_col_idx, a_row_idx, b_col_idx, b_row_idx, permutation_buffer,
+      bin_offset, bin_size, products_per_row, meta::filter<meta::global_row, Borders...>);
 
   thrust::exclusive_scan(products_per_row.begin(), products_per_row.end(),
                          products_per_row.begin());
 
-  res.row_index = std::move(products_per_row);
-
-  return res;
+  return {std::move(products_per_row), std::move(global_hash_table_state)};
 }
 
-} // namespace nsparse
+}  // namespace nsparse

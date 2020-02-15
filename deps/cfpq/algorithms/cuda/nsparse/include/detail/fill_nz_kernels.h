@@ -8,16 +8,14 @@
 namespace nsparse {
 
 template <typename T>
-__global__ void
-filter_hash_table(thrust::device_ptr<const T> row_index,
-                  thrust::device_ptr<const T> hash_table,
-                  thrust::device_ptr<const T> hash_table_offsets,
-                  thrust::device_ptr<const T> hash_table_sizes,
-                  thrust::device_ptr<const T> rows_in_table,
-                  thrust::device_ptr<T> col_index) {
+__global__ void filter_hash_table(thrust::device_ptr<const T> row_index,
+                                  thrust::device_ptr<const T> hash_table,
+                                  thrust::device_ptr<const T> hash_table_offsets,
+                                  thrust::device_ptr<const T> rows_in_table,
+                                  thrust::device_ptr<T> col_index) {
   constexpr T hash_invalidated = std::numeric_limits<T>::max();
   auto i = blockIdx.x;
-  T hash_table_size = hash_table_sizes[i];
+  T hash_table_size = hash_table_offsets[i + 1] - hash_table_offsets[i];
   T hash_table_offset = hash_table_offsets[i];
 
   T row_id = rows_in_table[i];
@@ -55,12 +53,12 @@ __global__ void fill_nz_block_row_global(
   auto i = threadIdx.x % warpSize;
   auto warpCount = blockDim.x / warpSize;
 
-  rid = rows_in_bins[rid]; // permutation
+  rid = rows_in_bins[rid];  // permutation
 
   const auto global_col_offset = rows_col_offset[rid];
   const auto global_next_col_offset = rows_col_offset[rid + 1];
 
-  T *hash_table = rows_col.get() + global_col_offset;
+  T* hash_table = rows_col.get() + global_col_offset;
   const T table_sz = global_next_col_offset - global_col_offset;
 
   T nz = 0;
@@ -137,7 +135,7 @@ __global__ void fill_nz_block_row(
 
   __syncthreads();
 
-  rid = rows_in_bins[rid]; // permutation
+  rid = rows_in_bins[rid];  // permutation
 
   const auto global_col_offset = rows_col_offset[rid];
 
@@ -207,7 +205,7 @@ __global__ void fill_nz_block_row(
 
   __syncthreads();
 
-  T *stored = hash_table;
+  T* stored = hash_table;
 
   for (auto j = threadIdx.x + 1; j < table_sz; j += blockDim.x) {
     auto val = hash_table[j];
@@ -218,7 +216,7 @@ __global__ void fill_nz_block_row(
   }
 }
 
-template <typename T>
+template <typename T, T pwarp, T block_sz, T max_per_row>
 __global__ void fill_nz_pwarp_row(
     thrust::device_ptr<const T> rpt_c, thrust::device_ptr<const T> col_c,
     thrust::device_ptr<const T> rpt_a, thrust::device_ptr<const T> col_a,
@@ -227,15 +225,18 @@ __global__ void fill_nz_pwarp_row(
     thrust::device_ptr<const T> rows_col_offset, T n_rows) {
   constexpr T hash_invalidated = std::numeric_limits<T>::max();
 
+  static_assert(block_sz % pwarp == 0);
+  static_assert(block_sz >= pwarp);
+
   auto tid = threadIdx.x + blockDim.x * blockIdx.x;
-  __shared__ T hash_table[2048];
+  __shared__ T hash_table[block_sz / pwarp * max_per_row];
 
-  auto rid = tid / 4;
-  auto i = tid % 4;
-  auto local_rid = rid % (blockDim.x / 4);
+  auto rid = tid / pwarp;
+  auto i = tid % pwarp;
+  auto local_rid = rid % (blockDim.x / pwarp);
 
-  for (auto j = i; j < 32; j += 4) {
-    hash_table[local_rid * 32 + j] = hash_invalidated;
+  for (auto j = i; j < max_per_row; j += pwarp) {
+    hash_table[local_rid * max_per_row + j] = hash_invalidated;
   }
 
   __syncwarp();
@@ -243,17 +244,17 @@ __global__ void fill_nz_pwarp_row(
   if (rid >= n_rows)
     return;
 
-  rid = rows_in_bins[rid]; // permutation
+  rid = rows_in_bins[rid];  // permutation
 
   const auto global_col_offset = rows_col_offset[rid];
 
   T nz = 0;
 
-  for (T j = rpt_c[rid] + i; j < rpt_c[rid + 1]; j += 4) {
+  for (T j = rpt_c[rid] + i; j < rpt_c[rid + 1]; j += pwarp) {
     T c_col = col_c[j];
 
-    T hash = (c_col * 107) % 32;
-    T offset = hash + local_rid * 32;
+    T hash = (c_col * 107) % max_per_row;
+    T offset = hash + local_rid * max_per_row;
 
     while (true) {
       T table_value = hash_table[offset];
@@ -266,19 +267,19 @@ __global__ void fill_nz_pwarp_row(
           break;
         }
       } else {
-        hash = (hash + 1) % 32;
-        offset = hash + local_rid * 32;
+        hash = (hash + 1) % max_per_row;
+        offset = hash + local_rid * max_per_row;
       }
     }
   }
 
-  for (T j = rpt_a[rid] + i; j < rpt_a[rid + 1]; j += 4) {
+  for (T j = rpt_a[rid] + i; j < rpt_a[rid + 1]; j += pwarp) {
     T a_col = col_a[j];
     for (T k = rpt_b[a_col]; k < rpt_b[a_col + 1]; k++) {
       T b_col = col_b[k];
 
-      T hash = (b_col * 107) % 32;
-      T offset = hash + local_rid * 32;
+      T hash = (b_col * 107) % max_per_row;
+      T offset = hash + local_rid * max_per_row;
 
       while (true) {
         T table_value = hash_table[offset];
@@ -291,8 +292,8 @@ __global__ void fill_nz_pwarp_row(
             break;
           }
         } else {
-          hash = (hash + 1) % 32;
-          offset = hash + local_rid * 32;
+          hash = (hash + 1) % max_per_row;
+          offset = hash + local_rid * max_per_row;
         }
       }
     }
@@ -301,29 +302,18 @@ __global__ void fill_nz_pwarp_row(
   auto mask = __activemask();
   __syncwarp(mask);
 
-  //  T stored = 0;
-  //  if (i == 0) {
-  //    for (auto j = 0; j < 32; j += 1) {
-  //      auto val = hash_table[local_rid * 32 + j];
-  //      if (val != hash_invalidated) {
-  //        rows_col[global_col_offset + stored] = val;
-  //        stored++;
-  //      }
-  //    }
-  //  }
-
   T stored = 0;
-  for (auto j = i; j < 32; j += 4) {
-    T val = hash_table[local_rid * 32 + j];
+  for (auto j = i; j < max_per_row; j += pwarp) {
+    T val = hash_table[local_rid * max_per_row + j];
     auto store = val == hash_invalidated ? 0 : 1;
 
-    for (auto shift = 1; shift <= 2; shift *= 2) {
-      auto other = __shfl_up_sync(mask, store, shift, 4);
-      if (threadIdx.x % 4 >= shift) {
+    for (auto shift = 1; shift <= pwarp / 2; shift *= 2) {
+      auto other = __shfl_up_sync(mask, store, shift, pwarp);
+      if (threadIdx.x % pwarp >= shift) {
         store += other;
       }
     }
-    auto last_in_pwarp = __shfl_sync(mask, store, 3, 4);
+    auto last_in_pwarp = __shfl_sync(mask, store, pwarp - 1, pwarp);
 
     if (val != hash_invalidated) {
       rows_col[global_col_offset + stored + store - 1] = val;
@@ -333,4 +323,4 @@ __global__ void fill_nz_pwarp_row(
   }
 }
 
-} // namespace nsparse
+}  // namespace nsparse
