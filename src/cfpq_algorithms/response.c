@@ -6,6 +6,7 @@ void CfpqResponse_Init(CfpqResponse *resp) {
     resp->rss_dif = 0;
     resp->vms_dif = 0;
     resp->count = 0;
+    resp->customResp = NULL;
 }
 
 int CfpqResponse_Append(CfpqResponse *resp, const char* nonterm, GrB_Index control_sum) {

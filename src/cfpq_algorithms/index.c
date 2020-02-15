@@ -2,6 +2,7 @@
 #include <assert.h>
 
 #include "index.h"
+#include "../util/arr.h"
 
 PathIndex PathIndex_Identity = {
         .left = 0,
@@ -138,7 +139,7 @@ void PathIndex_MatrixShow(const GrB_Matrix *matrix) {
     }
 }
 
-void _PathIndex_MatricesGetPath(const GrB_Matrix *matrices, const Grammar *grammar, GrB_Index left, GrB_Index right, MapperIndex nonterm) {
+void _PathIndex_MatrixGetPath(GrB_Index *arr, const GrB_Matrix *matrices, const Grammar *grammar, GrB_Index left, GrB_Index right, MapperIndex nonterm) {
     PathIndex index;
     PathIndex_InitIdentity(&index);
     GrB_Matrix_extractElement((void *) &index, matrices[nonterm], left, right);
@@ -148,7 +149,7 @@ void _PathIndex_MatricesGetPath(const GrB_Matrix *matrices, const Grammar *gramm
 
 
     if (index.height == 1) {
-        printf("(%d-[:%s]->%d)", index.left, grammar->nontermMapper.items[nonterm], index.right);
+        array_append(arr, index.left);
         return;
     }
 
@@ -167,8 +168,8 @@ void _PathIndex_MatricesGetPath(const GrB_Matrix *matrices, const Grammar *gramm
             if (!PathIndex_IsIdentity(&index_r1) && !PathIndex_IsIdentity(&index_r2)) {
                 uint32_t max_height = index_r1.height < index_r2.height ? index_r2.height : index_r1.height;
                 if (index.height == max_height + 1) {
-                    _PathIndex_MatricesGetPath(matrices, grammar, left, index.middle, nonterm_r1);
-                    _PathIndex_MatricesGetPath(matrices, grammar, index.middle, right, nonterm_r2);
+                    _PathIndex_MatrixGetPath(arr, matrices, grammar, left, index.middle, nonterm_r1);
+                    _PathIndex_MatrixGetPath(arr, matrices, grammar, index.middle, right, nonterm_r2);
                     break;
                 }
             }
@@ -176,15 +177,19 @@ void _PathIndex_MatricesGetPath(const GrB_Matrix *matrices, const Grammar *gramm
     }
 }
 
-void PathIndex_MatricesGetPath(const GrB_Matrix *matrices, const Grammar *grammar, GrB_Index left, GrB_Index right, MapperIndex nonterm) {
+GrB_Index * PathIndex_MatrixGetPath(const GrB_Matrix *matrices, const Grammar *grammar, GrB_Index left, GrB_Index right, MapperIndex nonterm) {
     PathIndex index;
     PathIndex_InitIdentity(&index);
     GrB_Matrix_extractElement((void *) &index, matrices[nonterm], left, right);
 
+
     if (PathIndex_IsIdentity(&index)) {
-        printf("Path doesnt`t exist\n");
-        return;
+//        printf("Path doesnt`t exist\n");
+        return NULL;
     }
 
-    _PathIndex_MatricesGetPath(matrices, grammar, left, right, nonterm);
+    GrB_Index *arr = array_new(GrB_Index, index.length + 1);
+    _PathIndex_MatrixGetPath(arr, matrices, grammar, left, right, nonterm);
+    array_append(arr, index.right);
+    return arr;
 }

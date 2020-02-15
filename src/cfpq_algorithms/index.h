@@ -29,4 +29,4 @@ void PathIndex_Show(PathIndex *index);
 
 void PathIndex_MatrixInit(GrB_Matrix *m, const GrB_Matrix *bool_m);
 void PathIndex_MatrixShow(const GrB_Matrix *matrix);
-void PathIndex_MatricesGetPath(const GrB_Matrix *matrices, const Grammar *grammar, GrB_Index left, GrB_Index right, MapperIndex nonterm);
+GrB_Index * PathIndex_MatrixGetPath(const GrB_Matrix *matrices, const Grammar *grammar, GrB_Index left, GrB_Index right, MapperIndex nonterm);

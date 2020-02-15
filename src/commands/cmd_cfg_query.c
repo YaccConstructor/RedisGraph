@@ -57,26 +57,26 @@ int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     // Reply
     char raw_response[MAX_ITEM_NAME_LEN + 40];
-    RedisModule_ReplyWithArray(ctx, response.count + 5);
+    RedisModule_ReplyWithArray(ctx, 3 + (response.customResp != NULL ? 1 : 0));
 
-    sprintf(raw_response, "Time spent: %f", time_spent);
-    RedisModule_ReplyWithSimpleString(ctx, raw_response);
+    RedisModule_ReplyWithArray(ctx, 2);
+    RedisModule_ReplyWithSimpleString(ctx, "time");
+    RedisModule_ReplyWithDouble(ctx, time_spent);
 
-    sprintf(raw_response, "VMS delta: %d", response.vms_dif);
-    RedisModule_ReplyWithSimpleString(ctx, raw_response);
+    RedisModule_ReplyWithArray(ctx, 2);
+    RedisModule_ReplyWithSimpleString(ctx, "iters");
+    RedisModule_ReplyWithLongLong(ctx, response.iteration_count);
 
-    sprintf(raw_response, "RSS delta: %d", response.rss_dif);
-    RedisModule_ReplyWithSimpleString(ctx, raw_response);
-
-    sprintf(raw_response, "Shared delta: %d", response.shared_dif);
-    RedisModule_ReplyWithSimpleString(ctx, raw_response);
-
-    sprintf(raw_response, "Iteration count: %lu", response.iteration_count);
-    RedisModule_ReplyWithSimpleString(ctx, raw_response);
-
+    RedisModule_ReplyWithArray(ctx, response.count);
     for (int i = 0; i < response.count; ++i) {
-        sprintf(raw_response, "%s: %lu", response.nonterms[i], response.control_sums[i]);
-        RedisModule_ReplyWithSimpleString(ctx, raw_response);
+        RedisModule_ReplyWithArray(ctx, 2);
+        RedisModule_ReplyWithSimpleString(ctx, response.nonterms[i]);
+        RedisModule_ReplyWithLongLong(ctx, response.control_sums[i]);
+    }
+
+    if (response.customResp != NULL) {
+        response.customResp->reply(response.customResp, ctx);
+        response.customResp->free(response.customResp);
     }
     return REDISMODULE_OK;
 }

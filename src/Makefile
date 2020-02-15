@@ -74,6 +74,7 @@ CC_SOURCES += $(wildcard $(SOURCEDIR)/util/range/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/util/mem_prof/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/grammar/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/cfpq_algorithms/*.c)
+CC_SOURCES += $(wildcard $(SOURCEDIR)/cfpq_algorithms/cpu4/*.c)
 
 # Convert all sources to .o files
 CC_OBJECTS = $(patsubst %.c, %.o, $(CC_SOURCES) )
