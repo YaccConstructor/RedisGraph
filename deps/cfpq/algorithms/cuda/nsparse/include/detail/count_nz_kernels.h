@@ -7,7 +7,7 @@
 
 namespace nsparse {
 
-template <typename T>
+template <typename T, T block_per_row>
 __global__ void count_nz_block_row_large_global(
     thrust::device_ptr<const T> rpt_c, thrust::device_ptr<const T> col_c,
     thrust::device_ptr<const T> rpt_a, thrust::device_ptr<const T> col_a,
@@ -16,18 +16,15 @@ __global__ void count_nz_block_row_large_global(
     thrust::device_ptr<T> global_hash_table, thrust::device_ptr<const T> hash_table_offset) {
   constexpr T hash_invalidated = std::numeric_limits<T>::max();
 
-  auto rid = blockIdx.x;
-  auto wid = threadIdx.x / warpSize;
+  auto bid = blockIdx.x % block_per_row;
+  auto rid = blockIdx.x / block_per_row;
+  auto wid = (threadIdx.x + bid * blockDim.x) / warpSize;
   auto i = threadIdx.x % warpSize;
-  auto warpCount = blockDim.x / warpSize;
+  auto warpCount = blockDim.x * block_per_row / warpSize;
 
   T* hash_table = global_hash_table.get() + hash_table_offset[rid];
   T table_sz = hash_table_offset[rid + 1] - hash_table_offset[rid];
   __shared__ T snz;
-
-  for (auto m = threadIdx.x; m < table_sz; m += blockDim.x) {
-    hash_table[m] = hash_invalidated;
-  }
 
   if (threadIdx.x == 0) {
     snz = 0;
@@ -38,7 +35,8 @@ __global__ void count_nz_block_row_large_global(
   rid = rows_in_bins[rid];  // permutation
   T nz = 0;
 
-  for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
+  for (T j = rpt_c[rid] + threadIdx.x + blockDim.x * bid; j < rpt_c[rid + 1];
+       j += blockDim.x * block_per_row) {
     T c_col = col_c[j];
 
     T hash = (c_col * 107) % table_sz;
@@ -98,7 +96,7 @@ __global__ void count_nz_block_row_large_global(
   __syncthreads();
 
   if (threadIdx.x == 0) {
-    nz_per_row[rid] = snz;
+    atomicAdd(nz_per_row.get() + rid, snz);
   }
 }
 

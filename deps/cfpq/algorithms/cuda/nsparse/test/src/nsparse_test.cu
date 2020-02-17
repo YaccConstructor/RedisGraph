@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cub/cub.cuh>
 
 #include <mult.h>
 
@@ -41,9 +42,26 @@ class NsparseCountNonZeroTest : public testing::Test {
 
     ASSERT_EQ(sprsR.second, res.m_row_index);
 
-    for (auto i = 1; i < sprsR.second.size(); i++) {
-      sort(res.m_col_index.begin() + sprsR.second[i - 1],
-           res.m_col_index.begin() + sprsR.second[i]);
+    {
+      thrust::device_vector<unsigned int> new_col(res.m_col_index.size());
+
+      size_t temp_storage_bytes = 0;
+      cub::DeviceSegmentedRadixSort::SortKeys(
+          nullptr, temp_storage_bytes, thrust::raw_pointer_cast(res.m_col_index.data()),
+          thrust::raw_pointer_cast(new_col.data()), res.m_col_index.size(),
+          res.m_row_index.size() - 1, thrust::raw_pointer_cast(res.m_row_index.data()),
+          thrust::raw_pointer_cast(res.m_row_index.data()) + 1);
+
+      thrust::device_vector<char> storage(temp_storage_bytes);
+
+      cub::DeviceSegmentedRadixSort::SortKeys(
+          thrust::raw_pointer_cast(storage.data()), temp_storage_bytes,
+          thrust::raw_pointer_cast(res.m_col_index.data()),
+          thrust::raw_pointer_cast(new_col.data()), res.m_col_index.size(),
+          res.m_row_index.size() - 1, thrust::raw_pointer_cast(res.m_row_index.data()),
+          thrust::raw_pointer_cast(res.m_row_index.data()) + 1);
+
+      res.m_col_index = std::move(new_col);
     }
 
     ASSERT_EQ(sprsR.first, res.m_col_index);

@@ -1,0 +1,11 @@
+s A S1
+S1 s D
+s A S2
+S2 X D
+X B C
+X B X1
+X1 X C
+A a
+B b
+C c
+D d

@@ -89,7 +89,6 @@ global_hash_table_state_t<index_type> exec_global_row(
     return {};
 
   constexpr index_type block_sz = 1024;
-
   static_assert(block_sz % 32 == 0);
 
   // extra item for counter in last position
@@ -105,21 +104,30 @@ global_hash_table_state_t<index_type> exec_global_row(
     fail_stat.resize(fail_count);
     thrust::device_vector<index_type> hash_table_offsets(fail_count + 1);
 
-    thrust::transform(
-        fail_stat.begin(), fail_stat.end(), hash_table_offsets.begin(),
-        [ptr = row_idx.data()] __device__(index_type item) { return ptr[item] * 1.1; });
+    thrust::transform(fail_stat.begin(), fail_stat.end(), hash_table_offsets.begin(),
+                      [ptr = row_idx.data()] __device__(index_type item) {
+                        index_type res = ptr[item] * 1.1;
+                        ptr[item] = 0;
+                        return res;
+                      });
     hash_table_offsets.back() = 0;
 
     thrust::exclusive_scan(hash_table_offsets.begin(), hash_table_offsets.end(),
                            hash_table_offsets.begin());
 
     index_type hash_table_sz = hash_table_offsets.back();
-    thrust::device_vector<index_type> hash_table(hash_table_sz);
+    thrust::device_vector<index_type> hash_table(hash_table_sz,
+                                                 std::numeric_limits<index_type>::max());
 
-    count_nz_block_row_large_global<index_type><<<fail_count, block_sz>>>(
-        c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-        b_col_idx.data(), fail_stat.data(), row_idx.data(), hash_table.data(),
-        hash_table_offsets.data());
+    constexpr index_type block_sz = 64;
+    constexpr index_type block_per_row = 16;
+    static_assert(block_sz % 32 == 0);
+
+    count_nz_block_row_large_global<index_type, block_per_row>
+        <<<fail_count * block_per_row, block_sz>>>(
+            c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
+            b_row_idx.data(), b_col_idx.data(), fail_stat.data(), row_idx.data(), hash_table.data(),
+            hash_table_offsets.data());
 
     return {std::move(hash_table), std::move(hash_table_offsets), std::move(fail_stat)};
   }

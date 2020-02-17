@@ -85,13 +85,13 @@ void check(const CfpqResponse& lhs, const std::map<std::string, GrB_Index>& rhs)
 }
 
 class CFPQTestAll : public CFPQRun {};
-INSTANTIATE_TEST_CASE_P(CFPQTestAll, CFPQTestAll, ::testing::Values(sparse, m4ri, nsparse_cfpq));
+INSTANTIATE_TEST_CASE_P(CFPQTestAll, CFPQTestAll,
+                        ::testing::Values(cpu_graphblas, sparse, m4ri, nsparse_cfpq));
 
-class CFPQTestAllWithoutM4ri : public CFPQRun {};
-INSTANTIATE_TEST_CASE_P(CFPQTestAllWithoutM4ri, CFPQTestAllWithoutM4ri,
-                        ::testing::Values(cpu_graphblas, nsparse_cfpq));
+class CFPQTestNsparse : public CFPQRun {};
+INSTANTIATE_TEST_CASE_P(CFPQTestNsparse, CFPQTestNsparse, ::testing::Values(nsparse_cfpq));
 
-TEST_P(CFPQTestAllWithoutM4ri, SmallGraph) {
+TEST_P(CFPQTestAll, SmallGraph) {
   auto solver = GetParam();
   auto response =
       run("resources/small/matrices/paper.txt", "resources/small/grammars/paper.txt", solver);
@@ -103,7 +103,7 @@ TEST_P(CFPQTestAllWithoutM4ri, SmallGraph) {
                   });
 }
 
-TEST_P(CFPQTestAllWithoutM4ri, RdfGo) {
+TEST_P(CFPQTestNsparse, RdfGo) {
   auto solver = GetParam();
   auto response =
       run("resources/rdf/matrices/go.txt", "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
@@ -118,7 +118,7 @@ TEST_P(CFPQTestAllWithoutM4ri, RdfGo) {
                   });
 }
 
-TEST_P(CFPQTestAllWithoutM4ri, RdfGoHierarchy) {
+TEST_P(CFPQTestNsparse, RdfGoHierarchy) {
   auto solver = GetParam();
   auto response = run("resources/rdf/matrices/go-hierarchy.txt",
                       "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
@@ -133,7 +133,7 @@ TEST_P(CFPQTestAllWithoutM4ri, RdfGoHierarchy) {
                   });
 }
 
-TEST_P(CFPQTestAllWithoutM4ri, RdfGeospecies) {
+TEST_P(CFPQTestNsparse, RdfGeospecies) {
   auto solver = GetParam();
   auto response =
       run("resources/rdf/matrices/geospeices.txt", "resources/rdf/grammars/geo.cnf", solver);
@@ -142,5 +142,51 @@ TEST_P(CFPQTestAllWithoutM4ri, RdfGeospecies) {
                       {"bt", 20867},
                       {"s1", 21361542},
                       {"btr", 20867},
+                  });
+}
+
+TEST_P(CFPQTestAll, WorstCase512) {
+  auto solver = GetParam();
+  auto response = run("resources/worstcase/matrices/worstcase_512.txt",
+                      "resources/worstcase/grammars/Brackets.txt", solver);
+  check(response, {
+                      {"s", 65792},
+                      {"a", 257},
+                      {"b", 256},
+                      {"s1", 65792},
+                  });
+}
+
+TEST_P(CFPQTestAll, FreeScale10000_5) {
+  auto solver = GetParam();
+  auto response = run("resources/freescale/matrices/free_scale_graph_10000_5.txt",
+                      "resources/freescale/grammars/an_bm_cm_dn.txt", solver);
+  check(response, {
+                      {"s", 51353},
+                      {"A", 12602},
+                      {"S1", 40617},
+                      {"D", 12584},
+                      {"S2", 41557},
+                      {"X", 51382},
+                      {"B", 12447},
+                      {"C", 12367},
+                      {"X1", 45231},
+                  });
+}
+
+TEST_P(CFPQTestAll, FreeScale10000_10) {
+  auto solver = GetParam();
+  auto response = run("resources/freescale/matrices/free_scale_graph_10000_10.txt",
+                      "resources/freescale/grammars/an_bm_cm_dn.txt", solver);
+  check(response, {
+                      {"s", 669067},
+                      {"A", 24984},
+                      {"S1", 571345},
+                      {"D", 24948},
+                      {"S2", 516483},
+                      {"X", 493102},
+                      {"B", 25105},
+                      {"C", 24963},
+                      {"X1", 476972},
                   });
 }
