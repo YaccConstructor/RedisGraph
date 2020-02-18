@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <cub/cub.cuh>
-
+#include <detail/merge_path.cuh>
 #include <mult.h>
 
 using b_mat = std::vector<std::vector<bool>>;
@@ -41,29 +41,6 @@ class NsparseCountNonZeroTest : public testing::Test {
     auto res = nsparse::spgemm<>(C, A, B);
 
     ASSERT_EQ(sprsR.second, res.m_row_index);
-
-    {
-      thrust::device_vector<unsigned int> new_col(res.m_col_index.size());
-
-      size_t temp_storage_bytes = 0;
-      cub::DeviceSegmentedRadixSort::SortKeys(
-          nullptr, temp_storage_bytes, thrust::raw_pointer_cast(res.m_col_index.data()),
-          thrust::raw_pointer_cast(new_col.data()), res.m_col_index.size(),
-          res.m_row_index.size() - 1, thrust::raw_pointer_cast(res.m_row_index.data()),
-          thrust::raw_pointer_cast(res.m_row_index.data()) + 1);
-
-      thrust::device_vector<char> storage(temp_storage_bytes);
-
-      cub::DeviceSegmentedRadixSort::SortKeys(
-          thrust::raw_pointer_cast(storage.data()), temp_storage_bytes,
-          thrust::raw_pointer_cast(res.m_col_index.data()),
-          thrust::raw_pointer_cast(new_col.data()), res.m_col_index.size(),
-          res.m_row_index.size() - 1, thrust::raw_pointer_cast(res.m_row_index.data()),
-          thrust::raw_pointer_cast(res.m_row_index.data()) + 1);
-
-      res.m_col_index = std::move(new_col);
-    }
-
     ASSERT_EQ(sprsR.first, res.m_col_index);
   }
 };
@@ -131,4 +108,34 @@ TEST_F(NsparseCountNonZeroTest, countNzGeneratedGlobalHashTable) {
   size_t c = 5000;
 
   eval(matrix_generator(a, c, 0.5), matrix_generator(a, b, 0.5), matrix_generator(b, c, 0.5));
+}
+
+TEST_F(NsparseCountNonZeroTest, mergeTest) {
+  std::vector<uint> col_a = {1, 3, 4, 6, 15, 16, 17, 40, 41, 42, 43};
+  std::vector<uint> rpt_a = {0, 11};
+
+  std::vector<uint> col_b = {2,  3,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
+                             17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29};
+  std::vector<uint> rpt_b = {0, 27};
+
+  thrust::device_vector<uint> rpt_c(rpt_a.size(), 0);
+
+  nsparse::merge_count<uint><<<1, 32>>>(thrust::device_vector<uint>(rpt_a).data(),
+                                        thrust::device_vector<uint>(col_a).data(),
+                                        thrust::device_vector<uint>(rpt_b).data(),
+                                        thrust::device_vector<uint>(col_b).data(), rpt_c.data());
+
+  thrust::exclusive_scan(rpt_c.begin(), rpt_c.end(), rpt_c.begin());
+  ASSERT_EQ(std::vector<uint>({0, 33}), rpt_c);
+
+  thrust::device_vector<uint> col_c(rpt_c.back());
+
+  nsparse::merge<uint><<<1, 32>>>(
+      thrust::device_vector<uint>(rpt_a).data(), thrust::device_vector<uint>(col_a).data(),
+      thrust::device_vector<uint>(rpt_b).data(), thrust::device_vector<uint>(col_b).data(),
+      rpt_c.data(), col_c.data());
+
+  ASSERT_EQ(std::vector<uint>({1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17,
+                               18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 40, 41, 42, 43}),
+            col_c);
 }

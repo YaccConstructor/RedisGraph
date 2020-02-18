@@ -1,5 +1,5 @@
 #pragma once
-#include <detail/fill_nz_kernels.h>
+#include <detail/fill_nz.cuh>
 #include <detail/util.h>
 #include <detail/meta.h>
 #include <detail/count_nz.h>

@@ -11,10 +11,10 @@ inline T div(T m, T n) {
   return ceil((double)m / n);
 }
 
-template<typename T>
+template <typename T>
 std::ostream& operator<<(std::ostream& os, const thrust::device_vector<T>& vec) {
   thrust::host_vector<T> h_vec = vec;
-  for (auto item: h_vec) {
+  for (auto item : h_vec) {
     os << item << " ";
   }
   return os;

@@ -2,6 +2,8 @@
 
 #include <thrust/device_ptr.h>
 
+#include <detail/bitonic.cuh>
+
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
@@ -19,22 +21,12 @@ __global__ void filter_hash_table(thrust::device_ptr<const T> row_index,
   T hash_table_offset = hash_table_offsets[i];
 
   T row_id = rows_in_table[i];
-
   T col_offset = row_index[row_id];
-
-  __shared__ T offset;
-
-  if (threadIdx.x == 0) {
-    offset = 0;
-  }
-
-  __syncthreads();
 
   for (T j = threadIdx.x; j < hash_table_size; j += blockDim.x) {
     T value = hash_table[j + hash_table_offset];
     if (value != hash_invalidated) {
-      T idx = atomicAdd(&offset, 1);
-      col_index[col_offset + idx] = value;
+      col_index[col_offset + j] = value;
     }
   }
 }
@@ -190,28 +182,12 @@ __global__ void fill_nz_block_row(
     }
   }
 
-  __syncthreads();
+  bitonic_sort_shared<T, table_sz>(cooperative_groups::this_thread_block(), hash_table);
 
-  const T first_value = hash_table[0];
-
-  if (threadIdx.x == 0) {
-    if (first_value != hash_invalidated) {
-      hash_table[0] = 1;
-      rows_col[global_col_offset] = first_value;
-    } else {
-      hash_table[0] = 0;
-    }
-  }
-
-  __syncthreads();
-
-  T* stored = hash_table;
-
-  for (auto j = threadIdx.x + 1; j < table_sz; j += blockDim.x) {
-    auto val = hash_table[j];
+  for (auto i = threadIdx.x; i < table_sz; i += blockDim.x) {
+    T val = hash_table[i];
     if (val != hash_invalidated) {
-      auto index = atomicAdd(stored, 1);
-      rows_col[global_col_offset + index] = val;
+      rows_col[global_col_offset + i] = val;
     }
   }
 }
@@ -299,27 +275,16 @@ __global__ void fill_nz_pwarp_row(
     }
   }
 
-  auto mask = __activemask();
-  __syncwarp(mask);
+  using namespace cooperative_groups;
 
-  T stored = 0;
+  bitonic_sort_shared<T, max_per_row>(tiled_partition<pwarp>(this_thread_block()),
+                                      hash_table + local_rid * max_per_row);
+
   for (auto j = i; j < max_per_row; j += pwarp) {
     T val = hash_table[local_rid * max_per_row + j];
-    auto store = val == hash_invalidated ? 0 : 1;
-
-    for (auto shift = 1; shift <= pwarp / 2; shift *= 2) {
-      auto other = __shfl_up_sync(mask, store, shift, pwarp);
-      if (threadIdx.x % pwarp >= shift) {
-        store += other;
-      }
-    }
-    auto last_in_pwarp = __shfl_sync(mask, store, pwarp - 1, pwarp);
-
     if (val != hash_invalidated) {
-      rows_col[global_col_offset + stored + store - 1] = val;
+      rows_col[global_col_offset + j] = val;
     }
-
-    stored += last_in_pwarp;
   }
 }
 

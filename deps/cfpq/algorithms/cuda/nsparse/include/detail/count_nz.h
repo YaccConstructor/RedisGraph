@@ -1,7 +1,9 @@
 #pragma once
 #include <detail/meta.h>
 #include <detail/util.h>
-#include <detail/count_nz_kernels.h>
+#include <detail/count_nz.cuh>
+
+#include <cub/cub.cuh>
 
 #include <algorithm>
 #include <thrust/device_ptr.h>
@@ -129,7 +131,26 @@ global_hash_table_state_t<index_type> exec_global_row(
             b_row_idx.data(), b_col_idx.data(), fail_stat.data(), row_idx.data(), hash_table.data(),
             hash_table_offsets.data());
 
-    return {std::move(hash_table), std::move(hash_table_offsets), std::move(fail_stat)};
+    thrust::device_vector<index_type> sorted_hash_table(hash_table_sz);
+    size_t temp_storage_bytes = 0;
+    cub::DeviceSegmentedRadixSort::SortKeys(
+        nullptr, temp_storage_bytes, thrust::raw_pointer_cast(hash_table.data()),
+        thrust::raw_pointer_cast(sorted_hash_table.data()), hash_table_sz, fail_count,
+        thrust::raw_pointer_cast(hash_table_offsets.data()),
+        thrust::raw_pointer_cast(hash_table_offsets.data()) + 1);
+
+    thrust::device_vector<char> storage(temp_storage_bytes);
+
+    cub::DeviceSegmentedRadixSort::SortKeys(
+        thrust::raw_pointer_cast(storage.data()), temp_storage_bytes,
+        thrust::raw_pointer_cast(hash_table.data()),
+        thrust::raw_pointer_cast(sorted_hash_table.data()), hash_table_sz, fail_count,
+        thrust::raw_pointer_cast(hash_table_offsets.data()),
+        thrust::raw_pointer_cast(hash_table_offsets.data()) + 1);
+
+    cudaDeviceSynchronize();
+
+    return {std::move(sorted_hash_table), std::move(hash_table_offsets), std::move(fail_stat)};
   }
   return {};
 }
