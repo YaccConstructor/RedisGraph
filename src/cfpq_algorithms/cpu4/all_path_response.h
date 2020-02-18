@@ -12,7 +12,7 @@ typedef struct {
 typedef struct {
     CustomResponseBase base;
     double index_time;
-    PathResponse *arr;
+//    PathResponse *arr;
 } AllPathResponse;
 
 AllPathResponse* AllPathResponse_New(size_t cap);

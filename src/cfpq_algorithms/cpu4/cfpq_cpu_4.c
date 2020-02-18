@@ -96,32 +96,48 @@ int CFPQ_cpu4(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
     GrB_Index nvals;
     GrB_Matrix_nvals(&nvals, matrices[start_nonterm]);
 
-    // Create custom response for path stat
-    AllPathResponse *all_path_response = AllPathResponse_New(nvals);
-    response->customResp = (CustomResponseBase *) all_path_response;
-    all_path_response->index_time = index_time;
+    // Create csv for path stat
+    char s[200];
+    sprintf(s, "%s.csv", gc->graph_name);
 
+    FILE *f = fopen(s, "w");
+    sprintf(s, "i,j,length,time");
+    fputs(s, f);
+
+    int i = 0;
     while (true) {
-        GxB_MatrixTupleIter_next(it, &left, &right, &depleted);
-        if (depleted)
-            break;
+        i++;
+        if (i % 100000 == 0) {
+            printf("%d\n", i);
+            fflush(stdout);
+        }
 
-        PathIndex index;
-        GrB_Matrix_extractElement((void *) &index, matrices[start_nonterm], left, right);
+        GxB_MatrixTupleIter_next(it, &left, &right, &depleted);
+        if (depleted) {
+            break;
+        }
 
         simple_tic(timer);
         GrB_Index *path = PathIndex_MatrixGetPath(matrices, grammar, left, right, start_nonterm);
-
-//        printf("%d == %d, %lu == %d, %lu == %d\n", array_len(path), index.length, right, index.right, left, index.left);
+        if (path == NULL)
+            continue;
 
         PathResponse item;
         item.length = array_len(path);
         item.left = left;
         item.right = right;
         item.time = simple_toc(timer);
-        array_append(all_path_response->arr, item);
+
+        sprintf(s, "\n%d,%lu,%lu,%f", item.length, item.left, item.right, item.time);
+        fputs(s, f);
+
         array_free(path);
+
     }
+    fclose(f);
+    AllPathResponse *allPathResponse = AllPathResponse_New(1);
+    allPathResponse->index_time = index_time;
+    response->customResp = (CustomResponseBase *) allPathResponse;
 
     // Free matrices
     for (int i = 0; i < grammar->nontermMapper.count; i++) {
