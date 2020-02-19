@@ -15,7 +15,16 @@ int AlgoStorage_Add(const char *name, AlgoPointer algo) {
     return CfpqAlgoStorage.count++;
 }
 
-AlgoPointer AlgoStorage_Get(const char *name) {
+int AlgoStorage_automat_Add(const char *name, AlgoPointer_automat algo) {
+    assert(CfpqAlgoStorage.count != MAX_ALGO_COUNT);
+
+    strcpy(CfpqAlgoStorage.names[CfpqAlgoStorage.count], name);
+    CfpqAlgoStorage.algorithms[CfpqAlgoStorage.count] = algo;
+
+    return CfpqAlgoStorage.count++;
+}
+
+AlgoPointer_automat AlgoStorage_Get(const char *name) {
     for (int i = 0; i < CfpqAlgoStorage.count; ++i) {
         if (strcmp(name, CfpqAlgoStorage.names[i]) == 0) {
             return CfpqAlgoStorage.algorithms[i];
@@ -31,4 +40,5 @@ int AlgoStorage_Count() {
 inline void AlgoStorage_RegisterAlgorithms() {
     AlgoStorage_Init();
     AlgoStorage_Add("cpu", CFPQ_cpu1);
+    AlgoStorage_automat_Add("tensor", CFPQ_tensor);
 }
