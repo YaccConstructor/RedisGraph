@@ -180,8 +180,6 @@ row_index_res_t<index_type> calc_nz_per_row(index_type n_rows, index_type n_cols
           prod += rpt_b[col_a[j] + 1] - rpt_b[col_a[j]];
         }
 
-        prod += (rpt_c[tid + 1] - rpt_c[tid]);
-
         prod = min(prod, max_c_cols);
 
         prod_per_row[tid] = prod;

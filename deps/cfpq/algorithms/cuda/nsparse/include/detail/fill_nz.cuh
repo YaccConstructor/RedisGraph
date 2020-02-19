@@ -55,29 +55,6 @@ __global__ void fill_nz_block_row_global(
 
   T nz = 0;
 
-  for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
-    T c_col = col_c[j];
-
-    T hash = (c_col * 107) % table_sz;
-    T offset = hash;
-
-    while (true) {
-      T table_value = hash_table[offset];
-      if (table_value == c_col) {
-        break;
-      } else if (table_value == hash_invalidated) {
-        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
-        if (old_value == hash_invalidated) {
-          nz++;
-          break;
-        }
-      } else {
-        hash = (hash + 1) % table_sz;
-        offset = hash;
-      }
-    }
-  }
-
   for (T j = rpt_a[rid] + wid; j < rpt_a[rid + 1]; j += warpCount) {
     T a_col = col_a[j];
     for (T k = rpt_b[a_col] + i; k < rpt_b[a_col + 1]; k += warpSize) {
@@ -132,29 +109,6 @@ __global__ void fill_nz_block_row(
   const auto global_col_offset = rows_col_offset[rid];
 
   T nz = 0;
-
-  for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
-    T c_col = col_c[j];
-
-    T hash = (c_col * 107) % table_sz;
-    T offset = hash;
-
-    while (true) {
-      T table_value = hash_table[offset];
-      if (table_value == c_col) {
-        break;
-      } else if (table_value == hash_invalidated) {
-        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
-        if (old_value == hash_invalidated) {
-          nz++;
-          break;
-        }
-      } else {
-        hash = (hash + 1) % table_sz;
-        offset = hash;
-      }
-    }
-  }
 
   for (T j = rpt_a[rid] + wid; j < rpt_a[rid + 1]; j += warpCount) {
     T a_col = col_a[j];
@@ -225,29 +179,6 @@ __global__ void fill_nz_pwarp_row(
   const auto global_col_offset = rows_col_offset[rid];
 
   T nz = 0;
-
-  for (T j = rpt_c[rid] + i; j < rpt_c[rid + 1]; j += pwarp) {
-    T c_col = col_c[j];
-
-    T hash = (c_col * 107) % max_per_row;
-    T offset = hash + local_rid * max_per_row;
-
-    while (true) {
-      T table_value = hash_table[offset];
-      if (table_value == c_col) {
-        break;
-      } else if (table_value == hash_invalidated) {
-        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
-        if (old_value == hash_invalidated) {
-          nz++;
-          break;
-        }
-      } else {
-        hash = (hash + 1) % max_per_row;
-        offset = hash + local_rid * max_per_row;
-      }
-    }
-  }
 
   for (T j = rpt_a[rid] + i; j < rpt_a[rid + 1]; j += pwarp) {
     T a_col = col_a[j];

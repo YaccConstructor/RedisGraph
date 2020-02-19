@@ -22,8 +22,7 @@ int nsparse_cfpq(const Grammar* grammar, CfpqResponse* response, const GrB_Matri
   using index_type = unsigned int;
 
   std::vector<nsparse::matrix<bool, index_type>> matrices(
-      static_cast<index_type>(nonterm_count),
-      {static_cast<index_type>(graph_size), static_cast<index_type>(graph_size)});
+      nonterm_count, {static_cast<index_type>(graph_size), static_cast<index_type>(graph_size)});
 
   // Initialize matrices
   for (int i = 0; i < relations_count; i++) {
@@ -72,15 +71,35 @@ int nsparse_cfpq(const Grammar* grammar, CfpqResponse* response, const GrB_Matri
   auto t2 = high_resolution_clock::now();
   response->time_to_prepare += duration<double, seconds::period>(t2 - t1).count();
 
+  std::vector<bool> changed(nonterm_count, true);
+  std::vector<uint> sizes_before_before(nonterm_count, 0);
+
   bool matrices_is_changed = true;
   while (matrices_is_changed) {
     matrices_is_changed = false;
     response->iteration_count++;
 
+    std::vector<uint> sizes_before(nonterm_count);
+    for (auto i = 0; i < nonterm_count; i++) {
+      sizes_before[i] = matrices[i].m_vals;
+    }
+
     for (int i = 0; i < grammar->complex_rules_count; ++i) {
       MapperIndex nonterm1 = grammar->complex_rules[i].l;
       MapperIndex nonterm2 = grammar->complex_rules[i].r1;
       MapperIndex nonterm3 = grammar->complex_rules[i].r2;
+
+      if (!changed[nonterm2] && !changed[nonterm3])
+        continue;
+
+      if (matrices[nonterm2].m_vals == 0 || matrices[nonterm3].m_vals == 0)
+        continue;
+
+//      std::cout << std::endl;
+//      std::cout << "r1 before/curr: " << sizes_before_before[nonterm2] << " "
+//                << matrices[nonterm2].m_vals << std::endl;
+//      std::cout << "r2 before/curr: " << sizes_before_before[nonterm3] << " "
+//                << matrices[nonterm3].m_vals << std::endl;
 
       GrB_Index nvals_new, nvals_old;
 
@@ -91,9 +110,19 @@ int nsparse_cfpq(const Grammar* grammar, CfpqResponse* response, const GrB_Matri
 
       if (nvals_new != nvals_old) {
         matrices_is_changed = true;
+        changed[nonterm1] = true;
       }
 
+//      std::cout << "res before/curr: " << nvals_old << " " << nvals_new << std::endl;
+
       matrices[nonterm1] = std::move(new_mat);
+    }
+
+    for (auto i = 0; i < nonterm_count; i++) {
+      if (sizes_before[i] == matrices[i].m_vals) {
+        changed[i] = false;
+      }
+      sizes_before_before[i] = sizes_before[i];
     }
   }
 

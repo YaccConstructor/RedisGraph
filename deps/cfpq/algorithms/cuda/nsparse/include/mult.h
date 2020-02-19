@@ -2,6 +2,8 @@
 #include <cassert>
 #include <matrix.h>
 
+#include <detail/merge_path.cuh>
+
 #include <thrust/iterator/counting_iterator.h>
 
 #include <detail/count_nz.h>
@@ -42,10 +44,20 @@ const matrix<bool, index_type> spgemm(const matrix<bool, index_type>& c,
 
   reuse_global_hash_table(res.row_index, col_index, res.global_hash_table_state);
 
-  assert(res.row_index.size() == rows + 1);
-  assert(col_index.size() == res.row_index.back());
-  index_type vals = col_index.size();
-  return {std::move(col_index), std::move(res.row_index), rows, cols, vals};
+  thrust::device_vector<index_type> rpt_result(rows + 1, 0);
+  merge_count<index_type><<<rows, 32>>>(res.row_index.data(), col_index.data(),
+                                        c.m_row_index.data(), c.m_col_index.data(),
+                                        rpt_result.data());
+  thrust::exclusive_scan(rpt_result.begin(), rpt_result.end(), rpt_result.begin());
+
+  thrust::device_vector<index_type> col_result(rpt_result.back());
+  merge<index_type><<<rows, 32>>>(res.row_index.data(), col_index.data(), c.m_row_index.data(),
+                                  c.m_col_index.data(), rpt_result.data(), col_result.data());
+
+  assert(rpt_result.size() == rows + 1);
+  assert(col_result.size() == rpt_result.back());
+  index_type vals = col_result.size();
+  return {std::move(col_result), std::move(rpt_result), rows, cols, vals};
 }
 
 }  // namespace nsparse

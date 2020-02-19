@@ -35,30 +35,6 @@ __global__ void count_nz_block_row_large_global(
   rid = rows_in_bins[rid];  // permutation
   T nz = 0;
 
-  for (T j = rpt_c[rid] + threadIdx.x + blockDim.x * bid; j < rpt_c[rid + 1];
-       j += blockDim.x * block_per_row) {
-    T c_col = col_c[j];
-
-    T hash = (c_col * 107) % table_sz;
-    T offset = hash;
-
-    while (true) {
-      T table_value = hash_table[offset];
-      if (table_value == c_col) {
-        break;
-      } else if (table_value == hash_invalidated) {
-        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
-        if (old_value == hash_invalidated) {
-          nz++;
-          break;
-        }
-      } else {
-        hash = (hash + 1) % table_sz;
-        offset = hash;
-      }
-    }
-  }
-
   for (T j = rpt_a[rid] + wid; j < rpt_a[rid + 1]; j += warpCount) {
     T a_col = col_a[j];
     for (T k = rpt_b[a_col] + i; k < rpt_b[a_col + 1]; k += warpSize) {
@@ -130,33 +106,6 @@ __global__ void count_nz_block_row_large(
   T fail_count = 0;
   rid = rows_in_bins[rid];  // permutation
 
-  for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
-    T c_col = col_c[j];
-
-    T hash = (c_col * 107) % table_sz;
-    T offset = hash;
-
-    while (fail_count < table_sz / 2 && nz < table_sz / 2) {
-      T table_value = hash_table[offset];
-      if (table_value == c_col) {
-        break;
-      } else if (table_value == hash_invalidated) {
-        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
-        if (old_value == hash_invalidated) {
-          atomicAdd(&nz, 1);
-          break;
-        }
-      } else {
-        hash = (hash + 1) % table_sz;
-        offset = hash;
-        fail_count++;
-      }
-    }
-    if (fail_count >= table_sz / 2 || nz >= table_sz / 2) {
-      break;
-    }
-  }
-
   for (T j = rpt_a[rid] + wid; j < rpt_a[rid + 1]; j += warpCount) {
     T a_col = col_a[j];
     for (T k = rpt_b[a_col] + i; k < rpt_b[a_col + 1]; k += warpSize) {
@@ -227,29 +176,6 @@ __global__ void count_nz_block_row(
 
   rid = rows_in_bins[rid];  // permutation
   T nz = 0;
-
-  for (T j = rpt_c[rid] + threadIdx.x; j < rpt_c[rid + 1]; j += blockDim.x) {
-    T c_col = col_c[j];
-
-    T hash = (c_col * 107) % table_sz;
-    T offset = hash;
-
-    while (true) {
-      T table_value = hash_table[offset];
-      if (table_value == c_col) {
-        break;
-      } else if (table_value == hash_invalidated) {
-        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
-        if (old_value == hash_invalidated) {
-          nz++;
-          break;
-        }
-      } else {
-        hash = (hash + 1) % table_sz;
-        offset = hash;
-      }
-    }
-  }
 
   for (T j = rpt_a[rid] + wid; j < rpt_a[rid + 1]; j += warpCount) {
     T a_col = col_a[j];
@@ -329,29 +255,6 @@ __global__ void count_nz_pwarp_row(
 
   rid = rows_in_bins[rid];  // permutation
   T nz = 0;
-
-  for (T j = rpt_c[rid] + i; j < rpt_c[rid + 1]; j += pwarp) {
-    T c_col = col_c[j];
-
-    T hash = (c_col * 107) % max_per_row;
-    T offset = hash + local_rid * max_per_row;
-
-    while (true) {
-      T table_value = hash_table[offset];
-      if (table_value == c_col) {
-        break;
-      } else if (table_value == hash_invalidated) {
-        T old_value = atomicCAS(hash_table + offset, hash_invalidated, c_col);
-        if (old_value == hash_invalidated) {
-          nz++;
-          break;
-        }
-      } else {
-        hash = (hash + 1) % max_per_row;
-        offset = hash + local_rid * max_per_row;
-      }
-    }
-  }
 
   for (T j = rpt_a[rid] + i; j < rpt_a[rid + 1]; j += pwarp) {
     T a_col = col_a[j];
