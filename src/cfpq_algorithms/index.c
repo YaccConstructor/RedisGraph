@@ -51,16 +51,13 @@ void PathIndex_Mul(void *z, const void *x, const void *y) {
     PathIndex *right = (PathIndex *) y;
     PathIndex *res = (PathIndex *) z;
 
-    char buf1[30], buf2[30];
-    PathIndex_ToStr(left, buf1);
-    PathIndex_ToStr(right, buf2);
-
-    if (PathIndex_IsIdentity(left) || PathIndex_IsIdentity(right)) {
-        PathIndex_InitIdentity(res);
-    } else {
+    if (!PathIndex_IsIdentity(left) && !PathIndex_IsIdentity(right)) {
         uint32_t height = (left->height < right->height ? right->height : left->height) + 1;
         PathIndex_Init(res, left->left, right->right, left->right,
                        height, left->length + right->length);
+
+    } else {
+        PathIndex_InitIdentity(res);
     }
 }
 
@@ -69,15 +66,13 @@ void PathIndex_Add(void *z, const void *x, const void *y) {
     const PathIndex *right = (const PathIndex *) y;
     PathIndex *res = (PathIndex *) z;
 
-    if (PathIndex_IsIdentity(left) && PathIndex_IsIdentity(right)) {
-        PathIndex_InitIdentity(res);
-    } else if (PathIndex_IsIdentity(left)) {
-        PathIndex_Copy(right, res);
-    } else if (PathIndex_IsIdentity(right)) {
-        PathIndex_Copy(left, res);
-    } else {
+    if (!PathIndex_IsIdentity(left) && !PathIndex_IsIdentity(right)) {
         const PathIndex *min_height_index = (left->height < right->height) ? left : right;
         PathIndex_Copy(min_height_index, res);
+    } else if (PathIndex_IsIdentity(left)) {
+        PathIndex_Copy(right, res);
+    } else {
+        PathIndex_Copy(left, res);
     }
 }
 

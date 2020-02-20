@@ -8,3 +8,4 @@
 int CFPQ_cpu1(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
 int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
 int CFPQ_cpu4(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
+int CFPQ_cpu5(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
