@@ -27,11 +27,27 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
         for (int j = 0; j < sizeAutomat; j++)
             GrB_Matrix_setElement_INT64(Automat, vector_int_get_element_by_index(&grammar->matrix, i*sizeAutomat + j), i, j);
     }
-
+	
+	// create states matrix
+	GrB_Matrix States;
+	info = GrB_Matrix_new(&States, GrB_INT64, sizeAutomat, sizeAutomat);
+	
+	if (info != GrB_SUCCESS)
+        RedisModule_ReplyWithError(ctx, "failed to construct the matrix\n");
+	
+	for (int i = 0; i < sizeAutomat; i++)
+	{
+		for (int j = 0; j < sizeAutomat; j++)
+			GrB_Matrix_setElement_INT64(States, vector_int_get_element_by_index(&grammar->states, i*sizeAutomat + j), i, j);
+	}
+	
     // create graph matrix
     GrB_Matrix Graph;
     uint64_t sizeGraph = Graph_RequiredMatrixDim(gc->g);
-    GrB_Matrix_new(&Graph, GrB_INT64, sizeGraph, sizeGraph);
+    info = GrB_Matrix_new(&Graph, GrB_INT64, sizeGraph, sizeGraph);
+	
+	if (info != GrB_SUCCESS)
+        RedisModule_ReplyWithError(ctx, "failed to construct the matrix\n");
 
     for (int i = 0; i < GraphContext_SchemaCount(gc, SCHEMA_EDGE); i++)
     {
@@ -69,11 +85,22 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
     // create matrix for kronecker product and transitive clouser
     GrB_Matrix Kproduct;
     uint32_t sizeKproduct = sizeGraph * sizeAutomat;
-    GrB_Matrix_new(&Kproduct, GrB_INT64, sizeKproduct, sizeKproduct);
+    info = GrB_Matrix_new(&Kproduct, GrB_INT64, sizeKproduct, sizeKproduct);
+	
+	if (info != GrB_SUCCESS)
+        RedisModule_ReplyWithError(ctx, "failed to construct the matrix\n");
+	
     GrB_Matrix Tclouser; // чтобы быстрее было добавлять новые дуги в граф
-    GrB_Matrix_new(&Tclouser, GrB_BOOL, sizeKproduct, sizeKproduct);
+    info = GrB_Matrix_new(&Tclouser, GrB_BOOL, sizeKproduct, sizeKproduct);
+	
+	if (info != GrB_SUCCESS)
+        RedisModule_ReplyWithError(ctx, "failed to construct the matrix\n");
+	
     GrB_Matrix degreeKproduct;
-    GrB_Matrix_new(&degreeKproduct, GrB_BOOL, sizeKproduct, sizeKproduct);
+    info = GrB_Matrix_new(&degreeKproduct, GrB_BOOL, sizeKproduct, sizeKproduct);
+	
+	if (info != GrB_SUCCESS)
+        RedisModule_ReplyWithError(ctx, "failed to construct the matrix\n");
 
     // algorithm
     bool matrices_is_changed = true;
@@ -121,13 +148,13 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
                     int i_2 = i % sizeAutomat;
                     int j_2 = j % sizeGraph;
 
-                    int32_t st = 0;
-                    GrB_Matrix_extractElement_INT64(&st, Automat, i_1, i_2);
+                    int64_t st = 0;
+                    GrB_Matrix_extractElement_INT64(&st, States, i_1, i_2);
                     if (st != 0)
                     {
-                        int32_t data = 0;
+                        int64_t data = 0;
                         GrB_Matrix_extractElement_INT64(&data, Graph, i_2, j_2);
-                        int32_t newdata = data | st;
+                        int64_t newdata = data | st;
                         if (data != newdata)
                             matrices_is_changed = true;
                         GrB_Matrix_setElement_INT64(Graph, newdata, i_2, j_2);
@@ -149,6 +176,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
     GrB_Matrix_free(&degreeKproduct);
     GrB_Matrix_free(&Tclouser);
     GrB_Matrix_free(&Graph);
+	GrB_Matrix_free(&States);
     GrB_Matrix_free(&Automat);
 
     return REDISMODULE_OK;
