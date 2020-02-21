@@ -1,0 +1,5 @@
+M -> b V d;
+V -> L P R;
+P -> e | M;
+L -> e | P r L;
+R -> e | a P R;
