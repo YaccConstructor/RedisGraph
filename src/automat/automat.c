@@ -45,12 +45,9 @@ void automat_delete(automat *aut)
     aut->init = 0;
 }
 
-void automat_load_from_file(automat *aut, char *file_name)
+void automat_load_from_file(automat *aut, FILE *file)
 {
     assert(aut->init == 1);
-
-    FILE *file = fopen("input.txt", "r");
-    assert(file != NULL);
 
     int edgesCount = 0;
     fscanf(file, "%d", &edgesCount);
@@ -65,14 +62,6 @@ void automat_load_from_file(automat *aut, char *file_name)
         int l = 0;
 
         int count = fscanf(file, "%d%c%s%c%d%c", &k, &skip, label, &skip, &l, &skip);
-//        fscanf(file, "%d", &k);
-//        fscanf(file, "%c", skip);
-
-//        fscanf(file, "%с", label);
-//        fscanf(file, "%c", skip);
-
-//        fscanf(file, "%d", &l);
-//        fscanf(file, "%c", skip);
 
         int j = 0;
         int found = map_get_second_by_first(aut->indices, label);
@@ -177,56 +166,58 @@ void automat_load_from_file(automat *aut, char *file_name)
     }
 
 
+#ifdef DEBUG
+	{
+		printf("%d", aut->statesCount);
+    	printf("%c", '\n');
+    	printf("%c", '\n');
 
+    	for (int i = 0; i < aut->statesCount; i++)
+    	{
+        	for (int j = 0; j < aut->statesCount; j++)
+            	printf("%d", vector_int_get_element_by_index(&aut->matrix, i*aut->statesCount + j));
 
-    printf("%d", aut->statesCount);
-    printf("%c", '\n');
-    printf("%c", '\n');
+        	printf("%c", '\n');
+    	}
 
-    for (int i = 0; i < aut->statesCount; i++)
-    {
-        for (int j = 0; j < aut->statesCount; j++)
-            printf("%d", vector_int_get_element_by_index(&aut->matrix, i*aut->statesCount + j));
+    	printf("%c", '\n');
+    	printf("%c", '\n');
 
-        printf("%c", '\n');
-    }
+    	for (int i = 0; i < aut->statesCount; i++)
+    	{
+        	for (int j = 0; j < aut->statesCount; j++)
+            	printf("%d", vector_int_get_element_by_index(&aut->states, i*aut->statesCount + j));
 
-    printf("%c", '\n');
-    printf("%c", '\n');
+        	printf("%c", '\n');
+    	}
 
-    for (int i = 0; i < aut->statesCount; i++)
-    {
-        for (int j = 0; j < aut->statesCount; j++)
-            printf("%d", vector_int_get_element_by_index(&aut->states, i*aut->statesCount + j));
+    	printf("%c", '\n');
+    	printf("%c", '\n');
 
-        printf("%c", '\n');
-    }
+    	for (int i = 0; i < vector_int_get_size(&aut->edg.edges_i); i++)
+    	{
+        	int e_i = vector_int_get_element_by_index(&aut->edg.edges_i, i);
+        	int e_j = vector_int_get_element_by_index(&aut->edg.edges_j, i);
+        	int e_label = vector_int_get_element_by_index(&aut->edg.edges_label, i);
 
-    printf("%c", '\n');
-    printf("%c", '\n');
+        	printf("%d %d %d", e_i, e_label, e_j);
+        	printf("%c", ' ');
+        	printf("%c", ' ');
+        	printf("%c", ' ');
+    	}
 
-    for (int i = 0; i < vector_int_get_size(&aut->edg.edges_i); i++)
-    {
-        int e_i = vector_int_get_element_by_index(&aut->edg.edges_i, i);
-        int e_j = vector_int_get_element_by_index(&aut->edg.edges_j, i);
-        int e_label = vector_int_get_element_by_index(&aut->edg.edges_label, i);
+    	printf("%c", '\n');
+    	printf("%c", '\n');
 
-        printf("%d %d %d", e_i, e_label, e_j);
-        printf("%c", ' ');
-        printf("%c", ' ');
-        printf("%c", ' ');
-    }
+    	for (int i = 0; i < vector_int_get_size(&aut->paths.edges_i); i++)
+    	{
+        	int p_i = vector_int_get_element_by_index(&aut->paths.edges_i, i);
+        	int p_j = vector_int_get_element_by_index(&aut->paths.edges_j, i);
+        	int p_label = vector_int_get_element_by_index(&aut->paths.edges_label, i);
 
-    printf("%c", '\n');
-    printf("%c", '\n');
-
-    for (int i = 0; i < vector_int_get_size(&aut->paths.edges_i); i++)
-    {
-        int p_i = vector_int_get_element_by_index(&aut->paths.edges_i, i);
-        int p_j = vector_int_get_element_by_index(&aut->paths.edges_j, i);
-        int p_label = vector_int_get_element_by_index(&aut->paths.edges_label, i);
-
-        printf("%d %d %d", p_i, p_label, p_j);
-        printf("%c", '\n');
-    }
+        	printf("%d %d %d", p_i, p_label, p_j);
+        	printf("%c", '\n');
+    	}
+	}
+#endif
 }

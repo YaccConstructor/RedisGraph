@@ -1,12 +1,12 @@
 #include "../redismodule.h"
 #include "../graph/graphcontext.h"
-#include "../grammar/grammar.h"
+#include "../automat/automat.h"
 #include "../cfpq_algorithms/algo_registrator.h"
 #include "../cfpq_algorithms/response.h"
 #include "../util/simple_timer.h"
 
 int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    printf("shit");
+    printf("start");
     if (argc != 4) {
         RedisModule_ReplyWithError(ctx, "expected 3 args: algorithm name, graph name, grammar file path");
     }
@@ -26,17 +26,15 @@ int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     // Load grammar
     FILE* f = fopen(grammar_file_path, "r");
-    Grammar grammar;
-    if (f == NULL) {
-        sprintf(msg, "): File \"%s\" not found :(", grammar_file_path);
+	automat grammar;
+	if (f == NULL)
+	{
+		sprintf(msg, "): File \"%s\" not found :(", grammar_file_path);
         RedisModule_ReplyWithError(ctx, msg);
         return REDISMODULE_ERR;
-    }
-    if (Grammar_Load(&grammar, f) != GRAMMAR_LOAD_SUCCESS) {
-        RedisModule_ReplyWithError(ctx, "): Grammar has not loaded :(");
-        return REDISMODULE_ERR;
-    }
-    fclose(f);
+	}
+	automat_load_from_file(&grammar, f);
+	fclose(f);
 
     // Check algo exist
     AlgoPointer algo = AlgoStorage_Get(algo_name);

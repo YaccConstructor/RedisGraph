@@ -4,7 +4,7 @@
 
 #define F_BINARY(f) ((void (*)(void *, const void *, const void *)) f)
 
-void bin_for_kron(int32_t *z, const int32_t *x, const int32_t *y)
+void bin_for_kron(int64_t *z, const int64_t *x, const int64_t *y)
 {
     *z = *x & *y;
 
@@ -16,8 +16,8 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
 {
     // create automat matrix
     GrB_Matrix Automat;
-    uint32_t sizeAutomat = grammar->statesCount;
-    GrB_Info info = GrB_Matrix_new(&Automat, GrB_INT32, sizeAutomat, sizeAutomat);
+    uint64_t sizeAutomat = grammar->statesCount;
+    GrB_Info info = GrB_Matrix_new(&Automat, GrB_INT64, sizeAutomat, sizeAutomat);
 
     if (info != GrB_SUCCESS)
         RedisModule_ReplyWithError(ctx, "failed to construct the matrix\n");
@@ -25,7 +25,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
     for (int i = 0; i < sizeAutomat; i++)
     {
         for (int j = 0; j < sizeAutomat; j++)
-            GrB_Matrix_setElement_INT32(Automat, vector_int_get_element_by_index(&grammar->matrix, i*sizeAutomat + j), i, j);
+            GrB_Matrix_setElement_INT64(Automat, vector_int_get_element_by_index(&grammar->matrix, i*sizeAutomat + j), i, j);
     }
 
     // create graph matrix
@@ -56,7 +56,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
 
     // create binary operation
     GrB_BinaryOp binary_for_kron;
-    GrB_BinaryOp_new(&binary_for_kron, F_BINARY(binary_for_kron), GrB_INT32, GrB_INT32, GrB_INT32);
+    GrB_BinaryOp_new(&binary_for_kron, F_BINARY(binary_for_kron), GrB_INT64, GrB_INT64, GrB_INT64);
 
     // create bool monoid for bool semiring
     GrB_Monoid bool_monoid;
@@ -69,7 +69,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
     // create matrix for kronecker product and transitive clouser
     GrB_Matrix Kproduct;
     uint32_t sizeKproduct = sizeGraph * sizeAutomat;
-    GrB_Matrix_new(&Kproduct, GrB_INT32, sizeKproduct, sizeKproduct);
+    GrB_Matrix_new(&Kproduct, GrB_INT64, sizeKproduct, sizeKproduct);
     GrB_Matrix Tclouser; // чтобы быстрее было добавлять новые дуги в граф
     GrB_Matrix_new(&Tclouser, GrB_BOOL, sizeKproduct, sizeKproduct);
     GrB_Matrix degreeKproduct;
@@ -81,8 +81,9 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
     while(matrices_is_changed)
     {
         matrices_is_changed = false;
+		response->iteration_count++;
 
-        GxB_kron(Kproduct, GrB_NULL, GrB_NULL, binary_for_kron, Automat, Graph, GrB_NULL);
+        GxB_kron(Kproduct, NULL, NULL, binary_for_kron, Automat, Graph, NULL);
 
         // transitive clouser
         bool transitive_matrix_is_changed = true;
@@ -93,8 +94,8 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
         int32_t nvalsCur = 0;
         while (transitive_matrix_is_changed)
         {
-            GrB_mxm(degreeKproduct, GrB_NULL, GrB_NULL, bool_semiring, degreeKproduct, Kproduct, GrB_NULL);
-            GrB_eWiseAdd_Matrix_BinaryOp(Tclouser, GrB_NULL, GrB_NULL, GrB_LOR, Kproduct, degreeKproduct, GrB_NULL);
+            GrB_mxm(degreeKproduct, NULL, NULL, bool_semiring, degreeKproduct, Kproduct, NULL);
+            GrB_eWiseAdd_Matrix_BinaryOp(Tclouser, NULL, NULL, GrB_LOR, Kproduct, degreeKproduct, NULL);
 
             GrB_Matrix_nvals(&nvalsCur, Tclouser);
             if (nvalsCur == nvalsPrev)
@@ -110,7 +111,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
             for (int j = 0; j < sizeKproduct; j++)
             {
                 int32_t s = 0;
-                GrB_Matrix_extractElement_INT32(&s, Tclouser, i, j);
+                GrB_Matrix_extractElement_INT64(&s, Tclouser, i, j);
 
                 if (s != 0)
                 {
@@ -121,15 +122,15 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
                     int j_2 = j % sizeGraph;
 
                     int32_t st = 0;
-                    GrB_Matrix_extractElement_INT32(&st, Automat, i_1, i_2);
+                    GrB_Matrix_extractElement_INT64(&st, Automat, i_1, i_2);
                     if (st != 0)
                     {
                         int32_t data = 0;
-                        GrB_Matrix_extractElement_INT32(&data, Graph, i_2, j_2);
+                        GrB_Matrix_extractElement_INT64(&data, Graph, i_2, j_2);
                         int32_t newdata = data | st;
                         if (data != newdata)
                             matrices_is_changed = true;
-                        GrB_Matrix_setElement_INT32(Graph, newdata, i_2, j_2);
+                        GrB_Matrix_setElement_INT64(Graph, newdata, i_2, j_2);
                     }
                 }
             }
