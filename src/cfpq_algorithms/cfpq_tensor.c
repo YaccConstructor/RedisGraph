@@ -28,18 +28,18 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
             GrB_Matrix_setElement_INT64(Automat, vector_int_get_element_by_index(&grammar->matrix, i*sizeAutomat + j), i, j);
     }
 	
-	// create states matrix
-	GrB_Matrix States;
-	info = GrB_Matrix_new(&States, GrB_INT64, sizeAutomat, sizeAutomat);
+    // create states matrix
+    GrB_Matrix States;
+    info = GrB_Matrix_new(&States, GrB_INT64, sizeAutomat, sizeAutomat);
 	
-	if (info != GrB_SUCCESS)
+    if (info != GrB_SUCCESS)
         RedisModule_ReplyWithError(ctx, "failed to construct the matrix\n");
 	
-	for (int i = 0; i < sizeAutomat; i++)
-	{
-		for (int j = 0; j < sizeAutomat; j++)
-			GrB_Matrix_setElement_INT64(States, vector_int_get_element_by_index(&grammar->states, i*sizeAutomat + j), i, j);
-	}
+    for (int i = 0; i < sizeAutomat; i++)
+    {
+	for (int j = 0; j < sizeAutomat; j++)
+            GrB_Matrix_setElement_INT64(States, vector_int_get_element_by_index(&grammar->states, i*sizeAutomat + j), i, j);
+    }
 	
     // create graph matrix
     GrB_Matrix Graph;
