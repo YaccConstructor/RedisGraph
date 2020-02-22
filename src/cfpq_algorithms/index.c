@@ -38,6 +38,10 @@ bool PathIndex_IsIdentity(const PathIndex *index) {
            index->length == 0;
 }
 
+bool PathIndex_IsEdge(const PathIndex *index) {
+    return index->length == 1;
+}
+
 void PathIndex_Copy(const PathIndex *from, PathIndex *to) {
     to->left = from->left;
     to->right = from->right;
@@ -134,57 +138,69 @@ void PathIndex_MatrixShow(const GrB_Matrix *matrix) {
     }
 }
 
-void _PathIndex_MatrixGetPath(GrB_Index *arr, const GrB_Matrix *matrices, const Grammar *grammar, GrB_Index left, GrB_Index right, MapperIndex nonterm) {
+
+GrB_Index *PathIndex_MatrixGetPath(const GrB_Matrix *matrices, const Grammar *grammar, GrB_Index left, GrB_Index right, MapperIndex nonterm) {
     PathIndex index;
     PathIndex_InitIdentity(&index);
     GrB_Matrix_extractElement((void *) &index, matrices[nonterm], left, right);
 
-    assert(!PathIndex_IsIdentity(&index) && "Index isn`t correct\n");
+    GrB_Index *path = array_new(GrB_Index, index.length + 1);
 
+    PathIndex *sp = array_new(PathIndex, index.length + 1);
+    MapperIndex *nonterms = array_new(MapperIndex, index.length + 1);
+    uint8_t *directions = array_new(uint8_t, index.length + 1);
 
+    sp = array_append(sp, index);
+    nonterms = array_append(nonterms, nonterm);
+    directions = array_append(directions, 0);
 
-    if (index.height == 1) {
-        array_append(arr, index.left);
-        return;
-    }
+    while (array_len(sp) != 0) {
+        PathIndex top = sp[array_len(sp)-1];
+        nonterm = nonterms[array_len(nonterms)-1];
+        uint8_t direction = directions[array_len(directions)-1];
 
-    for (GrB_Index i = 0; i < grammar->complex_rules_count; ++i) {
-        MapperIndex nonterm_l = grammar->complex_rules[i].l;
-        MapperIndex nonterm_r1 = grammar->complex_rules[i].r1;
-        MapperIndex nonterm_r2 = grammar->complex_rules[i].r2;
+        if (PathIndex_IsEdge(&top) || direction == 2) {
+            if (PathIndex_IsEdge(&top))
+                path = array_append(path, top.left);
 
-        if (nonterm == nonterm_l) {
-            PathIndex index_r1, index_r2;
-            PathIndex_InitIdentity(&index_r1);
-            PathIndex_InitIdentity(&index_r2);
-            GrB_Matrix_extractElement((void *) &index_r1, matrices[nonterm_r1], left, index.middle);
-            GrB_Matrix_extractElement((void *) &index_r2, matrices[nonterm_r2], index.middle, right);
+            array_pop(sp);
+            array_pop(nonterms);
+            array_pop(directions);
 
-            if (!PathIndex_IsIdentity(&index_r1) && !PathIndex_IsIdentity(&index_r2)) {
-                uint32_t max_height = index_r1.height < index_r2.height ? index_r2.height : index_r1.height;
-                if (index.height == max_height + 1) {
-                    _PathIndex_MatrixGetPath(arr, matrices, grammar, left, index.middle, nonterm_r1);
-                    _PathIndex_MatrixGetPath(arr, matrices, grammar, index.middle, right, nonterm_r2);
-                    break;
+            if (array_len(directions) != 0)
+                directions[array_len(directions)-1] += 1;
+            else
+                break;
+        } else {
+            for (GrB_Index i = 0; i < grammar->complex_rules_count; ++i) {
+                MapperIndex nonterm_l = grammar->complex_rules[i].l;
+                MapperIndex nonterm_r1 = grammar->complex_rules[i].r1;
+                MapperIndex nonterm_r2 = grammar->complex_rules[i].r2;
+
+                if (nonterm == nonterm_l) {
+                    PathIndex index_r1, index_r2;
+                    PathIndex_InitIdentity(&index_r1);
+                    PathIndex_InitIdentity(&index_r2);
+                    GrB_Matrix_extractElement((void *) &index_r1, matrices[nonterm_r1], top.left, top.middle);
+                    GrB_Matrix_extractElement((void *) &index_r2, matrices[nonterm_r2], top.middle, top.right);
+
+                    if (!PathIndex_IsIdentity(&index_r1) && !PathIndex_IsIdentity(&index_r2)) {
+                        uint32_t max_height = index_r1.height < index_r2.height ? index_r2.height : index_r1.height;
+                        if (top.height == max_height + 1) {
+                            if (direction == 0) {
+                                sp = array_append(sp, index_r1);
+                                nonterms = array_append(nonterms, nonterm_r1);
+                            } else {
+                                sp = array_append(sp, index_r2);
+                                nonterms = array_append(nonterms, nonterm_r2);
+                            }
+                            directions = array_append(directions, 0);
+                            break;
+                        }
+                    }
                 }
             }
         }
     }
-}
-
-GrB_Index * PathIndex_MatrixGetPath(const GrB_Matrix *matrices, const Grammar *grammar, GrB_Index left, GrB_Index right, MapperIndex nonterm) {
-    PathIndex index;
-    PathIndex_InitIdentity(&index);
-    GrB_Matrix_extractElement((void *) &index, matrices[nonterm], left, right);
-
-
-    if (PathIndex_IsIdentity(&index)) {
-//        printf("Path doesnt`t exist\n");
-        return NULL;
-    }
-
-    GrB_Index *arr = array_new(GrB_Index, index.length + 1);
-    _PathIndex_MatrixGetPath(arr, matrices, grammar, left, right, nonterm);
-    array_append(arr, index.right);
-    return arr;
+    return path;
 }

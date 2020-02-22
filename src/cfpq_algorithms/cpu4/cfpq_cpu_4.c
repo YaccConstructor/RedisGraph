@@ -97,7 +97,7 @@ int CFPQ_cpu4(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
     sprintf(s, "%s.csv", gc->graph_name);
 
     FILE *f = fopen(s, "w");
-    sprintf(s, "i,j,length,time");
+    sprintf(s, "length,i,j,time");
     fputs(s, f);
 
     int i = 0;
@@ -128,7 +128,6 @@ int CFPQ_cpu4(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
         fputs(s, f);
 
         array_free(path);
-
     }
     fclose(f);
     AllPathResponse *allPathResponse = AllPathResponse_New(1);
