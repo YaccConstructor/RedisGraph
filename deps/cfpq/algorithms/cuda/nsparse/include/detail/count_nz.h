@@ -5,6 +5,8 @@
 
 #include <cub/cub.cuh>
 
+#include <iostream>
+
 #include <algorithm>
 #include <thrust/device_ptr.h>
 #include <thrust/device_vector.h>
@@ -90,52 +92,80 @@ global_hash_table_state_t<index_type> exec_global_row(
   if (size == 0)
     return {};
 
-  constexpr index_type block_sz = 1024;
-  static_assert(block_sz % 32 == 0);
+  thrust::device_vector<index_type> aka_fail_stat(
+      permutation_buffer.begin() + bin_offset[Border::bin_index],
+      permutation_buffer.begin() + bin_offset[Border::bin_index] + size);
 
-  // extra item for counter in last position
-  thrust::device_vector<index_type> fail_stat(size + 1, 0);
+  thrust::device_vector<index_type> bucket_count(size + 1);
+  bucket_count.back() = 0;
 
-  count_nz_block_row_large<index_type, Border::min_border><<<size, block_sz>>>(
+  thrust::transform(permutation_buffer.begin() + bin_offset[Border::bin_index],
+                    permutation_buffer.begin() + bin_offset[Border::bin_index] + size,
+                    bucket_count.begin(), [prod = row_idx.data()] __device__(auto row_id) {
+                      index_type p = prod[row_id];
+                      prod[row_id] = 0;
+                      return (p + Border::min_border - 1) / Border::min_border;
+                    });
+
+  using namespace util;
+
+  thrust::exclusive_scan(bucket_count.begin(), bucket_count.end(), bucket_count.begin());
+  index_type total_buckets = bucket_count.back();
+
+  thrust::device_vector<util::bucket_info_t<index_type>> bucket_info(total_buckets);
+
+  thrust::for_each(
+      thrust::counting_iterator<index_type>(0), thrust::counting_iterator<index_type>(size),
+      [rpt_a = a_row_idx.data(), rpt_b = b_row_idx.data(), col_a = a_col_idx.data(),
+       bucket_ptr = bucket_info.data(), bucket_cnt = bucket_count.data(),
+       rows_ids = aka_fail_stat.data()] __device__(index_type item) {
+        index_type prod = 0;
+        index_type offset = bucket_cnt[item];
+        index_type part_count = 0;
+        index_type row_id = rows_ids[item];
+
+        index_type j;
+        index_type k;
+        index_type prev_k;
+        index_type prev_j;
+        for (j = rpt_a[row_id]; j < rpt_a[row_id + 1]; j++) {
+          for (k = rpt_b[col_a[j]]; k < rpt_b[col_a[j] + 1]; k++) {
+            if (prod % Border::min_border == 0) {
+              if (part_count != 0) {
+                // update prev
+                (bucket_ptr.get() + offset - 1)->a_row_end = prev_j;
+                (bucket_ptr.get() + offset - 1)->b_row_end = prev_k;
+              }
+              bucket_ptr[offset++] = util::bucket_info_t<index_type>{row_id, j, k, 0, 0};
+              part_count++;
+            }
+            prev_k = k + 1;
+            prev_j = j + 1;
+            prod++;
+          }
+        }
+
+        (bucket_ptr.get() + offset - 1)->a_row_end = j;
+        (bucket_ptr.get() + offset - 1)->b_row_end = k;
+      });
+
+  thrust::device_vector<index_type> hash_table(total_buckets * Border::min_border);
+
+  count_nz_block_row_large<index_type, Border::min_border><<<total_buckets, 128>>>(
       c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-      b_col_idx.data(), permutation_buffer.data() + bin_offset[Border::bin_index], row_idx.data(),
-      fail_stat.data() + size, fail_stat.data());
+      b_col_idx.data(), bucket_info.data(), hash_table.data(), row_idx.data());
 
-  index_type fail_count = fail_stat.back();
-  if (fail_count > 0) {
-    fail_stat.resize(fail_count);
-    thrust::device_vector<index_type> hash_table_offsets(fail_count + 1);
+  thrust::device_vector<index_type> hash_table_offsets(size + 1);
 
-    thrust::transform(fail_stat.begin(), fail_stat.end(), hash_table_offsets.begin(),
-                      [ptr = row_idx.data()] __device__(index_type item) {
-                        index_type res = ptr[item] * 1.1;
-                        ptr[item] = 0;
-                        return res;
-                      });
-    hash_table_offsets.back() = 0;
+  thrust::transform(bucket_count.begin(), bucket_count.end(), hash_table_offsets.begin(),
+                    [] __device__(index_type it) { return it * Border::min_border; });
 
-    thrust::exclusive_scan(hash_table_offsets.begin(), hash_table_offsets.end(),
-                           hash_table_offsets.begin());
-
-    index_type hash_table_sz = hash_table_offsets.back();
-    thrust::device_vector<index_type> hash_table(hash_table_sz,
-                                                 std::numeric_limits<index_type>::max());
-
-    constexpr index_type block_sz = 64;
-    constexpr index_type block_per_row = 16;
-    static_assert(block_sz % 32 == 0);
-
-    count_nz_block_row_large_global<index_type, block_per_row>
-        <<<fail_count * block_per_row, block_sz>>>(
-            c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
-            b_row_idx.data(), b_col_idx.data(), fail_stat.data(), row_idx.data(), hash_table.data(),
-            hash_table_offsets.data());
-
-    thrust::device_vector<index_type> sorted_hash_table(hash_table_sz);
+  thrust::device_vector<index_type> sorted_hash_table(hash_table.size());
+  {
     size_t temp_storage_bytes = 0;
     cub::DeviceSegmentedRadixSort::SortKeys(
         nullptr, temp_storage_bytes, thrust::raw_pointer_cast(hash_table.data()),
-        thrust::raw_pointer_cast(sorted_hash_table.data()), hash_table_sz, fail_count,
+        thrust::raw_pointer_cast(sorted_hash_table.data()), hash_table.size(), size,
         thrust::raw_pointer_cast(hash_table_offsets.data()),
         thrust::raw_pointer_cast(hash_table_offsets.data()) + 1);
 
@@ -144,15 +174,16 @@ global_hash_table_state_t<index_type> exec_global_row(
     cub::DeviceSegmentedRadixSort::SortKeys(
         thrust::raw_pointer_cast(storage.data()), temp_storage_bytes,
         thrust::raw_pointer_cast(hash_table.data()),
-        thrust::raw_pointer_cast(sorted_hash_table.data()), hash_table_sz, fail_count,
+        thrust::raw_pointer_cast(sorted_hash_table.data()), hash_table.size(), size,
         thrust::raw_pointer_cast(hash_table_offsets.data()),
         thrust::raw_pointer_cast(hash_table_offsets.data()) + 1);
-
-    cudaDeviceSynchronize();
-
-    return {std::move(sorted_hash_table), std::move(hash_table_offsets), std::move(fail_stat)};
   }
-  return {};
+
+  cudaDeviceSynchronize();
+
+  std::cout << *thrust::max_element(row_idx.begin(), row_idx.end()) << std::endl;
+
+  return {std::move(sorted_hash_table), std::move(hash_table_offsets), std::move(aka_fail_stat)};
 }
 
 template <typename index_type, typename... Borders>
@@ -180,7 +211,7 @@ row_index_res_t<index_type> calc_nz_per_row(index_type n_rows, index_type n_cols
           prod += rpt_b[col_a[j] + 1] - rpt_b[col_a[j]];
         }
 
-        prod = min(prod, max_c_cols);
+        //        prod = min(prod, max_c_cols);
 
         prod_per_row[tid] = prod;
 

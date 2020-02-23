@@ -7,6 +7,15 @@ namespace nsparse {
 namespace util {
 
 template <typename T>
+struct bucket_info_t {
+  T row_id;
+  T a_row_begin;
+  T b_row_begin;
+  T a_row_end;
+  T b_row_end;
+};
+
+template <typename T>
 inline T div(T m, T n) {
   return ceil((double)m / n);
 }
