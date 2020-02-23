@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "index.h"
+#include "path_index.h"
 #include "../util/arr.h"
 
 PathIndex PathIndex_Identity = {
@@ -202,5 +202,8 @@ GrB_Index *PathIndex_MatrixGetPath(const GrB_Matrix *matrices, const Grammar *gr
             }
         }
     }
+    array_free(sp);
+    array_free(nonterms);
+    array_free(directions);
     return path;
 }

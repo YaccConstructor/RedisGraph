@@ -1,7 +1,7 @@
 #include "../cfpq_algorithms.h"
 #include "../../grammar/item_mapper.h"
 #include "../../grammar/helpers.h"
-#include "../index.h"
+#include "../path_index.h"
 #include "all_path_response.h"
 #include "../../util/arr.h"
 #include "../../util/simple_timer.h"
