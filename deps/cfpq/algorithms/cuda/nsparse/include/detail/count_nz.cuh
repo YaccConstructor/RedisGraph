@@ -107,19 +107,11 @@ __global__ void count_nz_block_row_large(
   for (T j = bucket.a_row_begin + wid; j < bucket.a_row_end; j += warpCount) {
     T a_col = col_a[j];
 
-    T b_begin;
-    if (j == bucket.a_row_begin) {
-      b_begin = bucket.b_row_begin;
-    } else {
-      b_begin = rpt_b[a_col];
-    }
+    bool is_first = j == bucket.a_row_begin;
+    bool is_last = j == (bucket.a_row_end - 1);
 
-    T b_end;
-    if (j == bucket.a_row_end - 1) {
-      b_end = bucket.b_row_end;
-    } else {
-      b_end = rpt_b[a_col + 1];
-    }
+    T b_begin = is_first * bucket.b_row_begin + !is_first * rpt_b[a_col];
+    T b_end = is_last * bucket.b_row_end + !is_last * rpt_b[a_col + 1];
 
     for (T k = b_begin + i; k < b_end; k += warpSize) {
       T b_col = col_b[k];

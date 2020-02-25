@@ -39,13 +39,14 @@ void exec_pwarp_row(const thrust::device_vector<index_type>& c_col_idx,
                     const thrust::device_vector<index_type>& bin_offset,
                     const thrust::device_vector<index_type>& bin_size,
                     thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
-  constexpr index_type pwarp = 4;
-  constexpr index_type block_sz = 256;
+  constexpr size_t pwarp = 4;
 
   EXPAND_SIDE_EFFECTS(
       (bin_size[Borders::bin_index] > 0
-           ? count_nz_pwarp_row<index_type, pwarp, block_sz, Borders::max_border>
-           <<<util::div(bin_size[Borders::bin_index] * pwarp, block_sz), block_sz>>>(
+           ? count_nz_pwarp_row<index_type, pwarp, Borders::config_t::block_size,
+                                Borders::max_border>
+           <<<util::div(bin_size[Borders::bin_index] * pwarp, Borders::config_t::block_size),
+              Borders::config_t::block_size>>>(
                c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
                b_row_idx.data(), b_col_idx.data(),
                permutation_buffer.data() + bin_offset[Borders::bin_index], row_idx.data(),
@@ -64,11 +65,11 @@ void exec_block_row(const thrust::device_vector<index_type>& c_col_idx,
                     const thrust::device_vector<index_type>& bin_offset,
                     const thrust::device_vector<index_type>& bin_size,
                     thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
-  static_assert(meta::all_of<(Borders::max_border / 8 % 32 == 0)...>);
+  static_assert(meta::all_of<(Borders::config_t::block_size % 32 == 0)...>);
 
   EXPAND_SIDE_EFFECTS(
       (bin_size[Borders::bin_index] > 0 ? count_nz_block_row<index_type, Borders::max_border>
-           <<<(index_type)bin_size[Borders::bin_index], Borders::max_border / 8>>>(
+           <<<(index_type)bin_size[Borders::bin_index], Borders::config_t::block_size>>>(
                c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
                b_row_idx.data(), b_col_idx.data(),
                permutation_buffer.data() + bin_offset[Borders::bin_index], row_idx.data())
@@ -89,6 +90,8 @@ global_hash_table_state_t<index_type> exec_global_row(
     std::tuple<Border>) {
   index_type size = bin_size[Border::bin_index];
 
+  constexpr size_t table_size = Border::config_t::block_size * 8;
+
   if (size == 0)
     return {};
 
@@ -103,8 +106,8 @@ global_hash_table_state_t<index_type> exec_global_row(
                     permutation_buffer.begin() + bin_offset[Border::bin_index] + size,
                     bucket_count.begin(), [prod = row_idx.data()] __device__(auto row_id) {
                       index_type p = prod[row_id];
-                      prod[row_id] = 0;
-                      return (p + Border::min_border - 1) / Border::min_border;
+                      // add extra bucket for decrease collision count
+                      return (p + table_size - 1) / table_size + 1;
                     });
 
   using namespace util;
@@ -118,11 +121,13 @@ global_hash_table_state_t<index_type> exec_global_row(
       thrust::counting_iterator<index_type>(0), thrust::counting_iterator<index_type>(size),
       [rpt_a = a_row_idx.data(), rpt_b = b_row_idx.data(), col_a = a_col_idx.data(),
        bucket_ptr = bucket_info.data(), bucket_cnt = bucket_count.data(),
-       rows_ids = aka_fail_stat.data()] __device__(index_type item) {
+       rows_ids = aka_fail_stat.data(), prod_in = row_idx.data()] __device__(index_type item) {
         index_type prod = 0;
         index_type offset = bucket_cnt[item];
-        index_type part_count = 0;
+        index_type total_buckets = bucket_cnt[item + 1] - offset;
         index_type row_id = rows_ids[item];
+        index_type divide = (prod_in[row_id] + total_buckets - 1) / total_buckets;
+        index_type part_count = 0;
 
         index_type j;
         index_type k;
@@ -130,7 +135,7 @@ global_hash_table_state_t<index_type> exec_global_row(
         index_type prev_j;
         for (j = rpt_a[row_id]; j < rpt_a[row_id + 1]; j++) {
           for (k = rpt_b[col_a[j]]; k < rpt_b[col_a[j] + 1]; k++) {
-            if (prod % Border::min_border == 0) {
+            if (prod % divide == 0) {
               if (part_count != 0) {
                 // update prev
                 (bucket_ptr.get() + offset - 1)->a_row_end = prev_j;
@@ -149,16 +154,19 @@ global_hash_table_state_t<index_type> exec_global_row(
         (bucket_ptr.get() + offset - 1)->b_row_end = k;
       });
 
-  thrust::device_vector<index_type> hash_table(total_buckets * Border::min_border);
+  thrust::for_each(aka_fail_stat.begin(), aka_fail_stat.end(),
+                   [prod = row_idx.data()] __device__(index_type row_id) { prod[row_id] = 0; });
 
-  count_nz_block_row_large<index_type, Border::min_border><<<total_buckets, 128>>>(
+  thrust::device_vector<index_type> hash_table(total_buckets * table_size);
+
+  count_nz_block_row_large<index_type, table_size><<<total_buckets, Border::config_t::block_size>>>(
       c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
       b_col_idx.data(), bucket_info.data(), hash_table.data(), row_idx.data());
 
   thrust::device_vector<index_type> hash_table_offsets(size + 1);
 
   thrust::transform(bucket_count.begin(), bucket_count.end(), hash_table_offsets.begin(),
-                    [] __device__(index_type it) { return it * Border::min_border; });
+                    [] __device__(index_type it) { return it * table_size; });
 
   thrust::device_vector<index_type> sorted_hash_table(hash_table.size());
   {
@@ -180,8 +188,6 @@ global_hash_table_state_t<index_type> exec_global_row(
   }
 
   cudaDeviceSynchronize();
-
-  std::cout << *thrust::max_element(row_idx.begin(), row_idx.end()) << std::endl;
 
   return {std::move(sorted_hash_table), std::move(hash_table_offsets), std::move(aka_fail_stat)};
 }

@@ -17,7 +17,7 @@ struct bucket_info_t {
 
 template <typename T>
 inline T div(T m, T n) {
-  return ceil((double)m / n);
+  return (m + n - 1) / n;
 }
 
 template <typename T>
