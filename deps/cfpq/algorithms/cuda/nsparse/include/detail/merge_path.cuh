@@ -30,8 +30,9 @@ template <typename T, T block_size>
 __global__ void merge_path_count(thrust::device_ptr<const T> rpt_a,
                                  thrust::device_ptr<const T> col_a,
                                  thrust::device_ptr<const T> rpt_b,
-                                 thrust::device_ptr<const T> col_b, thrust::device_ptr<T> rpt_c) {
-  const auto row = blockIdx.x;
+                                 thrust::device_ptr<const T> col_b, thrust::device_ptr<T> rpt_c,
+                                 thrust::device_ptr<const T> rows_in_bins) {
+  const auto row = rows_in_bins[blockIdx.x];
 
   constexpr T max_val = std::numeric_limits<T>::max();
 
@@ -176,8 +177,9 @@ __global__ void merge_path_fill(thrust::device_ptr<const T> rpt_a,
                                 thrust::device_ptr<const T> col_a,
                                 thrust::device_ptr<const T> rpt_b,
                                 thrust::device_ptr<const T> col_b,
-                                thrust::device_ptr<const T> rpt_c, thrust::device_ptr<T> col_c) {
-  const auto row = blockIdx.x;
+                                thrust::device_ptr<const T> rpt_c, thrust::device_ptr<T> col_c,
+                                thrust::device_ptr<const T> rows_in_bins) {
+  const auto row = rows_in_bins[blockIdx.x];
 
   constexpr T max_val = std::numeric_limits<T>::max();
 
