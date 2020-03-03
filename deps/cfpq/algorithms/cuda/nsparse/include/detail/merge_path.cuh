@@ -90,28 +90,17 @@ __global__ void merge_path_count(thrust::device_ptr<const T> rpt_a,
     const T to_process = min(buf_b_size + buf_a_size, block_size);
 
     for (auto j = threadIdx.x; j < to_process; j += blockDim.x) {
-      const T ind_sum = j + 2;
-      const T y = ind_sum;
+      const T y = j + 2;
       const T x = 0;
-      const T iter_count = ind_sum;
 
       T l = 0;
-      T r = iter_count;
+      T r = j + 2;
 
       while (r - l > 1) {
-        T step = (r - l) / 2;
-        T check = l + step;
+        bool ans = raw_b[y - l - (r - l) / 2] > raw_a[x + l + (r - l) / 2];
 
-        assert(check != 0);
-        assert(check != iter_count);
-
-        T check_x = x + check;
-        T check_y = y - check;
-
-        bool ans = raw_b[check_y] > raw_a[check_x];
-
-        l += step * ans;
-        r -= step * !ans;
+        l += (r - l) / 2 * ans;
+        r -= (r - l) / 2 * !ans;
       }
 
       T ans_x = x + l;
@@ -243,28 +232,17 @@ __global__ void merge_path_fill(thrust::device_ptr<const T> rpt_a,
     const auto j = dir ? threadIdx.x : blockDim.x - 1 - threadIdx.x;
 
     if (j < to_process) {
-      const T ind_sum = j + 2;
-      const T y = ind_sum;
+      const T y = j + 2;
       const T x = 0;
-      const T iter_count = ind_sum;
 
       T l = 0;
-      T r = iter_count;
+      T r = j + 2;
 
       while (r - l > 1) {
-        T step = (r - l) / 2;
-        T check = l + step;
+        bool ans = raw_b[y - l - (r - l) / 2] > raw_a[x + l + (r - l) / 2];
 
-        assert(check != 0);
-        assert(check != iter_count);
-
-        T check_x = x + check;
-        T check_y = y - check;
-
-        bool ans = raw_b[check_y] > raw_a[check_x];
-
-        l += step * ans;
-        r -= step * !ans;
+        l += (r - l) / 2 * ans;
+        r -= (r - l) / 2 * !ans;
       }
 
       T ans_x = x + l;
