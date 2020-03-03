@@ -1,6 +1,7 @@
 #pragma once
 
 #include <detail/util.h>
+#include <detail/bitonic.cuh>
 
 #include <thrust/device_ptr.h>
 
@@ -88,6 +89,7 @@ __global__ void count_nz_block_row_large(
   constexpr T hash_invalidated = std::numeric_limits<T>::max();
 
   __shared__ T hash_table[table_sz];
+  __shared__ T nz;
 
   auto bid = blockIdx.x;
   auto wid = threadIdx.x / warpSize;
@@ -98,11 +100,13 @@ __global__ void count_nz_block_row_large(
     hash_table[m] = hash_invalidated;
   }
 
+  if (threadIdx.x == 0) {
+    nz = 0;
+  }
+
   __syncthreads();
 
   const util::bucket_info_t<T> bucket = buckets[bid];
-
-  T nz = 0;
 
   for (T j = bucket.a_row_begin + wid; j < bucket.a_row_end; j += warpCount) {
     T a_col = col_a[j];
@@ -116,41 +120,20 @@ __global__ void count_nz_block_row_large(
     for (T k = b_begin + i; k < b_end; k += warpSize) {
       T b_col = col_b[k];
 
-      T hash = (b_col * 107) & (table_sz - 1);
-      T offset = hash;
-
-      while (true) {
-        T table_value = hash_table[offset];
-        if (table_value == b_col) {
-          break;
-        } else if (table_value == hash_invalidated) {
-          T old_value = atomicCAS(hash_table + offset, hash_invalidated, b_col);
-          if (old_value == hash_invalidated) {
-            nz++;
-            break;
-          }
-        } else {
-          hash = (hash + 1) & (table_sz - 1);
-          offset = hash;
-        }
-      }
+      hash_table[atomicAdd(&nz, 1)] = b_col;
     }
   }
 
-  for (auto j = warpSize / 2; j >= 1; j /= 2) {
-    nz += __shfl_xor_sync(0xffffffff, nz, j);
-  }
-
-  if (i == 0) {
-    atomicAdd(nz_per_row.get() + bucket.row_id, nz);
-  }
+  __syncthreads();
 
   T global_offset = bid * table_sz;
 
-  __syncthreads();
-
   for (auto i = threadIdx.x; i < table_sz; i += blockDim.x) {
     global_table[global_offset + i] = hash_table[i];
+  }
+
+  if (threadIdx.x == 0) {
+    atomicAdd(nz_per_row.get() + bucket.row_id, nz);
   }
 }
 

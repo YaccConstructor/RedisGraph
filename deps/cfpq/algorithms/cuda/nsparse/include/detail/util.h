@@ -16,8 +16,48 @@ struct bucket_info_t {
 };
 
 template <typename T>
-inline T div(T m, T n) {
+T div(T m, T n) {
   return (m + n - 1) / n;
+}
+
+template <typename T>
+__device__ T nearest_pow_2(T m) {
+  T res = 1;
+  while (res < m) {
+    res *= 2;
+  }
+  return res;
+}
+
+template <typename T>
+__device__ T warpReduceSum(T val) {
+  for (T offset = warpSize / 2; offset > 0; offset /= 2) {
+    val += __shfl_down_sync(0xffffffff, val, offset);
+  }
+  return val;
+}
+
+namespace detail {
+template <typename F>
+__global__ void kernel_call_impl(F functor) {
+  functor();
+}
+}  // namespace detail
+
+template <typename G, typename B, typename F>
+void kernel_call(G grid, B block, F&& functor) {
+  detail::kernel_call_impl<<<grid, block>>>(std::forward<decltype(functor)>(functor));
+}
+
+template <typename T>
+void resize_and_fill_zeros(thrust::device_vector<T>& vec, size_t size) {
+  vec.resize(size);
+  cudaMemsetAsync(thrust::raw_pointer_cast(vec.data()), 0, sizeof(T) * size);
+}
+
+template <typename T>
+void fill_zeros(thrust::device_vector<T>& vec, size_t size) {
+  cudaMemsetAsync(thrust::raw_pointer_cast(vec.data()), 0, sizeof(T) * size);
 }
 
 template <typename T>

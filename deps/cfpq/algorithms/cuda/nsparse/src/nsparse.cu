@@ -74,6 +74,8 @@ int nsparse_cfpq(const Grammar* grammar, CfpqResponse* response, const GrB_Matri
   std::vector<bool> changed(nonterm_count, true);
   std::vector<uint> sizes_before_before(nonterm_count, 0);
 
+  nsparse::spgemm_functor_t<index_type> spgemm_functor;
+
   bool matrices_is_changed = true;
   while (matrices_is_changed) {
     matrices_is_changed = false;
@@ -95,25 +97,17 @@ int nsparse_cfpq(const Grammar* grammar, CfpqResponse* response, const GrB_Matri
       if (matrices[nonterm2].m_vals == 0 || matrices[nonterm3].m_vals == 0)
         continue;
 
-//      std::cout << std::endl;
-//      std::cout << "r1 before/curr: " << sizes_before_before[nonterm2] << " "
-//                << matrices[nonterm2].m_vals << std::endl;
-//      std::cout << "r2 before/curr: " << sizes_before_before[nonterm3] << " "
-//                << matrices[nonterm3].m_vals << std::endl;
-
       GrB_Index nvals_new, nvals_old;
 
       nvals_old = matrices[nonterm1].m_vals;
 
-      auto new_mat = nsparse::spgemm(matrices[nonterm1], matrices[nonterm2], matrices[nonterm3]);
+      auto new_mat = spgemm_functor(matrices[nonterm1], matrices[nonterm2], matrices[nonterm3]);
       nvals_new = new_mat.m_vals;
 
       if (nvals_new != nvals_old) {
         matrices_is_changed = true;
         changed[nonterm1] = true;
       }
-
-//      std::cout << "res before/curr: " << nvals_old << " " << nvals_new << std::endl;
 
       matrices[nonterm1] = std::move(new_mat);
     }
