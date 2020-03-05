@@ -63,7 +63,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
     if (info != GrB_SUCCESS)
         RedisModule_ReplyWithError(ctx, "failed to construct the matrix Graph\n");
 	
-	// очень узкое место
+    // очень узкое место
     for (uint32_t i = 0; i < GraphContext_SchemaCount(gc, SCHEMA_EDGE) / 2; i++)
     {
         char *label = gc->relation_schemas[2 * i]->name;
@@ -81,7 +81,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
                 if (has_element && (label_id != (int64_t) 0))
                     GrB_Matrix_setElement_INT64(Graph, label_id, j, k);
             }
-		}
+	}
     }
 	
     // create binary operation
@@ -113,39 +113,39 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
     // algorithm
     bool matrices_is_changed = true;
     GrB_Index nvals = 0;
-	while(matrices_is_changed)
+    while(matrices_is_changed)
     {
         matrices_is_changed = false;
         response->iteration_count++;
 		
-		// calc Kron product
+	// calc Kron product
         GxB_kron(Kproduct, NULL, NULL, binary_for_kron, Automat, Graph, NULL);
         
-		// delete zero elements
+	// delete zero elements
         GxB_select(Kproduct, NULL, NULL, GxB_NONZERO, Kproduct, NULL, NULL);
 
         // transitive clouser
-		// tcK = sum[i = 0..n] (K^i)
+	// tcK = sum[i = 0..n] (K^i)
         bool transitive_matrix_is_changed = true;
 
         GrB_Matrix_dup(&degreeKproduct, Kproduct);
 
         GrB_Index cur_elements = 0;  // for control
-        GrB_Index prev_elements = 0; // 		changes
+        GrB_Index prev_elements = 0; // 	changes
         while (transitive_matrix_is_changed)
         {
             transitive_matrix_is_changed = false;
 			
-			// calc K^i
+	    // calc K^i
             GrB_mxm(degreeKproduct, NULL, NULL, semiring, degreeKproduct, Kproduct, NULL);
             
-			// delete zero elements
+            // delete zero elements
             GxB_select(degreeKproduct, NULL, NULL, GxB_NONZERO, degreeKproduct, NULL, NULL);
 			
-			// add to tcK
+            // add to tcK
             GrB_eWiseAdd_Matrix_BinaryOp(Kproduct, NULL, NULL, GrB_LOR, Kproduct, degreeKproduct, NULL);
 			
-			// get current changes
+	    // get current changes
             GrB_Matrix_nvals(&val_transitive, Kproduct);
             if (cur_elements != prev_elements)
             {
@@ -174,7 +174,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
                         int64_t newdata = data | sf;
 
                         if (data != newdata)
-						{
+			{
                             nvals++;
                             matrices_is_changed = true;
                             GrB_Matrix_setElement_INT64(Graph, newdata, i % sizeGraph, j % sizeGraph);
@@ -191,7 +191,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
 	
     CfpqResponse_Append(response, "S", nvals);
 	
-	MemInfo mem_delta;
+    MemInfo mem_delta;
     mem_usage_tok(&mem_delta, mem_start);
     response->vms_dif = mem_delta.vms;
     response->rss_dif = mem_delta.rss;
