@@ -58,7 +58,7 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
     // create graph matrix
     GrB_Matrix Graph;
     uint64_t sizeGraph = Graph_RequiredMatrixDim(gc->g);
-	info = GrB_Matrix_new(&Graph, GrB_INT64, sizeGraph, sizeGraph);
+    info = GrB_Matrix_new(&Graph, GrB_INT64, sizeGraph, sizeGraph);
 
     if (info != GrB_SUCCESS)
         RedisModule_ReplyWithError(ctx, "failed to construct the matrix Graph\n");
@@ -104,11 +104,11 @@ int CFPQ_tensor(RedisModuleCtx *ctx, GraphContext *gc, automat *grammar, CfpqRes
     GrB_Matrix Kproduct;
     uint64_t sizeKproduct = sizeGraph * sizeAutomat;
     inf = GrB_Matrix_new(&Kproduct, GrB_BOOL, sizeKproduct, sizeKproduct);
-	assert(inf == GrB_SUCCESS && "failed Kron matrix");
+    assert(inf == GrB_SUCCESS && "failed Kron matrix");
 	
     GrB_Matrix degreeKproduct;
     inf = GrB_Matrix_new(&degreeKproduct, GrB_BOOL, sizeKproduct, sizeKproduct);
-	assert(inf == GrB_SUCCESS && "failed degree Kron matrix");
+    assert(inf == GrB_SUCCESS && "failed degree Kron matrix");
 
     // algorithm
     bool matrices_is_changed = true;
