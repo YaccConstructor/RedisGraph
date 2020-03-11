@@ -21,6 +21,14 @@ class matrix<bool, IndexType> {
       : m_col_index{}, m_row_index{rows + 1, 0}, m_rows{rows}, m_cols{cols}, m_vals{0} {
   }
 
+  static matrix identity(index_type n) {
+    thrust::device_vector<index_type> col_index(thrust::counting_iterator<index_type>(0),
+                                                thrust::counting_iterator<index_type>(n));
+    thrust::device_vector<index_type> row_index(thrust::counting_iterator<index_type>(0),
+                                                thrust::counting_iterator<index_type>(n + 1));
+    return matrix(std::move(col_index), std::move(row_index), n, n, n);
+  }
+
   matrix(thrust::device_vector<index_type> col_index, thrust::device_vector<index_type> row_index,
          index_type rows, index_type cols, index_type vals)
       : m_col_index{std::move(col_index)},

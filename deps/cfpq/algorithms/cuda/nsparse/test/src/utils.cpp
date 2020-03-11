@@ -2,25 +2,7 @@
 #include <random>
 #include <vector>
 
-std::pair<std::vector<unsigned int>, std::vector<unsigned int>>
-dense_to_csr(const std::vector<std::vector<bool>> &matrix) {
-  std::vector<unsigned int> col_index;
-  std::vector<unsigned int> row_index;
 
-  unsigned int size = 0;
-  for (const auto &row : matrix) {
-    row_index.push_back(size);
-    for (unsigned int i = 0; i < row.size(); i++) {
-      if (row[i]) {
-        col_index.push_back(i);
-        size++;
-      }
-    }
-  }
-  row_index.push_back(size);
-
-  return {col_index, row_index};
-}
 
 std::vector<std::vector<bool>> matrix_generator(size_t rows, size_t cols,
                                                 float density) {

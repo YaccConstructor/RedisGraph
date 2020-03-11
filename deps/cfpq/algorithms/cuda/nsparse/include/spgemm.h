@@ -13,8 +13,14 @@
 
 namespace nsparse {
 
+template <typename ValueType, typename IndexType>
+struct spgemm_functor_t;
+
 template <typename index_type>
-struct spgemm_functor_t {
+struct spgemm_functor_t<bool, index_type> {
+  /*
+   * returns c + a * b
+   */
   const matrix<bool, index_type> operator()(const matrix<bool, index_type>& c,
                                             const matrix<bool, index_type>& a,
                                             const matrix<bool, index_type>& b) {

@@ -10,6 +10,13 @@ namespace meta {
 
 enum exec_policy_t { pwarp_row, block_row, global_row };
 
+template <size_t block_sz, size_t cache_sz, size_t cache_stp>
+struct mul_conf_t {
+  static constexpr size_t block_size = block_sz;
+  static constexpr size_t cache_size = cache_sz;
+  static constexpr size_t cache_step = cache_stp;
+};
+
 template <size_t block_sz>
 struct merge_conf_t {
   static constexpr size_t block_size = block_sz;
