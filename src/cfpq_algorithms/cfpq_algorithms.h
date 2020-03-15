@@ -8,4 +8,5 @@
 int CFPQ_cpu1(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
 int CFPQ_gpu1(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
 int CFPQ_gpu2(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
-//int CFPQ_gpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
+int CFPQ_gpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
+int CFPQ_gpu4(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
