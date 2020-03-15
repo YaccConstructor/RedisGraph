@@ -16,13 +16,16 @@ struct masked_spgemm_functor_t {
   void operator()(masked_matrix<value_type, index_type>& c,
                   const masked_matrix<value_type, index_type>& a,
                   const masked_matrix<value_type, index_type>& b) {
-//    assert(&c != &a);
-//    assert(%c != &b);
+    assert(&c != &a);
+    assert(&c != &b);
 
     using namespace meta;
 
     constexpr auto config_mul = make_bin_seq<
-        bin_info_t<mul_conf_t<128, 2048, 32>, 4096, 65536>,
+        bin_info_t<mul_conf_t<128, 1024, 64>, 32768, 65536>,
+        bin_info_t<mul_conf_t<128, 1024, 32>, 16384, 32768>,
+        bin_info_t<mul_conf_t<128, 512, 32>, 8192, 16384>,
+        bin_info_t<mul_conf_t<128, 1024, 8>, 4096, 8192>,
         bin_info_t<mul_conf_t<64, 1024, 4>, 1024, 4096>,
         bin_info_t<mul_conf_t<32, 512, 2>, 512, 1024>, bin_info_t<mul_conf_t<32, 256, 2>, 256, 512>,
         bin_info_t<mul_conf_t<32, 64, 4>, 64, 256>, bin_info_t<mul_conf_t<32, 32, 2>, 0, 64>>;

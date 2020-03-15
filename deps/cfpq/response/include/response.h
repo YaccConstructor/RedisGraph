@@ -10,7 +10,6 @@ extern "C" {
 typedef struct {
     uint64_t iteration_count;
     double time_to_prepare;
-    double time_to_index_path;
 
     MapperIndex count;
     char nonterms[MAX_NONTERM_COUNT][MAX_ITEM_NAME_LEN];

@@ -115,16 +115,19 @@ struct count_nz_functor_t {
 
     bucket_info.resize(total_buckets);
 
-    thrust::for_each(
-        thrust::counting_iterator<index_type>(0), thrust::counting_iterator<index_type>(size),
+    util::kernel_call(
+        div(size, 32U), 32,
         [rpt_a = a_row_idx.data(), rpt_b = b_row_idx.data(), col_a = a_col_idx.data(),
          bucket_ptr = bucket_info.data(), bucket_cnt = bucket_count.data(),
-         rows_ids = aka_fail_stat.data()] __device__(index_type item) {
+         rows_ids = aka_fail_stat.data(), sz = size] __device__() {
+          auto item = blockIdx.x * blockDim.x + threadIdx.x;
+          if (item >= sz)
+            return;
+
           index_type prod = 0;
           index_type offset = bucket_cnt[item];
-          index_type total_buckets = bucket_cnt[item + 1] - offset;
           index_type row_id = rows_ids[item];
-          index_type divide = table_size;
+          constexpr index_type divide = table_size;
           index_type part_count = 0;
 
           index_type j;
@@ -132,7 +135,10 @@ struct count_nz_functor_t {
           index_type prev_k;
           index_type prev_j;
           for (j = rpt_a[row_id]; j < rpt_a[row_id + 1]; j++) {
-            for (k = rpt_b[col_a[j]]; k < rpt_b[col_a[j] + 1]; k++) {
+            index_type a_col = col_a[j];
+            index_type b_begin = rpt_b[a_col];
+            index_type b_end = rpt_b[a_col + 1];
+            for (k = b_begin; k < b_end;) {
               if (prod % divide == 0) {
                 if (part_count != 0) {
                   // update prev
@@ -142,9 +148,14 @@ struct count_nz_functor_t {
                 bucket_ptr[offset++] = util::bucket_info_t<index_type>{row_id, j, k, 0, 0};
                 part_count++;
               }
-              prev_k = k + 1;
+
+              index_type add = min(divide - (prod % divide), b_end - k);
+
+              prod += add;
+              k += add;
+
+              prev_k = k;
               prev_j = j + 1;
-              prod++;
             }
           }
 
@@ -253,7 +264,6 @@ struct count_nz_functor_t {
                        auto curr_bin_size = atomicAdd(bin_size.get() + bin, 1);
                        rows_in_bins[bin_offset[bin] + curr_bin_size] = tid;
                      });
-
 
     exec_pwarp_row(c_col_idx, c_row_idx, a_col_idx, a_row_idx, b_col_idx, b_row_idx,
                    permutation_buffer, bin_offset, bin_size, products_per_row,

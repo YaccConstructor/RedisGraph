@@ -162,7 +162,16 @@ void test_masked(const b_mat& a, const b_mat& b) {
 
   auto add = [] __device__(value_type * lhs, value_type rhs) -> void {
     static_assert(sizeof(unsigned long long) == sizeof(value_type));
-    atomicMin((unsigned long long*)lhs, (unsigned long long)rhs);
+    //    atomicMin((unsigned long long*)lhs, (unsigned long long)rhs);
+
+    unsigned long long int old = (unsigned long long int)(*lhs);
+    unsigned long long int expected;
+
+    do {
+      expected = old;
+      old = atomicCAS((unsigned long long int*)lhs, expected,
+                      min((unsigned long long int)rhs, expected));
+    } while (expected != old);
   };
 
   nsparse::masked_matrix<value_type, index_type> masked_a(gpu_a, a_values);
@@ -205,68 +214,68 @@ TEST_F(NsparseCountNonZeroTest, multMaskedBig) {
     test_masked<uint64_t>(matrix_generator(a, b, density), matrix_generator(b, c, density));
   }
 }
-//
-// TEST_F(NsparseCountNonZeroTest, countNzSmall) {
-//  eval(
-//      {
-//          {0, 0, 0, 0, 0},
-//          {0, 0, 0, 0, 0},
-//          {0, 0, 0, 0, 0},
-//          {0, 0, 0, 0, 0},
-//      },
-//      {
-//          {0, 1, 0, 0, 1, 0},
-//          {1, 0, 1, 0, 1, 0},
-//          {0, 0, 0, 0, 0, 0},
-//          {0, 1, 1, 0, 0, 0},
-//      },
-//      {
-//          {0, 0, 1, 0, 0},
-//          {1, 0, 1, 0, 1},
-//          {1, 1, 1, 1, 1},
-//          {0, 0, 0, 0, 0},
-//          {0, 1, 0, 0, 0},
-//          {0, 0, 1, 1, 1},
-//      });
-//}
-//
-// TEST_F(NsparseCountNonZeroTest, countNzGeneratedSmall) {
-//  size_t a = 100;
-//  size_t b = 150;
-//  size_t c = 200;
-//
-//  for (float density = 0.01; density <= 1; density += 0.01) {
-//    eval(matrix_generator(a, c, density), matrix_generator(a, b, density),
-//         matrix_generator(b, c, density));
-//  }
-//}
-//
-// TEST_F(NsparseCountNonZeroTest, countNzGeneratedMedium) {
-//  size_t a = 500;
-//  size_t b = 600;
-//  size_t c = 700;
-//
-//  for (float density = 0.01; density <= 0.5; density += 0.01) {
-//    eval(matrix_generator(a, c, density), matrix_generator(a, b, density),
-//         matrix_generator(b, c, density));
-//  }
-//}
-//
-// TEST_F(NsparseCountNonZeroTest, countNzGeneratedBig) {
-//  size_t a = 1000;
-//  size_t b = 1100;
-//  size_t c = 1200;
-//
-//  for (float density = 0.01; density <= 0.2; density += 0.01) {
-//    eval(matrix_generator(a, c, density), matrix_generator(a, b, density),
-//         matrix_generator(b, c, density));
-//  }
-//}
-//
-// TEST_F(NsparseCountNonZeroTest, countNzGeneratedGlobalHashTable) {
-//  size_t a = 100;
-//  size_t b = 500;
-//  size_t c = 5000;
-//
-//  eval(matrix_generator(a, c, 0.5), matrix_generator(a, b, 0.5), matrix_generator(b, c, 0.5));
-//}
+
+TEST_F(NsparseCountNonZeroTest, countNzSmall) {
+  eval(
+      {
+          {0, 0, 0, 0, 0},
+          {0, 0, 0, 0, 0},
+          {0, 0, 0, 0, 0},
+          {0, 0, 0, 0, 0},
+      },
+      {
+          {0, 1, 0, 0, 1, 0},
+          {1, 0, 1, 0, 1, 0},
+          {0, 0, 0, 0, 0, 0},
+          {0, 1, 1, 0, 0, 0},
+      },
+      {
+          {0, 0, 1, 0, 0},
+          {1, 0, 1, 0, 1},
+          {1, 1, 1, 1, 1},
+          {0, 0, 0, 0, 0},
+          {0, 1, 0, 0, 0},
+          {0, 0, 1, 1, 1},
+      });
+}
+
+TEST_F(NsparseCountNonZeroTest, countNzGeneratedSmall) {
+  size_t a = 100;
+  size_t b = 150;
+  size_t c = 200;
+
+  for (float density = 0.01; density <= 1; density += 0.01) {
+    eval(matrix_generator(a, c, density), matrix_generator(a, b, density),
+         matrix_generator(b, c, density));
+  }
+}
+
+TEST_F(NsparseCountNonZeroTest, countNzGeneratedMedium) {
+  size_t a = 500;
+  size_t b = 600;
+  size_t c = 700;
+
+  for (float density = 0.01; density <= 0.5; density += 0.01) {
+    eval(matrix_generator(a, c, density), matrix_generator(a, b, density),
+         matrix_generator(b, c, density));
+  }
+}
+
+TEST_F(NsparseCountNonZeroTest, countNzGeneratedBig) {
+  size_t a = 1000;
+  size_t b = 1100;
+  size_t c = 1200;
+
+  for (float density = 0.01; density <= 0.2; density += 0.01) {
+    eval(matrix_generator(a, c, density), matrix_generator(a, b, density),
+         matrix_generator(b, c, density));
+  }
+}
+
+TEST_F(NsparseCountNonZeroTest, countNzGeneratedGlobalHashTable) {
+  size_t a = 100;
+  size_t b = 500;
+  size_t c = 5000;
+
+  eval(matrix_generator(a, c, 0.5), matrix_generator(a, b, 0.5), matrix_generator(b, c, 0.5));
+}
