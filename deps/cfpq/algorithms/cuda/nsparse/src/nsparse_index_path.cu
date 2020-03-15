@@ -11,7 +11,7 @@ using value_type = uint64_t;
 
 std::vector<nsparse::masked_matrix<value_type, index_type>> index_path(
     std::vector<nsparse::matrix<bool, index_type>> init_matrices,
-    const std::vector<nsparse::matrix<bool, index_type>>& final_matrices,
+    std::vector<nsparse::matrix<bool, index_type>> final_matrices,
     const std::vector<std::tuple<int, int, int>>& evaluation_plan, index_type graph_size,
     index_type nonterm_count) {
   std::vector<nsparse::masked_matrix<value_type, index_type>> masked_matrices;
@@ -35,7 +35,7 @@ std::vector<nsparse::masked_matrix<value_type, index_type>> index_path(
         masked_id_spgemm(id_mul, id_add);
 
     for (auto i = 0; i < nonterm_count; i++) {
-      masked_matrices.emplace_back(final_matrices[i], -1);
+      masked_matrices.emplace_back(std::move(final_matrices[i]), -1);
 
       index_type left_size = init_matrices[i].m_vals;
 

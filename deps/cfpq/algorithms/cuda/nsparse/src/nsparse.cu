@@ -51,7 +51,7 @@ int nsparse_cfpq(const Grammar* grammar, CfpqResponse* response, const GrB_Matri
 
 std::vector<nsparse::masked_matrix<value_type, index_type>> index_path(
     std::vector<nsparse::matrix<bool, index_type>> init_matrices,
-    const std::vector<nsparse::matrix<bool, index_type>>& final_matrices,
+    std::vector<nsparse::matrix<bool, index_type>> final_matrices,
     const std::vector<std::tuple<int, int, int>>& evaluation_plan, index_type graph_size,
     index_type nonterm_count);
 
@@ -69,7 +69,7 @@ int nsparse_cfpq_index(const Grammar* grammar, CfpqResponse* response, const GrB
 
   auto relational_sem_info = nsparse_binary(grammar, matrices);
 
-  auto indexed_paths = index_path(std::move(matrices_copied), matrices, relational_sem_info.second,
+  auto indexed_paths = index_path(std::move(matrices_copied), std::move(matrices), relational_sem_info.second,
                                   graph_size, grammar->nontermMapper.count);
 
   cudaDeviceSynchronize();
@@ -80,7 +80,7 @@ int nsparse_cfpq_index(const Grammar* grammar, CfpqResponse* response, const GrB
     size_t nvals;
     char* nonterm;
 
-    nvals = matrices[i].m_vals;
+    nvals = indexed_paths[i].m_skeleton.m_vals;
     nonterm = ItemMapper_Map((ItemMapper*)&grammar->nontermMapper, i);
     CfpqResponse_Append(response, nonterm, nvals);
   }

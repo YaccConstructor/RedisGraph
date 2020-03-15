@@ -49,11 +49,11 @@ std::vector<nsparse::matrix<bool, index_type>> nsparse_prepare(
               std::move(col_index), std::move(row_index), static_cast<index_type>(graph_size),
               static_cast<index_type>(graph_size), static_cast<index_type>(nvals)};
 
-          delete[] col_idx;
-          delete[] row_idx;
-          delete[](bool*) vals;
+//          delete[] col_idx;
+//          delete[] row_idx;
+//          delete[](bool*) vals;
 
-          GrB_Descriptor_free(&desc);
+//          GrB_Descriptor_free(&desc);
         }
       }
     }
