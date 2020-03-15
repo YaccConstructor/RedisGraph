@@ -43,6 +43,7 @@ std::pair<int, std::vector<std::tuple<int, int, int>>> nsparse_binary(
       auto vals_after = new_mat.m_vals;
 
       if (vals_after != vals_before) {
+        changed[nonterm1] = true;
         evaluation_plan.emplace_back(nonterm1, nonterm2, nonterm3);
       }
 

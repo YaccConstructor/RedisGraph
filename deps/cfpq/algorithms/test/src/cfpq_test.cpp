@@ -104,12 +104,12 @@ INSTANTIATE_TEST_CASE_P(CFPQTestNsparse, CFPQTestNsparse,
 //                  });
 //}
 
-TEST_P(CFPQTestNsparse, RdfGo) {
+TEST_P(CFPQTestNsparse, RdfGoGPPerf1) {
   auto solver = GetParam();
   auto response =
       run("resources/rdf/matrices/go.txt", "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
   check(response, {
-                      {"s", 304068},
+                      {"s", 304070},
                       {"s1", 90512},
                       {"s2", 90512},
                       {"s3", 58483},
@@ -117,6 +117,18 @@ TEST_P(CFPQTestNsparse, RdfGo) {
                       {"s5", 278610},
                       {"s6", 39642},
                   });
+}
+
+TEST_P(CFPQTestNsparse, RdfGoGPPerf2) {
+  auto solver = GetParam();
+  auto response =
+      run("resources/rdf/matrices/go.txt", "resources/rdf/grammars/GPPerf2_cnf.txt", solver);
+  check(response, {
+      {"b", 334850},
+      {"s1", 90512},
+      {"s2", 90512},
+      {"s3", 327628},
+  });
 }
 
 TEST_P(CFPQTestNsparse, RdfGoHierarchy) {

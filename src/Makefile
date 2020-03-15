@@ -88,7 +88,7 @@ LIBXXHASH=../deps/xxHash/libxxhash.a
 GRAPHBLAS=../deps/GraphBLAS/build/libgraphblas.a
 REDISEARCH=../deps/RediSearch/build/libredisearch.a
 LIBCYPHER-PARSER=../deps/libcypher-parser/lib/src/.libs/libcypher-parser.a
-CFPQ=../deps/cfpq/build/grammar/libgrammar.a ../deps/cfpq/build/response/libresponse.a ../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a ../deps/cfpq/build/algorithms/cuda/m4ri/libm4ri.a ../deps/cfpq/build/algorithms/cuda/sparse/libsparse.a ../deps/cfpq/build/algorithms/cuda/nsparse/libnsparse.a
+CFPQ=../deps/cfpq/build/grammar/libgrammar.a ../deps/cfpq/build/response/libresponse.a ../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a ../deps/cfpq/build/algorithms/cuda/m4ri/libm4ri.a ../deps/cfpq/build/algorithms/cuda/sparse/libsparse.a ../deps/cfpq/build/algorithms/cuda/nsparse/libnsparse_cfpq.a
 # Deps fo CFPQ
 CFPQ-RUNTIME-DEPS=-L/usr/local/cuda/lib64 -lcudart -lstdc++
 SHOBJ_LDFLAGS += $(CFPQ-RUNTIME-DEPS)
