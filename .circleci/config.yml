@@ -70,20 +70,6 @@ jobs:
       - early_return_for_forked_pull_requests
 
       - run:
-          name: Persist Artifacts
-          command: |
-            strip src/$MODULE_ARTIFACT
-            mkdir -p /workspace/build && cp src/$MODULE_ARTIFACT /workspace
-            cp ramp.yml /workspace/
-      
-      - persist_to_workspace:
-          root: /workspace
-          paths:
-            - '*.so'
-            - ramp.yml
-            - build  
-
-      - run:
           name: Test for memory leaks
           command: |
               # Replace the default Redis server with one linked to libc malloc rather than jemalloc.
@@ -188,34 +174,4 @@ workflows:
       - build:
           filters:
             tags:
-              only: /.*/      
-      - package_branch:
-          requires:
-            - build
-          filters:
-            branches:
-              only: master      
-      - package_release:
-          requires:
-            - build
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: '/^v[0-9].*/'
-      - deploy_branch:
-          requires:
-            - package_branch
-      - run_automation:
-          requires:
-            - deploy_branch
-      - deploy_release:
-          filters:
-            tags:
-              only: '/^v[0-9].*/'
-          requires:
-            - package_release
-      - deploy_docs:
-          filters:
-            branches:
-              only: master
+              only: /.*/
