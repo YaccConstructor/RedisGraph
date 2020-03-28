@@ -13,4 +13,4 @@
 [submodule "deps/libcypher-parser"]
 	path = deps/libcypher-parser
 	url = https://github.com/YaccConstructor/libcypher-parser.git
-	branch = path-patterns-support
+	branch = path-patterns-support-for-redisgraph
