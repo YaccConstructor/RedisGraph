@@ -219,6 +219,11 @@ void AlgebraicExpression_Eval
     GrB_Matrix res                  // Result output.
 );
 
+void AlgebraicExpression_EvalArbitrary
+(
+    const AlgebraicExpression *exp, // Root node.
+    GrB_Matrix res                  // Result output.
+);
 //------------------------------------------------------------------------------
 // AlgebraicExpression debugging utilities.
 //------------------------------------------------------------------------------

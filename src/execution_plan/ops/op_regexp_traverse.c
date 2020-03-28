@@ -108,7 +108,7 @@ static void _populate_filter_matrix(RegexpTraverse *op) {
 //
 //            GrB_Matrix m;
 //            GrB_Matrix_new(&m, GrB_BOOL, required_dim, required_dim);
-//            AlgebraicExpression_Eval(pattern_expr, m);
+//            AlgebraicExpression_EvalArbitrary(pattern_expr, m);
 //
 //            GrB_Index nvals_old;
 //            GrB_Matrix_nvals(&nvals_old, pattern->m);
@@ -147,7 +147,7 @@ void _regexp_traverse(RegexpTraverse *op) {
         if (op->ae->type == AL_OPERAND) {
             GrB_Matrix_dup(&op->ae_m, op->ae->operand.matrix);
         } else {
-            AlgebraicExpression_Eval(op->ae, op->ae_m);
+            AlgebraicExpression_EvalArbitrary(op->ae, op->ae_m);
         }
 #ifdef DEBUG_PATH_PATTERNS
         printf("_regexp_traverse ae_result = %s\n", AlgebraicExpression_ToString(op->ae));
@@ -165,7 +165,7 @@ void _regexp_traverse(RegexpTraverse *op) {
 
     AlgebraicExpression *expr = AlgebraicExpression_NewOperand(op->ae_m, false, NULL, NULL, NULL, NULL);
     AlgebraicExpression_MultiplyToTheLeft(&expr, op->F);
-    AlgebraicExpression_Eval(expr, op->M);
+    AlgebraicExpression_EvalArbitrary(expr, op->M);
     AlgebraicExpression_Free(expr);
 
     if(op->iter == NULL) GxB_MatrixTupleIter_new(&op->iter, op->M);
