@@ -4,6 +4,8 @@
  * This file is available under the Redis Labs Source Available License Agreement
  */
 
+//#define DEBUG_PATH_PATTERNS
+
 #include "execution_plan.h"
 #include "./ops/ops.h"
 #include "../util/arr.h"
@@ -289,11 +291,16 @@ static void _ExecutionPlan_ProcessQueryGraph(ExecutionPlan *plan, QueryGraph *qg
 				// Empty expression, already freed.
 				if(AlgebraicExpression_OperandCount(exp) == 0) continue;
 
-				QGEdge *edge = NULL;
+#ifdef DEBUG_PATH_PATTERNS
+                printf("Alg' %d) %s\n", j, AlgebraicExpression_ToString(exp));
+#endif
+                QGEdge *edge = NULL;
 				if(AlgebraicExpression_Edge(exp)) edge = QueryGraph_GetEdgeByAlias(qg,
 																					   AlgebraicExpression_Edge(exp));
 				if(edge && QGEdge_VariableLength(edge)) {
 					root = NewCondVarLenTraverseOp(plan, gc->g, exp);
+				} else if (edge && edge->type == QG_PATH_PATTERN) {
+                    root = NewRegexpTraverseOp(plan, gc->g, exp);
 				} else {
 					root = NewCondTraverseOp(plan, gc->g, exp);
 				}

@@ -19,6 +19,7 @@
 #include "op_cartesian_product.h"
 #include "op_merge.h"
 #include "op_cond_var_len_traverse.h"
+#include "op_regexp_traverse.h"
 #include "op_unwind.h"
 #include "op_sort.h"
 #include "op_results.h"

@@ -91,6 +91,7 @@ AlgebraicExpression *AlgebraicExpression_NewOperand
 	node->operand.dest = dest;
 	node->operand.edge = edge;
 	node->operand.label = label;
+	node->operand.reference = NULL;
 	return node;
 }
 

@@ -15,7 +15,7 @@
 
 static inline EdgeCreateCtx _NewEdgeCreateCtx(GraphContext *gc, const QueryGraph *qg,
 											  const cypher_astnode_t *edge) {
-	const cypher_astnode_t *props = cypher_ast_rel_pattern_get_properties(edge);
+    const cypher_astnode_t *props = cypher_ast_rel_pattern_get_properties(edge);
 	AST *ast = QueryCtx_GetAST();
 	const char *alias = AST_GetEntityName(ast, edge);
 

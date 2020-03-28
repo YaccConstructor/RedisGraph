@@ -46,7 +46,10 @@ static void _annotate_entity_names(AST *ast, const cypher_astnode_t *node, uint 
 		ast_identifier = cypher_ast_node_pattern_get_identifier(node);
 	} else if(t == CYPHER_AST_REL_PATTERN) {
 		ast_identifier = cypher_ast_rel_pattern_get_identifier(node);
-	} else {
+	} else if(t == CYPHER_AST_PATH_PATTERN) {
+        ast_identifier = NULL;
+	}
+	else {
 		// Did not encounter a graph entity, recursively visit children.
 		uint child_count = cypher_astnode_nchildren(node);
 		for(uint i = 0; i < child_count; i++) {

@@ -10,6 +10,7 @@
 #include "../query_ctx.h"
 #include "../schema/schema.h"
 #include "../../deps/rax/rax.h"
+#include "../path_patterns/ebnf_construction.h"
 #include <assert.h>
 
 static void _BuildQueryGraphAddNode(QueryGraph *qg, const cypher_astnode_t *ast_entity) {
@@ -48,8 +49,8 @@ static void _BuildQueryGraphAddNode(QueryGraph *qg, const cypher_astnode_t *ast_
 	}
 }
 
-static void _BuildQueryGraphAddEdge(QueryGraph *qg, const cypher_astnode_t *ast_entity,
-									QGNode *src, QGNode *dest) {
+static void _BuildQueryGraphAddEdgeRelationPattern(QueryGraph *qg, const cypher_astnode_t *ast_entity,
+                                                   QGNode *src, QGNode *dest) {
 
 	GraphContext *gc = QueryCtx_GetGraphCtx();
 	AST *ast = QueryCtx_GetAST();
@@ -90,6 +91,22 @@ static void _BuildQueryGraphAddEdge(QueryGraph *qg, const cypher_astnode_t *ast_
 	// Swap the source and destination for left-pointing relations
 	if(dir != CYPHER_REL_INBOUND) QueryGraph_ConnectNodes(qg, src, dest, edge);
 	else QueryGraph_ConnectNodes(qg, dest, src, edge);
+}
+
+static void _BuildQueryGraphAddEdgePathPattern(QueryGraph *qg,
+        const cypher_astnode_t *ast_entity, QGNode *src, QGNode *dest) {
+    if (cypher_ast_path_pattern_get_direction(ast_entity) == CYPHER_REL_INBOUND) {
+        QGNode *tmp = src;
+        src = dest;
+        dest = tmp;
+    }
+
+    QGEdge *pattern = QGEdge_NewPattern(NULL, NULL, BuildEBNFBaseFromPathPattern(ast_entity));
+    AST *ast = QueryCtx_GetAST();
+    const char *alias = AST_GetEntityName(ast, ast_entity);
+    pattern->alias = alias;
+
+    QueryGraph_ConnectNodes(qg, src, dest, pattern);
 }
 
 QueryGraph *QueryGraph_New(uint node_cap, uint edge_cap) {
@@ -137,7 +154,13 @@ void QueryGraph_AddPath(QueryGraph *qg, const GraphContext *gc, const cypher_ast
 
 		// Retrieve the AST reference to this edge.
 		const cypher_astnode_t *edge = cypher_ast_pattern_path_get_element(path, i);
-		_BuildQueryGraphAddEdge(qg, edge, left, right);
+        if (cypher_astnode_instanceof(edge, CYPHER_AST_REL_PATTERN)) {
+            _BuildQueryGraphAddEdgeRelationPattern(qg, edge, left, right);
+        } else if (cypher_astnode_instanceof(edge, CYPHER_AST_PATH_PATTERN)) {
+            _BuildQueryGraphAddEdgePathPattern(qg, edge, left, right);
+        } else {
+            assert(false);
+        }
 	}
 }
 

@@ -370,6 +370,10 @@ static AST_Validation _ValidateRelation(rax *projections, const cypher_astnode_t
 	return res;
 }
 
+static AST_Validation _ValidatePathPattern(const cypher_astnode_t *path_pattern) {
+    return AST_VALID;
+}
+
 static AST_Validation _ValidatePath(const cypher_astnode_t *path,
 									rax *projections,
 									rax *edge_aliases,
@@ -380,7 +384,13 @@ static AST_Validation _ValidatePath(const cypher_astnode_t *path,
 	// Check all relations on the path (every odd offset) and collect aliases.
 	for(uint i = 1; i < path_len; i += 2) {
 		const cypher_astnode_t *edge = cypher_ast_pattern_path_get_element(path, i);
-		res = _ValidateRelation(projections, edge, edge_aliases, reason);
+        if (cypher_astnode_instanceof(edge, CYPHER_AST_REL_PATTERN)) {
+            res = _ValidateRelation(projections, edge, edge_aliases, reason);
+        } else if (cypher_astnode_instanceof(edge, CYPHER_AST_PATH_PATTERN)){
+            res = _ValidatePathPattern(edge);
+        } else {
+            res = AST_INVALID;
+        }
 		if(res != AST_VALID) return res;
 	}
 
@@ -453,8 +463,10 @@ static AST_Validation _ValidateInlinedPropertiesOnPath(const cypher_astnode_t *p
 	for(uint i = 1; i < path_len; i += 2) {
 		const cypher_astnode_t *ast_identifier = NULL;
 		const cypher_astnode_t *edge = cypher_ast_pattern_path_get_element(path, i);
-		const cypher_astnode_t *props = cypher_ast_rel_pattern_get_properties(edge);
-		if(props && (_ValidateInlinedProperties(props, reason) != AST_VALID)) return AST_INVALID;
+        if (cypher_astnode_instanceof(edge, CYPHER_AST_REL_PATTERN)) {
+            const cypher_astnode_t *props = cypher_ast_rel_pattern_get_properties(edge);
+            if(props && (_ValidateInlinedProperties(props, reason) != AST_VALID)) return AST_INVALID;
+        }
 	}
 	return AST_VALID;
 }
@@ -752,8 +764,15 @@ static AST_Validation _Validate_MERGE_Clauses(const AST *ast, char **reason) {
 		for(uint j = 0; j < nelems; j ++) {
 			const cypher_astnode_t *entity = cypher_ast_pattern_path_get_element(path, j);
 			// Odd offsets correspond to edges, even offsets correspond to nodes.
-			res = (j % 2) ? _ValidateMergeRelation(entity, defined_aliases, reason)
-				  : _ValidateMergeNode(entity, defined_aliases, reason);
+			if (j % 2) {
+			    if (cypher_astnode_instanceof(entity, CYPHER_AST_REL_PATTERN)) {
+                    res = _ValidateMergeRelation(entity, defined_aliases, reason);
+                } else {
+			        res = AST_INVALID;
+			    }
+			} else {
+                res = _ValidateMergeNode(entity, defined_aliases, reason);
+			}
 			if(res != AST_VALID) goto cleanup;
 		}
 
@@ -789,21 +808,25 @@ static AST_Validation _Validate_CREATE_Entities(const cypher_astnode_t *clause,
 		 * MATCH (a) CREATE (a)-[:E]->(:B) */
 		for(uint j = 1; j < nelems; j += 2) {
 			const cypher_astnode_t *rel = cypher_ast_pattern_path_get_element(path, j);
-			const cypher_astnode_t *identifier = cypher_ast_rel_pattern_get_identifier(rel);
-			// Validate that no relation aliases are previously bound.
-			if(identifier) {
-				const char *alias = cypher_ast_identifier_get_name(identifier);
-				if(raxFind(defined_aliases, (unsigned char *)alias, strlen(alias)) != raxNotFound) {
-					asprintf(reason, "The bound variable %s' can't be redeclared in a CREATE clause", alias);
-					return AST_INVALID;
-				}
-			}
+			if (cypher_astnode_instanceof(rel, CYPHER_AST_REL_PATTERN)) {
+                const cypher_astnode_t *identifier = cypher_ast_rel_pattern_get_identifier(rel);
+                // Validate that no relation aliases are previously bound.
+                if (identifier) {
+                    const char *alias = cypher_ast_identifier_get_name(identifier);
+                    if (raxFind(defined_aliases, (unsigned char *) alias, strlen(alias)) != raxNotFound) {
+                        asprintf(reason, "The bound variable %s' can't be redeclared in a CREATE clause", alias);
+                        return AST_INVALID;
+                    }
+                }
 
-			// Validate that each relation has exactly one type.
-			uint reltype_count = cypher_ast_rel_pattern_nreltypes(rel);
-			if(reltype_count != 1) {
-				asprintf(reason, "Exactly one relationship type must be specified for CREATE");
-				return AST_INVALID;
+                // Validate that each relation has exactly one type.
+                uint reltype_count = cypher_ast_rel_pattern_nreltypes(rel);
+                if (reltype_count != 1) {
+                    asprintf(reason, "Exactly one relationship type must be specified for CREATE");
+                    return AST_INVALID;
+                }
+            } else if (cypher_astnode_instanceof(rel, CYPHER_AST_PATH_PATTERN)) {
+			    return AST_INVALID;
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 #include "utils.h"
 #include "../../util/arr.h"
 #include "../../util/rmalloc.h"
+#include "../algebraic_expression.h"
 
 /* Performs inplace re-purposing of an operand into an operation. */
 void _InplaceRepurposeOperandToOperation
@@ -212,6 +213,7 @@ void _AlgebraicExpression_FetchOperands(AlgebraicExpression *exp, const GraphCon
 	uint child_count = 0;
 	GrB_Matrix m = GrB_NULL;
 	const char *label = NULL;
+	const char *reference = NULL;
 
 	switch(exp->type) {
 	case AL_OPERATION:
@@ -221,7 +223,9 @@ void _AlgebraicExpression_FetchOperands(AlgebraicExpression *exp, const GraphCon
 		}
 		break;
 	case AL_OPERAND:
-		if(exp->operand.matrix == GrB_NULL) {
+	    if (exp->operand.reference) {
+	        assert(false && "AE REFERENCE");
+	    } else if(exp->operand.matrix == GrB_NULL) {
 			label = exp->operand.label;
 			if(label == NULL) {
 				m = Graph_GetAdjacencyMatrix(g);
