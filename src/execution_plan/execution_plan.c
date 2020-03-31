@@ -4,7 +4,6 @@
  * This file is available under the Redis Labs Source Available License Agreement
  */
 
-//#define DEBUG_PATH_PATTERNS
 
 #include "execution_plan.h"
 #include "./ops/ops.h"
@@ -233,6 +232,15 @@ static AR_ExpNode **_BuildCallArguments(const cypher_astnode_t *call_clause) {
 	return arguments;
 }
 
+static void _ExecutionPlan_ProcessPathPatternCtx(ExecutionPlan *plan) {
+    PathPatternCtx *pathPatternCtx = plan->path_pattern_ctx;
+    for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
+        PathPattern *pattern = pathPatternCtx->patterns[i];
+        EBNFBase *root = pattern->ebnf_root;
+        pattern->ae = AlgebraicExpression_FromEbnf(root);
+    }
+}
+
 static void _ExecutionPlan_ProcessQueryGraph(ExecutionPlan *plan, QueryGraph *qg,
 											 AST *ast, FT_FilterNode *ft) {
 	GraphContext *gc = QueryCtx_GetGraphCtx();
@@ -292,7 +300,7 @@ static void _ExecutionPlan_ProcessQueryGraph(ExecutionPlan *plan, QueryGraph *qg
 				if(AlgebraicExpression_OperandCount(exp) == 0) continue;
 
 #ifdef DEBUG_PATH_PATTERNS
-                printf("Alg' %d) %s\n", j, AlgebraicExpression_ToString(exp));
+                printf("Alg' %d) %s\n", j, AlgebraicExpression_ToStringDebug(exp));
 #endif
                 QGEdge *edge = NULL;
 				if(AlgebraicExpression_Edge(exp)) edge = QueryGraph_GetEdgeByAlias(qg,
@@ -653,6 +661,16 @@ void ExecutionPlan_PopulateExecutionPlan(ExecutionPlan *plan) {
 
 	// Build query graph
 	plan->query_graph = BuildQueryGraph(gc, ast);
+
+	// Build and process path pattern ctx
+	plan->path_pattern_ctx = BuildPathPatternCtx(ast, Graph_RequiredMatrixDim(gc->g));
+    _ExecutionPlan_ProcessPathPatternCtx(plan);
+
+#ifdef DEBUG_PATH_PATTERNS
+    for (int j = 0; j < array_len(plan->path_pattern_ctx->patterns); ++j) {
+        printf("%s\n", PathPattern_ToString(plan->path_pattern_ctx->patterns[j]));
+    }
+#endif
 
 	// Build filter tree
 	plan->filter_tree = AST_BuildFilterTree(ast);

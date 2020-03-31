@@ -59,6 +59,11 @@ AlgebraicExpression **AlgebraicExpression_FromQueryGraph
 	const QueryGraph *qg    // Query-graph to process
 );
 
+// Construct algebraic expression form ebnf expression.
+AlgebraicExpression *AlgebraicExpression_FromEbnf(
+        const EBNFBase *ebnf
+);
+
 //------------------------------------------------------------------------------
 // AlgebraicExpression Node creation functions.
 //------------------------------------------------------------------------------
@@ -219,10 +224,9 @@ void AlgebraicExpression_Eval
     GrB_Matrix res                  // Result output.
 );
 
-void AlgebraicExpression_EvalArbitrary
+GrB_Matrix AlgebraicExpression_EvalArbitrary
 (
-    const AlgebraicExpression *exp, // Root node.
-    GrB_Matrix res                  // Result output.
+    const AlgebraicExpression *exp
 );
 //------------------------------------------------------------------------------
 // AlgebraicExpression debugging utilities.
@@ -252,6 +256,11 @@ void AlgebraicExpression_Print
 char *AlgebraicExpression_ToString
 (
     const AlgebraicExpression *exp  // Root node.
+);
+
+char *AlgebraicExpression_ToStringDebug
+(
+                const AlgebraicExpression *exp  // Root node.
 );
 
 //------------------------------------------------------------------------------

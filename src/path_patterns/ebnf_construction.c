@@ -27,6 +27,10 @@ EBNFBase *_BuildEBNFBase(const cypher_astnode_t *node) {
     } else if (cypher_astnode_instanceof(node, CYPHER_AST_PATH_PATTERN_EDGE)){
         const cypher_astnode_t *reltype = cypher_ast_path_pattern_edge_get_reltype(node);
         return EBNFEdge_New(cypher_ast_reltype_get_name(reltype));
+    } else if (cypher_astnode_instanceof(node, CYPHER_AST_PATH_PATTERN_REFERENCE)) {
+        const cypher_astnode_t *identifier = cypher_ast_path_pattern_reference_get_identifier(node);
+        const char *name = cypher_ast_identifier_get_name(identifier);
+        return EBNFReference_New(name);
     } else {
         assert(false && "EBNF TRANSLATION NOT IMPLEMETED");
     }

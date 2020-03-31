@@ -255,7 +255,7 @@ void _AlgebraicExpression_ToStringDebug
                 char *buff
         ) {
     assert(exp);
-    const char *alias;
+    const char *label;
 
     switch(exp->type) {
         case AL_OPERATION:
@@ -263,22 +263,22 @@ void _AlgebraicExpression_ToStringDebug
                 case AL_EXP_ADD:
                     sprintf(buff + strlen(buff), "add(");
                     // Print add first operand.
-                    _AlgebraicExpression_ToString(FIRST_CHILD(exp), buff);
+                    _AlgebraicExpression_ToStringDebug(FIRST_CHILD(exp), buff);
                     // Expecting at least 2 operands, concat using '+'.
                     for(uint i = 1; i < AlgebraicExpression_ChildCount(exp); i++) {
                         sprintf(buff + strlen(buff), ", ");
-                        _AlgebraicExpression_ToString(CHILD_AT(exp, i), buff);
+                        _AlgebraicExpression_ToStringDebug(CHILD_AT(exp, i), buff);
                     }
                     sprintf(buff + strlen(buff), ")");
                     break;
                 case AL_EXP_MUL:
                     // Print add first operand.
                     sprintf(buff + strlen(buff), "mul(");
-                    _AlgebraicExpression_ToString(FIRST_CHILD(exp), buff);
+                    _AlgebraicExpression_ToStringDebug(FIRST_CHILD(exp), buff);
                     // Expecting at least 2 operands, concat using '*'.
                     for(uint i = 1; i < AlgebraicExpression_ChildCount(exp); i++) {
                         sprintf(buff + strlen(buff), ", ");
-                        _AlgebraicExpression_ToString(CHILD_AT(exp, i), buff);
+                        _AlgebraicExpression_ToStringDebug(CHILD_AT(exp, i), buff);
                     }
                     sprintf(buff + strlen(buff), ")");
                     break;
@@ -286,7 +286,7 @@ void _AlgebraicExpression_ToStringDebug
                     // Expecting a single child.
                     assert(AlgebraicExpression_ChildCount(exp) == 1);
                     sprintf(buff + strlen(buff), "Transpose(");
-                    _AlgebraicExpression_ToString(FIRST_CHILD(exp), buff);
+                    _AlgebraicExpression_ToStringDebug(FIRST_CHILD(exp), buff);
                     sprintf(buff + strlen(buff), ")");
                     break;
                 default:
@@ -295,9 +295,10 @@ void _AlgebraicExpression_ToStringDebug
             }
             break;
         case AL_OPERAND:
-            if(exp->operand.edge) alias = exp->operand.edge;
-            else alias = exp->operand.src;
-            sprintf(buff + strlen(buff), "%s-%s:%s-%s", exp->operand.src, exp->operand.edge, exp->operand.label, exp->operand.dest);
+            if(exp->operand.reference)
+                sprintf(buff + strlen(buff), "%s-%s:~%s-%s", exp->operand.src, exp->operand.edge, exp->operand.reference, exp->operand.dest);
+            else
+                sprintf(buff + strlen(buff), "%s-%s:%s-%s", exp->operand.src, exp->operand.edge, exp->operand.label, exp->operand.dest);
         default:
             assert("Unknown algebraic expression node type");
             break;
@@ -309,6 +310,6 @@ char *AlgebraicExpression_ToStringDebug
                 const AlgebraicExpression *exp  // Root node.
         ) {
     char *buff = rm_calloc(1024, sizeof(char));
-    _AlgebraicExpression_ToString(exp, buff);
+    _AlgebraicExpression_ToStringDebug(exp, buff);
     return buff;
 }

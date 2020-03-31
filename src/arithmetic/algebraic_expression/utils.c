@@ -223,9 +223,7 @@ void _AlgebraicExpression_FetchOperands(AlgebraicExpression *exp, const GraphCon
 		}
 		break;
 	case AL_OPERAND:
-	    if (exp->operand.reference) {
-	        assert(false && "AE REFERENCE");
-	    } else if(exp->operand.matrix == GrB_NULL) {
+	    if(exp->operand.matrix == GrB_NULL) {
 			label = exp->operand.label;
 			if(label == NULL) {
 				m = Graph_GetAdjacencyMatrix(g);

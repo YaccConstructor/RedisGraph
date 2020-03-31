@@ -1,8 +1,6 @@
 #include "op_regexp_traverse.h"
-#include "../../arithmetic/algebraic_expression.h"
 #include "../../query_ctx.h"
-
-//#define DEBUG_PATH_PATTERNS
+#include "../../arithmetic/algebraic_expression/utils.h"
 
 static Record RegexpTraverseConsume(OpBase *opBase);
 static OpResult RegexpTraverseReset(OpBase *ctx);
@@ -12,8 +10,8 @@ void _regexp_traverse(RegexpTraverse *op);
 
 OpBase *NewRegexpTraverseOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpression *ae) {
     RegexpTraverse *op = rm_calloc(1, sizeof(RegexpTraverse));
+    op->plan = plan;
     op->graph = g;
-//    op->deps = deps;
 
     op->ae = ae;
     op->ae_m = NULL;
@@ -27,8 +25,17 @@ OpBase *NewRegexpTraverseOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpres
     op->records = rm_calloc(op->recordsCap, sizeof(Record));
     op->r = NULL;
 
-    // Set our Op operations
-    // TODO: OPType_CONDITIONAL_TRAVERSE
+    op->deps = PathPatternCtx_GetDependencies(plan->path_pattern_ctx, ae);
+
+#ifdef DEBUG_PATH_PATTERNS
+    printf("Dependencies: ");
+    for (int i = 0; i < array_len(op->deps); ++i) {
+        printf("%s ", op->deps[i]->name);
+        fflush(stdout);
+    }
+    printf("\n");
+#endif
+
     OpBase_Init((OpBase *)op, OPType_REGEXP_TRAVERSE, "Regexp Traverse", NULL,
                 RegexpTraverseConsume, RegexpTraverseReset, RegexpTraverseToString,
                 NULL,RegexpTraverseFree, false, plan);
@@ -83,6 +90,29 @@ static Record RegexpTraverseConsume(OpBase *opBase) {
     return OpBase_CloneRecord(op->r);
 }
 
+void _AlgebraicExpression_FetchReferences(AlgebraicExpression *exp, PathPatternCtx *pathPatternCtx) {
+    switch(exp->type) {
+        case AL_OPERATION: {
+            uint child_count = AlgebraicExpression_ChildCount(exp);
+            for (uint i = 0; i < child_count; i++) {
+                _AlgebraicExpression_FetchReferences(CHILD_AT(exp, i), pathPatternCtx);
+            }
+            break;
+        }
+        case AL_OPERAND: {
+            const char *reference = exp->operand.reference;
+            if (exp->operand.reference != NULL) {
+                PathPattern *pathPattern = PathPatternCtx_GetPathPattern(pathPatternCtx,reference);
+                exp->operand.matrix = pathPattern->m;
+            }
+            break;
+        }
+        default:
+            assert("Unknow algebraic expression node type" && false);
+            break;
+    }
+}
+
 
 static void _populate_filter_matrix(RegexpTraverse *op) {
     for(uint i = 0; i < op->recordsLen; i++) {
@@ -95,37 +125,32 @@ static void _populate_filter_matrix(RegexpTraverse *op) {
     }
 }
 
-//void _path_pattern_traverse(RegexpTraverse *op) {
-//    size_t required_dim = Graph_RequiredMatrixDim(op->graph);
-//
-//    bool is_changed;
-//    while (true) {
-//        is_changed = false;
-//        for (int i = 0; i < array_len(op->deps); ++i) {
-//            PathPattern *pattern = op->deps[i];
-//            AlgebraicExpression *pattern_expr = pattern->ae_expr;
-//            AlgebraicExpression_FetchOperands(pattern_expr);
-//
-//            GrB_Matrix m;
-//            GrB_Matrix_new(&m, GrB_BOOL, required_dim, required_dim);
-//            AlgebraicExpression_EvalArbitrary(pattern_expr, m);
-//
-//            GrB_Index nvals_old;
-//            GrB_Matrix_nvals(&nvals_old, pattern->m);
-//
-//            GrB_Matrix_free(&pattern->m);
-//            pattern->m = m;
-//
-//            GrB_Index nvals_new;
-//            GrB_Matrix_nvals(&nvals_new, pattern->m);
-//
-//            if (nvals_old != nvals_new)
-//                is_changed = true;
-//        }
-//        if (!is_changed)
-//            break;
-//    }
-//}
+void _path_pattern_traverse(RegexpTraverse *op) {
+    bool is_changed;
+    while (true) {
+        is_changed = false;
+        for (int i = 0; i < array_len(op->deps); ++i) {
+            PathPattern *pattern = op->deps[i];
+            AlgebraicExpression *pattern_expr = pattern->ae;
+
+            _AlgebraicExpression_FetchReferences(pattern_expr, op->plan->path_pattern_ctx);
+            GrB_Matrix m = AlgebraicExpression_EvalArbitrary(pattern_expr);
+
+            GrB_Index nvals_old;
+            GrB_Matrix_nvals(&nvals_old, pattern->m);
+            GrB_Matrix_free(&pattern->m);
+
+            pattern->m = m;
+            GrB_Index nvals_new;
+            GrB_Matrix_nvals(&nvals_new, pattern->m);
+
+            if (nvals_old != nvals_new)
+                is_changed = true;
+        }
+        if (!is_changed)
+            break;
+    }
+}
 
 
 void _regexp_traverse(RegexpTraverse *op) {
@@ -136,21 +161,21 @@ void _regexp_traverse(RegexpTraverse *op) {
         GrB_Matrix_new(&op->ae_m, GrB_BOOL, required_dim, required_dim);
 
         // Here would be execute cfpq algorithm...
-//        _path_pattern_traverse(op);
+        _path_pattern_traverse(op);
 
-//        for (int i = 0; i < array_len(op->deps); ++i) {
-//            PathPattern *pattern = op->deps[i];
-//            printf("Pattern %s = %s:\n", pattern->name, AlgebraicExpression_ToString(pattern->ae_expr));
-//            GxB_print(pattern->m, GxB_COMPLETE);
-//        }
-
-        if (op->ae->type == AL_OPERAND) {
-            GrB_Matrix_dup(&op->ae_m, op->ae->operand.matrix);
-        } else {
-            AlgebraicExpression_EvalArbitrary(op->ae, op->ae_m);
-        }
 #ifdef DEBUG_PATH_PATTERNS
-        printf("_regexp_traverse ae_result = %s\n", AlgebraicExpression_ToString(op->ae));
+        for (int i = 0; i < array_len(op->deps); ++i) {
+            PathPattern *pattern = op->deps[i];
+            printf("Pattern: %s\n", PathPattern_ToString(pattern));
+            GxB_print(pattern->m, GxB_COMPLETE);
+        }
+#endif
+
+        _AlgebraicExpression_FetchReferences(op->ae, op->plan->path_pattern_ctx);
+        op->ae_m = AlgebraicExpression_EvalArbitrary(op->ae);
+
+#ifdef DEBUG_PATH_PATTERNS
+        printf("_regexp_traverse ae_result = %s\n", AlgebraicExpression_ToStringDebug(op->ae));
         GxB_print(op->ae_m, GxB_COMPLETE);
 #endif
     }
@@ -165,7 +190,7 @@ void _regexp_traverse(RegexpTraverse *op) {
 
     AlgebraicExpression *expr = AlgebraicExpression_NewOperand(op->ae_m, false, NULL, NULL, NULL, NULL);
     AlgebraicExpression_MultiplyToTheLeft(&expr, op->F);
-    AlgebraicExpression_EvalArbitrary(expr, op->M);
+    op->M = AlgebraicExpression_EvalArbitrary(expr);
     AlgebraicExpression_Free(expr);
 
     if(op->iter == NULL) GxB_MatrixTupleIter_new(&op->iter, op->M);
@@ -205,6 +230,10 @@ static void RegexpTraverseFree(OpBase *ctx) {
         rm_free(op->records);
         op->records = NULL;
     }
+
+    if (op->deps) {
+        array_free(op->deps);
+    }
 }
 
 static inline OpBase *CondTraverseClone(const ExecutionPlan *plan, const OpBase *opBase) {
@@ -219,12 +248,6 @@ static inline int RegexpTraverseToString(const OpBase *op_base, char *buf, uint 
     int offset = 0;
     offset += snprintf(buf + strlen(buf), buf_len, "%s | %s -> %s",
             op_base->name, AlgebraicExpression_Source(op->ae), AlgebraicExpression_Destination(op->ae));
-
-//    offset += snprintf(buf + strlen(buf), buf_len, ": [");
-//    for (int i = 0; i < array_len(op->deps); ++i) {
-//        offset += snprintf(buf + strlen(buf), buf_len, "%s", op->deps[i]->name);
-//    }
-//    offset += snprintf(buf + strlen(buf), buf_len, "]");
 
     return offset;
 }

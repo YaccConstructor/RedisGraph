@@ -8,8 +8,9 @@
 /* OP Traverse */
 typedef struct {
     OpBase op;
+    const ExecutionPlan *plan;
     Graph *graph;
-//    PathPattern **deps;
+    PathPattern **deps;
 
     AlgebraicExpression *ae;    //
     GrB_Matrix ae_m;       // Matrix for precomputed alg exp.

@@ -1071,6 +1071,14 @@ static AST_Validation _ValidateClauseOrder(const AST *ast, char **reason) {
 	return AST_VALID;
 }
 
+static void _AST_GetDefinedPathPatterns(const cypher_astnode_t *node, rax *identifiers) {
+    if (!node) return;
+    cypher_astnode_type_t type = cypher_astnode_type(node);
+    if (type == CYPHER_AST_NAMED_PATH) {
+        _AST_GetIdentifiers(cypher_ast_named_path_get_identifier(node), identifiers);
+    }
+}
+
 static void _AST_GetDefinedIdentifiers(const cypher_astnode_t *node, rax *identifiers) {
 	if(!node) return;
 	cypher_astnode_type_t type = cypher_astnode_type(node);
@@ -1109,6 +1117,21 @@ static void _AST_GetDefinedIdentifiers(const cypher_astnode_t *node, rax *identi
 	}
 }
 
+static void _AST_GetRefferedPathPatterns(const cypher_astnode_t *node, rax *identifiers) {
+    if(!node) return;
+    cypher_astnode_type_t type = cypher_astnode_type(node);
+
+    if (type == CYPHER_AST_PATH_PATTERN_REFERENCE) {
+        _AST_GetIdentifiers(node, identifiers);
+    } else {
+        uint child_count = cypher_astnode_nchildren(node);
+        for(uint c = 0; c < child_count; c ++) {
+            const cypher_astnode_t *child = cypher_astnode_get_child(node, c);
+            _AST_GetRefferedPathPatterns(child, identifiers);
+        }
+    }
+}
+
 static void _AST_GetReferredIdentifiers(const cypher_astnode_t *node, rax *identifiers) {
 	if(!node) return;
 	cypher_astnode_type_t type = cypher_astnode_type(node);
@@ -1136,6 +1159,9 @@ static AST_Validation _Validate_Aliases_DefinedInScope(const AST *ast, uint star
 	rax *defined_aliases = raxNew();
 	rax *referred_identifiers = raxNew();
 
+	rax *definded_path_patterns = raxNew();
+	rax *referred_path_patterns = raxNew();
+
 	for(uint i = start_offset; i < end_offset; i ++) {
 		const cypher_astnode_t *clause = cypher_ast_query_get_clause(ast->root, i);
 		if(cypher_astnode_type(clause) == CYPHER_AST_WITH) {
@@ -1152,6 +1178,12 @@ static AST_Validation _Validate_Aliases_DefinedInScope(const AST *ast, uint star
 
 		// Get referred identifiers.
 		_AST_GetReferredIdentifiers(clause, referred_identifiers);
+
+		// Get defined named path patterns
+        _AST_GetDefinedPathPatterns(clause, definded_path_patterns);
+
+        // Get referred named path patterns
+        _AST_GetRefferedPathPatterns(clause, referred_path_patterns);
 	}
 
 	raxIterator it;
@@ -1168,10 +1200,22 @@ static AST_Validation _Validate_Aliases_DefinedInScope(const AST *ast, uint star
 		}
 	}
 
+    _prepareIterateAll(referred_path_patterns, &it);
+	while(raxNext(&it)) {
+        int len = it.key_len;
+        unsigned char *alias = it.key;
+        if(raxFind(definded_path_patterns, alias, len) == raxNotFound) {
+            asprintf(undefined_alias, "Reference %.*s not defined", len, alias);
+            res = AST_INVALID;
+            break;
+        }
+    }
 	// Clean up:
 	raxStop(&it);
 	raxFree(defined_aliases);
-	raxFree(referred_identifiers);
+    raxFree(definded_path_patterns);
+    raxFree(referred_identifiers);
+    raxFree(referred_path_patterns);
 	return res;
 }
 

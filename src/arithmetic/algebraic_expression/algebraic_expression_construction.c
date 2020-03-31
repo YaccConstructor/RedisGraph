@@ -3,7 +3,6 @@
 *
 * This file is available under the Redis Labs Source Available License Agreement
 */
-//#define DEBUG_PATH_PATTERNS
 
 #include "../algebraic_expression.h"
 #include "utils.h"
@@ -261,7 +260,7 @@ static AlgebraicExpression *_AlgebraicExpression_OperandFromRelPattern(QGEdge *e
     return root;
 }
 
-AlgebraicExpression *_AlgebraicExpression_OperandFromEbnf(EBNFBase *root, const char *src, const char *dest, const char *path_alias) {
+AlgebraicExpression *_AlgebraicExpression_OperandFromEbnf(const EBNFBase *root, const char *src, const char *dest, const char *path_alias) {
     /*
      * :A :B :C | :D ->
      *      [src-null:A-null] * [null-null:B-null] * [null-null:C-dest] + [src-null:D-dest]
@@ -661,4 +660,9 @@ AlgebraicExpression **AlgebraicExpression_FromQueryGraph
 
 	QueryGraph_Free(g);
 	return exps;
+}
+
+// Construct algebraic expression form ebnf expression.
+AlgebraicExpression *AlgebraicExpression_FromEbnf(const EBNFBase *ebnf) {
+    return _AlgebraicExpression_OperandFromEbnf(ebnf, NULL, NULL, NULL);
 }
