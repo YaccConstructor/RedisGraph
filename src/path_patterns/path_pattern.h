@@ -14,3 +14,5 @@ typedef struct {
 PathPattern *PathPattern_New(const char *name, EBNFBase *ebnf, size_t reqiured_mdim);
 
 char * PathPattern_ToString(PathPattern *pattern);
+
+void PathPattern_Free(PathPattern *pattern);

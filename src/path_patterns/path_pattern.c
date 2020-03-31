@@ -18,3 +18,19 @@ char *PathPattern_ToString(PathPattern *pattern) {
             AlgebraicExpression_ToStringDebug(pattern->ae));
     return buf;
 }
+
+void PathPattern_Free(PathPattern *pattern) {
+    if (pattern->ebnf_root != NULL) {
+        EBNFBase_Free(pattern->ebnf_root);
+        pattern->ebnf_root = NULL;
+    }
+    if (pattern->ae != NULL) {
+        AlgebraicExpression_Free(pattern->ae);
+        pattern->ae = NULL;
+    }
+    if (pattern->m != GrB_NULL) {
+        GrB_Matrix_free(&pattern->m);
+        pattern->m = GrB_NULL;
+    }
+    rm_free(pattern);
+}

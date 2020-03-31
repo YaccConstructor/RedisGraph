@@ -8,6 +8,8 @@ typedef struct {
 
 PathPatternCtx* PathPatternCtx_New();
 
+void PathPatternCtx_Free(PathPatternCtx *pathPatternCtx);
+
 void PathPatternCtx_AddPathPattern(PathPatternCtx *ctx, PathPattern *pattern);
 
 PathPattern* PathPatternCtx_GetPathPattern(PathPatternCtx *ctx, const char* name);
