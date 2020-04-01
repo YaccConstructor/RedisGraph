@@ -75,9 +75,11 @@ PathPatternCtx *BuildPathPatternCtx(AST *ast, size_t required_dim) {
 }
 
 void PathPatternCtx_Free(PathPatternCtx *pathPatternCtx) {
-    for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
-        PathPattern_Free(pathPatternCtx->patterns[i]);
+    if (pathPatternCtx != NULL) {
+        for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
+            PathPattern_Free(pathPatternCtx->patterns[i]);
+        }
+        array_free(pathPatternCtx->patterns);
+        rm_free(pathPatternCtx);
     }
-    array_free(pathPatternCtx->patterns);
-    rm_free(pathPatternCtx);
 }
