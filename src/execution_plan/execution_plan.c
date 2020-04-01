@@ -1037,7 +1037,8 @@ static void _ExecutionPlan_FreeSubPlan(ExecutionPlan *plan) {
 	}
 
 	QueryGraph_Free(plan->query_graph);
-	if(plan->record_map) raxFree(plan->record_map);
+    PathPatternCtx_Free(plan->path_pattern_ctx);
+    if(plan->record_map) raxFree(plan->record_map);
 	if(plan->record_pool) ObjectPool_Free(plan->record_pool);
 	if(plan->ast_segment) AST_Free(plan->ast_segment);
 	rm_free(plan);
