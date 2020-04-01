@@ -1186,13 +1186,13 @@ static AST_Validation _Validate_Aliases_DefinedInScope(const AST *ast, uint star
         _AST_GetRefferedPathPatterns(clause, referred_path_patterns);
 	}
 
-	raxIterator it;
-	_prepareIterateAll(referred_identifiers, &it);
+	raxIterator it_aliase;
+	_prepareIterateAll(referred_identifiers, &it_aliase);
 
 	// See that each referred identifier is defined.
-	while(raxNext(&it)) {
-		int len = it.key_len;
-		unsigned char *alias = it.key;
+	while(raxNext(&it_aliase)) {
+		int len = it_aliase.key_len;
+		unsigned char *alias = it_aliase.key;
 		if(raxFind(defined_aliases, alias, len) == raxNotFound) {
 			asprintf(undefined_alias, "%.*s not defined", len, alias);
 			res = AST_INVALID;
@@ -1200,18 +1200,20 @@ static AST_Validation _Validate_Aliases_DefinedInScope(const AST *ast, uint star
 		}
 	}
 
-    _prepareIterateAll(referred_path_patterns, &it);
-	while(raxNext(&it)) {
-        int len = it.key_len;
-        unsigned char *alias = it.key;
-        if(raxFind(definded_path_patterns, alias, len) == raxNotFound) {
-            asprintf(undefined_alias, "Reference %.*s not defined", len, alias);
+    raxIterator it_reference;
+    _prepareIterateAll(referred_path_patterns, &it_reference);
+	while(raxNext(&it_reference)) {
+        int len = it_reference.key_len;
+        unsigned char *reference = it_reference.key;
+        if(raxFind(definded_path_patterns, reference, len) == raxNotFound) {
+            asprintf(undefined_alias, "Reference %.*s not defined", len, reference);
             res = AST_INVALID;
             break;
         }
     }
 	// Clean up:
-	raxStop(&it);
+	raxStop(&it_aliase);
+	raxStop(&it_reference);
 	raxFree(defined_aliases);
     raxFree(definded_path_patterns);
     raxFree(referred_identifiers);
