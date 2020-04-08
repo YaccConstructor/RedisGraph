@@ -92,17 +92,32 @@ class CFPQTestNsparse : public CFPQRun {};
 INSTANTIATE_TEST_CASE_P(CFPQTestNsparse, CFPQTestNsparse,
                         ::testing::Values(nsparse_cfpq, nsparse_cfpq_index));
 
-// TEST_P(CFPQTestAll, SmallGraph) {
-//  auto solver = GetParam();
-//  auto response =
-//      run("resources/small/matrices/paper.txt", "resources/small/grammars/paper.txt", solver);
-//  check(response, {
-//                      {"s", 6},
-//                      {"s1", 6},
-//                      {"a", 3},
-//                      {"b", 2},
-//                  });
-//}
+TEST_P(CFPQTestNsparse, SmallGraph) {
+  auto solver = GetParam();
+  auto response =
+      run("resources/small/matrices/paper.txt", "resources/small/grammars/paper.txt", solver);
+  check(response, {
+                      {"s", 6},
+                      {"s1", 6},
+                      {"a", 3},
+                      {"b", 2},
+                  });
+}
+
+TEST_P(CFPQTestNsparse, RdfSkosGPPerf1) {
+  auto solver = GetParam();
+  auto response =
+      run("resources/rdf/matrices/skos.txt", "resources/rdf/grammars/GPPerf1_cnf.txt", solver);
+  check(response, {
+                      {"s", 810},
+                      {"s1", 1},
+                      {"s2", 1},
+                      {"s3", 70},
+                      {"s4", 70},
+                      {"s5", 5},
+                      {"s6", 0},
+                  });
+}
 
 TEST_P(CFPQTestNsparse, RdfGoGPPerf1) {
   auto solver = GetParam();
@@ -124,11 +139,11 @@ TEST_P(CFPQTestNsparse, RdfGoGPPerf2) {
   auto response =
       run("resources/rdf/matrices/go.txt", "resources/rdf/grammars/GPPerf2_cnf.txt", solver);
   check(response, {
-      {"b", 334850},
-      {"s1", 90512},
-      {"s2", 90512},
-      {"s3", 327628},
-  });
+                      {"b", 334850},
+                      {"s1", 90512},
+                      {"s2", 90512},
+                      {"s3", 327628},
+                  });
 }
 
 TEST_P(CFPQTestNsparse, RdfGoHierarchy) {

@@ -2,11 +2,16 @@
 #include "nsparse.h"
 #include "masked_matrix.h"
 
+#include "detail/util.h"
+
 #include <chrono>
 #include <grammar.h>
 #include <item_mapper.h>
 #include <response.h>
 #include <vector>
+#include <iostream>
+#include <map>
+#include <algorithm>
 
 using namespace std::chrono;
 using index_type = uint32_t;
@@ -69,12 +74,15 @@ int nsparse_cfpq_index(const Grammar* grammar, CfpqResponse* response, const GrB
 
   auto relational_sem_info = nsparse_binary(grammar, matrices);
 
-  auto indexed_paths = index_path(std::move(matrices_copied), std::move(matrices), relational_sem_info.second,
-                                  graph_size, grammar->nontermMapper.count);
+  auto indexed_paths =
+      index_path(std::move(matrices_copied), std::move(matrices), relational_sem_info.second,
+                 graph_size, grammar->nontermMapper.count);
 
   cudaDeviceSynchronize();
 
   response->iteration_count = relational_sem_info.first;
+
+  using namespace nsparse::util;
 
   for (int i = 0; i < grammar->nontermMapper.count; i++) {
     size_t nvals;
@@ -82,6 +90,23 @@ int nsparse_cfpq_index(const Grammar* grammar, CfpqResponse* response, const GrB
 
     nvals = indexed_paths[i].m_skeleton.m_vals;
     nonterm = ItemMapper_Map((ItemMapper*)&grammar->nontermMapper, i);
+
+#if 0
+    std::cout << nonterm << std::endl;
+    //    std::cout << "m_row_index: " << indexed_paths[i].m_skeleton.m_row_index << std::endl;
+    //    std::cout << "m_col_index: " << indexed_paths[i].m_skeleton.m_col_index << std::endl;
+    //    std::cout << "m_values: " << indexed_paths[i].m_values << std::endl;
+    thrust::host_vector<value_type> values(indexed_paths[i].m_values);
+
+    thrust::for_each(values.begin(), values.end(), [](value_type& v) { v >>= 32; });
+    std::map<value_type, value_type> accum;
+    thrust::for_each(values.begin(), values.end(), [&](value_type& v) { accum[v]++; });
+
+    std::for_each(accum.begin(), accum.end(), [](auto it) {
+      std::cout << "h: " << it.first << " count: " << it.second << std::endl;
+    });
+#endif
+
     CfpqResponse_Append(response, nonterm, nvals);
   }
 
