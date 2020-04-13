@@ -90,8 +90,6 @@ struct count_nz_functor_t {
       std::tuple<Border>) {
     index_type size = bin_size[Border::bin_index];
 
-    constexpr size_t table_size = Border::config_t::block_size * 8;
-
     if (size == 0)
       return {};
 
@@ -99,85 +97,21 @@ struct count_nz_functor_t {
         permutation_buffer.begin() + bin_offset[Border::bin_index],
         permutation_buffer.begin() + bin_offset[Border::bin_index] + size);
 
-    util::resize_and_fill_zeros(bucket_count, size + 1);
+    thrust::device_vector<index_type> hash_table_offsets(size + 1);
 
-    thrust::transform(permutation_buffer.begin() + bin_offset[Border::bin_index],
-                      permutation_buffer.begin() + bin_offset[Border::bin_index] + size,
-                      bucket_count.begin(), [prod = row_idx.data()] __device__(auto row_id) {
-                        index_type p = prod[row_id];
-                        return (p + table_size - 1) / table_size;
-                      });
+    thrust::transform(aka_fail_stat.begin(), aka_fail_stat.end(), hash_table_offsets.begin(),
+                      [prod = row_idx.data()] __device__(auto row_id) { return prod[row_id]; });
+
+    thrust::exclusive_scan(hash_table_offsets.begin(), hash_table_offsets.end(),
+                           hash_table_offsets.begin());
 
     using namespace util;
 
-    thrust::exclusive_scan(bucket_count.begin(), bucket_count.end(), bucket_count.begin());
-    index_type total_buckets = bucket_count.back();
+    hash_table.resize(hash_table_offsets.back());
 
-    bucket_info.resize(total_buckets);
-
-    util::kernel_call(
-        div(size, 32U), 32,
-        [rpt_a = a_row_idx.data(), rpt_b = b_row_idx.data(), col_a = a_col_idx.data(),
-         bucket_ptr = bucket_info.data(), bucket_cnt = bucket_count.data(),
-         rows_ids = aka_fail_stat.data(), sz = size] __device__() {
-          auto item = blockIdx.x * blockDim.x + threadIdx.x;
-          if (item >= sz)
-            return;
-
-          index_type prod = 0;
-          index_type offset = bucket_cnt[item];
-          index_type row_id = rows_ids[item];
-          constexpr index_type divide = table_size;
-          index_type part_count = 0;
-
-          index_type j;
-          index_type k;
-          index_type prev_k;
-          index_type prev_j;
-          for (j = rpt_a[row_id]; j < rpt_a[row_id + 1]; j++) {
-            index_type a_col = col_a[j];
-            index_type b_begin = rpt_b[a_col];
-            index_type b_end = rpt_b[a_col + 1];
-            for (k = b_begin; k < b_end;) {
-              if (prod % divide == 0) {
-                if (part_count != 0) {
-                  // update prev
-                  (bucket_ptr.get() + offset - 1)->a_row_end = prev_j;
-                  (bucket_ptr.get() + offset - 1)->b_row_end = prev_k;
-                }
-                bucket_ptr[offset++] = util::bucket_info_t<index_type>{row_id, j, k, 0, 0};
-                part_count++;
-              }
-
-              index_type add = min(divide - (prod % divide), b_end - k);
-
-              prod += add;
-              k += add;
-
-              prev_k = k;
-              prev_j = j + 1;
-            }
-          }
-
-          (bucket_ptr.get() + offset - 1)->a_row_end = j;
-          (bucket_ptr.get() + offset - 1)->b_row_end = k;
-        });
-
-    thrust::for_each(aka_fail_stat.begin(), aka_fail_stat.end(),
-                     [prod = row_idx.data()] __device__(index_type row_id) { prod[row_id] = 0; });
-
-    hash_table.resize(total_buckets * table_size);
-
-    count_nz_block_row_large<index_type, table_size>
-        <<<total_buckets, Border::config_t::block_size>>>(
-            c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
-            b_row_idx.data(), b_col_idx.data(), bucket_info.data(), hash_table.data(),
-            row_idx.data());
-
-    thrust::device_vector<index_type> hash_table_offsets(size + 1);
-
-    thrust::transform(bucket_count.begin(), bucket_count.end(), hash_table_offsets.begin(),
-                      [] __device__(index_type it) { return it * table_size; });
+    count_nz_block_row_large<index_type><<<size, Border::config_t::block_size>>>(
+        c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
+        b_col_idx.data(), aka_fail_stat.data(), hash_table_offsets.data(), hash_table.data());
 
     thrust::device_vector<index_type> sorted_hash_table(hash_table.size());
 

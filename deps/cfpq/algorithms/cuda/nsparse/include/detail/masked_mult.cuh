@@ -16,34 +16,19 @@ __global__ void masked_mult(
     thrust::device_ptr<const index_type> b_col_idx, thrust::device_ptr<const index_type> b_row_idx,
     thrust::device_ptr<const value_type> b_values, thrust::device_ptr<const index_type> permutation,
     Mul&& mul, Add&& add) {
-  constexpr index_type wapr_size = 32;
+  constexpr index_type warp_size = 32;
 
-  __shared__ index_type data[4];
-  if (threadIdx.x == 0) {
-    data[0] = permutation[blockIdx.x];
-    data[1] = c_row_idx[data[0]];
-    data[2] = c_row_idx[data[0] + 1];
-    data[3] = data[2] - data[1];
-  }
-
-//  index_type rid = permutation[blockIdx.x];
-//  index_type c_row_begin = c_row_idx[rid];
-//  index_type c_row_end = c_row_idx[rid + 1];
-//  index_type c_row_size = c_row_end - c_row_begin;
-
-  index_type& rid = data[0];
-  index_type& c_row_begin = data[1];
-  index_type& c_row_end = data[2];
-  index_type& c_row_size = data[3];
-
-  __syncthreads();
+  const index_type wid = threadIdx.x / warp_size;
+  const index_type rid = permutation[blockIdx.x];
+  const index_type c_row_begin = c_row_idx[rid];
+  const index_type c_row_end = c_row_idx[rid + 1];
+  const index_type c_row_size = c_row_end - c_row_begin;
 
   if (c_row_size == 0)
     return;
 
-  const index_type wid = threadIdx.x / wapr_size;
-  constexpr index_type warp_count = block_size / wapr_size;
-  const index_type tid = threadIdx.x % wapr_size;
+  constexpr index_type warp_count = block_size / warp_size;
+  const index_type tid = threadIdx.x % warp_size;
 
   __shared__ index_type cache[cache_size];
 
@@ -67,74 +52,40 @@ __global__ void masked_mult(
     index_type b_row_begin = b_row_idx[a_col];
     index_type b_row_end = b_row_idx[a_col + 1];
 
-    for (index_type iter = 0; iter < (b_row_end - b_row_begin + warpSize - 1) / wapr_size; iter++) {
-      index_type k = iter * warpSize + tid + b_row_begin;
-
-      index_type b_col;
-      value_type b_value;
-
-      bool skip = false;
-
-      if (k < b_row_end) {
-        b_col = b_col_idx[k];
-        b_value = b_values[k];
-      } else {
-        b_value = Zero;
-      }
+    for (index_type k = b_row_begin + tid; k < b_row_end; k += warp_size) {
+      index_type b_col = b_col_idx[k];
+      value_type b_value = b_values[k];
 
       if (b_value == Zero)
-        skip = true;
+        continue;
 
       value_type mult_res = mul(a_value, b_value, a_col);
 
       int l = 0;
       int r = cache_size;
 
-      if (!skip) {
-        while (r - l > 1) {
-          int delta = (r - l) / 2;
-          assert(l + delta < cache_size);
-          bool satisfy = cache[l + delta] <= b_col;
+      while (r - l > 1) {
+        int delta = (r - l) / 2;
 
-          l += delta * satisfy;
-          r -= delta * !satisfy;
-        }
+        bool satisfy = cache[l + delta] <= b_col;
+
+        l += delta * satisfy;
+        r -= delta * !satisfy;
       }
 
-      constexpr index_type pwarp_size = std::min(cache_step, wapr_size);
-      const index_type pwarp_id = tid / pwarp_size;
-      unsigned pwarp_mask = 0xffffffff;         // 11111111
-      pwarp_mask >>= (wapr_size - pwarp_size);  // 00000011
-      pwarp_mask <<= pwarp_id * pwarp_size;     // 00001100
+      l = l * cache_step + c_row_begin;
+      r = min(l + cache_step, c_row_end);
 
-      for (index_type i = 0; i < pwarp_size; i++) {
-        if (__shfl_sync(pwarp_mask, skip, i + pwarp_id * pwarp_size))
-          continue;
+      while (r - l > 1) {
+        int delta = (r - l) / 2;
 
-        index_type b_col_broadcast = __shfl_sync(pwarp_mask, b_col, i + pwarp_id * pwarp_size);
-        value_type mult_res_broadcast =
-            __shfl_sync(pwarp_mask, mult_res, i + pwarp_id * pwarp_size);
-        index_type l_broadcast = __shfl_sync(pwarp_mask, l, i + pwarp_id * pwarp_size);
+        bool satisfy = c_col_idx[l + delta] <= b_col;
 
-        index_type search_from = l_broadcast * cache_step + c_row_begin;
-        index_type search_to = search_from + cache_step;
-
-        bool was_found = false;
-        for (index_type search = search_from + tid % pwarp_size; search < search_to;
-             search += pwarp_size) {
-          bool vote = (search < c_row_end) ? c_col_idx[search] == b_col_broadcast : false;
-
-          if (unsigned vote_res = __ballot_sync(pwarp_mask, vote)) {
-            assert(__ffs(vote_res) > 0);
-            if (__ffs(vote_res) - 1 == tid) {
-              add(c_values.get() + search, mult_res_broadcast);
-            }
-            was_found = true;
-            break;
-          }
-        }
-        assert(was_found);
+        l += delta * satisfy;
+        r -= delta * !satisfy;
       }
+
+      add(c_values.get() + l, mult_res);
     }
   }
 }
