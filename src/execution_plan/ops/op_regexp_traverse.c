@@ -233,6 +233,12 @@ static void RegexpTraverseFree(OpBase *ctx) {
 
     if (op->deps) {
         array_free(op->deps);
+        op->deps = NULL;
+    }
+
+    if (op->ae_m != GrB_NULL) {
+        GrB_Matrix_free(&op->ae_m);
+        op->ae_m = NULL;
     }
 }
 
