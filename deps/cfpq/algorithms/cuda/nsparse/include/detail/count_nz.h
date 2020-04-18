@@ -78,7 +78,7 @@ struct count_nz_functor_t {
 
   template <typename Border>
   global_hash_table_state_t exec_global_row(
-      const thrust::device_vector<index_type>& c_col_idx,
+      index_type n_cols, const thrust::device_vector<index_type>& c_col_idx,
       const thrust::device_vector<index_type>& c_row_idx,
       const thrust::device_vector<index_type>& a_col_idx,
       const thrust::device_vector<index_type>& a_row_idx,
@@ -107,11 +107,12 @@ struct count_nz_functor_t {
 
     using namespace util;
 
-    hash_table.resize(hash_table_offsets.back());
+    util::resize_and_fill_max(hash_table, hash_table_offsets.back());
 
     count_nz_block_row_large<index_type><<<size, Border::config_t::block_size>>>(
-        c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(), b_row_idx.data(),
-        b_col_idx.data(), aka_fail_stat.data(), hash_table_offsets.data(), hash_table.data());
+        n_cols, c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
+        b_row_idx.data(), b_col_idx.data(), aka_fail_stat.data(), hash_table_offsets.data(),
+        hash_table.data(), row_idx.data());
 
     thrust::device_vector<index_type> sorted_hash_table(hash_table.size());
 
@@ -170,6 +171,7 @@ struct count_nz_functor_t {
           }
 
           prod = util::warpReduceSum(prod);
+          prod = min(max_c_cols, prod);
 
           if (tid == 0) {
             prod_per_row[rid] = prod;
@@ -207,9 +209,10 @@ struct count_nz_functor_t {
                    permutation_buffer, bin_offset, bin_size, products_per_row,
                    meta::filter<meta::block_row, Borders...>);
 
-    auto global_hash_table_state = exec_global_row(
-        c_col_idx, c_row_idx, a_col_idx, a_row_idx, b_col_idx, b_row_idx, permutation_buffer,
-        bin_offset, bin_size, products_per_row, meta::filter<meta::global_row, Borders...>);
+    auto global_hash_table_state =
+        exec_global_row(n_cols, c_col_idx, c_row_idx, a_col_idx, a_row_idx, b_col_idx, b_row_idx,
+                        permutation_buffer, bin_offset, bin_size, products_per_row,
+                        meta::filter<meta::global_row, Borders...>);
 
     thrust::exclusive_scan(products_per_row.begin(), products_per_row.end(),
                            products_per_row.begin());

@@ -50,6 +50,12 @@ void kernel_call(G grid, B block, F&& functor) {
 }
 
 template <typename T>
+void resize_and_fill_max(thrust::device_vector<T>& vec, size_t size) {
+  vec.resize(size);
+  cudaMemsetAsync(thrust::raw_pointer_cast(vec.data()), -1, sizeof(T) * size);
+}
+
+template <typename T>
 void resize_and_fill_zeros(thrust::device_vector<T>& vec, size_t size) {
   vec.resize(size);
   cudaMemsetAsync(thrust::raw_pointer_cast(vec.data()), 0, sizeof(T) * size);

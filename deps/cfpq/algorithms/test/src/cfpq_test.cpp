@@ -90,7 +90,7 @@ INSTANTIATE_TEST_CASE_P(CFPQTestAll, CFPQTestAll,
 
 class CFPQTestNsparse : public CFPQRun {};
 INSTANTIATE_TEST_CASE_P(CFPQTestNsparse, CFPQTestNsparse,
-                        ::testing::Values(nsparse_cfpq, nsparse_cfpq_index));
+                        ::testing::Values(nsparse_cfpq, cpu_graphblas));
 
 TEST_P(CFPQTestNsparse, SmallGraph) {
   auto solver = GetParam();
@@ -173,17 +173,53 @@ TEST_P(CFPQTestNsparse, RdfGeospecies) {
                   });
 }
 
-// TEST_P(CFPQTestNsparse, WorstCase512) {
-//  auto solver = GetParam();
-//  auto response = run("resources/worstcase/matrices/worstcase_512.txt",
-//                      "resources/worstcase/grammars/Brackets.txt", solver);
-//  check(response, {
-//                      {"s", 65792},
-//                      {"a", 257},
-//                      {"b", 256},
-//                      {"s1", 65792},
-//                  });
-//}
+TEST_P(CFPQTestNsparse, Sg5k) {
+  auto solver = GetParam();
+  auto response =
+      run("resources/sg/matrices/G5k-0.001.txt", "resources/sg/grammars/SG.txt", solver);
+  check(response, {
+                      {"s", 24730729},
+                      {"s1", 25046},
+                      {"s2", 25046},
+                      {"s3", 24730729},
+                  });
+}
+
+TEST_P(CFPQTestNsparse, Sg10k) {
+  auto solver = GetParam();
+  auto response =
+      run("resources/sg/matrices/G10k-0.001.txt", "resources/sg/grammars/SG.txt", solver);
+  check(response, {
+                      {"s", 100000000},
+                      {"s1", 99805},
+                      {"s2", 99805},
+                      {"s3", 100000000},
+                  });
+}
+
+TEST_P(CFPQTestNsparse, Sg10k0dot01) {
+  auto solver = GetParam();
+  auto response =
+      run("resources/sg/matrices/G10k-0.01.txt", "resources/sg/grammars/SG.txt", solver);
+  check(response, {
+                      {"s", 100000000},
+                      {"s1", 498331},
+                      {"s2", 501170},
+                      {"s3", 100000000},
+                  });
+}
+
+TEST_P(CFPQTestNsparse, WorstCase512) {
+  auto solver = GetParam();
+  auto response = run("resources/worstcase/matrices/worstcase_512.txt",
+                      "resources/worstcase/grammars/Brackets.txt", solver);
+  check(response, {
+                      {"s", 65792},
+                      {"a", 257},
+                      {"b", 256},
+                      {"s1", 65792},
+                  });
+}
 
 TEST_P(CFPQTestNsparse, FreeScale10000_5) {
   auto solver = GetParam();

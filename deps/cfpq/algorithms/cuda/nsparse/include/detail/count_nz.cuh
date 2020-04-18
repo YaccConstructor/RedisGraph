@@ -12,11 +12,11 @@ namespace nsparse {
 
 template <typename T>
 __global__ void count_nz_block_row_large(
-    thrust::device_ptr<const T> rpt_c, thrust::device_ptr<const T> col_c,
+    T n_cols, thrust::device_ptr<const T> rpt_c, thrust::device_ptr<const T> col_c,
     thrust::device_ptr<const T> rpt_a, thrust::device_ptr<const T> col_a,
     thrust::device_ptr<const T> rpt_b, thrust::device_ptr<const T> col_b,
     thrust::device_ptr<const T> rows_in_bins, thrust::device_ptr<const T> global_table_offsets,
-    thrust::device_ptr<T> global_table) {
+    thrust::device_ptr<T> global_table, thrust::device_ptr<T> row_idx) {
   __shared__ T nz;
 
   if (threadIdx.x == 0) {
@@ -30,6 +30,9 @@ __global__ void count_nz_block_row_large(
   auto i = threadIdx.x % warpSize;
   auto warpCount = blockDim.x / warpSize;
   T offset = global_table_offsets[rid];
+  T table_sz = global_table_offsets[rid + 1] - offset;
+
+  assert(table_sz <= n_cols);
 
   rid = rows_in_bins[rid];  // permutation
 
@@ -42,8 +45,22 @@ __global__ void count_nz_block_row_large(
     for (T k = b_col_begin + i; k < b_col_end; k += warpSize) {
       T b_col = col_b[k];
 
-      global_table[atomicAdd(&nz, 1) + offset] = b_col;
+      if (table_sz == n_cols) {
+        constexpr T hash_invalidate = std::numeric_limits<T>::max();
+        if (atomicCAS(global_table.get() + offset + b_col, hash_invalidate, b_col) ==
+            hash_invalidate) {
+          atomicAdd(&nz, 1);
+        }
+      } else {
+        global_table[atomicAdd(&nz, 1) + offset] = b_col;
+      }
     }
+  }
+
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    row_idx[rid] = nz;
   }
 }
 

@@ -22,10 +22,12 @@ __global__ void filter_hash_table(thrust::device_ptr<const T> row_index,
 
   T row_id = rows_in_table[i];
   T col_offset = row_index[row_id];
+  T expected_size = row_index[row_id + 1] - col_offset;
 
   for (T j = threadIdx.x; j < hash_table_size; j += blockDim.x) {
     T value = hash_table[j + hash_table_offset];
     if (value != hash_invalidated) {
+      assert(j < expected_size);
       col_index[col_offset + j] = value;
     }
   }
