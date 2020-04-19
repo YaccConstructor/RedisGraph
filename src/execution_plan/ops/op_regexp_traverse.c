@@ -70,9 +70,11 @@ static Record RegexpTraverseConsume(OpBase *opBase) {
         // Ask child operations for data.
         for(op->recordsLen = 0; op->recordsLen < op->recordsCap; op->recordsLen++) {
             Record childRecord = OpBase_Consume(child);
+            // If the Record is NULL, the child has been depleted.
             if(!childRecord) break;
 
             // Store received record.
+            Record_PersistScalars(childRecord);
             op->records[op->recordsLen] = childRecord;
         }
 
@@ -84,8 +86,9 @@ static Record RegexpTraverseConsume(OpBase *opBase) {
 
     /* Get node from current column. */
     op->r = op->records[src_id];
-    Node *destNode = Record_GetNode(op->r, op->destNodeIdx);
-    Graph_GetNode(op->graph, dest_id, destNode);
+    Node destNode = {0};
+    Graph_GetNode(op->graph, dest_id, &destNode);
+    Record_AddNode(op->r, op->destNodeIdx, destNode);
 
     return OpBase_CloneRecord(op->r);
 }
