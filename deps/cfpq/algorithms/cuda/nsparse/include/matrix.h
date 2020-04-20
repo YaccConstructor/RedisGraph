@@ -1,6 +1,7 @@
 #pragma once
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+#include <unified_allocator.h>
 #include <cassert>
 
 namespace nsparse {
@@ -22,15 +23,16 @@ class matrix<bool, IndexType> {
   }
 
   static matrix identity(index_type n) {
-    thrust::device_vector<index_type> col_index(thrust::counting_iterator<index_type>(0),
-                                                thrust::counting_iterator<index_type>(n));
-    thrust::device_vector<index_type> row_index(thrust::counting_iterator<index_type>(0),
-                                                thrust::counting_iterator<index_type>(n + 1));
+    thrust::device_vector<index_type, nsparse::managed<index_type>> col_index(
+        thrust::counting_iterator<index_type>(0), thrust::counting_iterator<index_type>(n));
+    thrust::device_vector<index_type, nsparse::managed<index_type>> row_index(
+        thrust::counting_iterator<index_type>(0), thrust::counting_iterator<index_type>(n + 1));
     return matrix(std::move(col_index), std::move(row_index), n, n, n);
   }
 
-  matrix(thrust::device_vector<index_type> col_index, thrust::device_vector<index_type> row_index,
-         index_type rows, index_type cols, index_type vals)
+  matrix(thrust::device_vector<index_type, nsparse::managed<index_type>> col_index,
+         thrust::device_vector<index_type, nsparse::managed<index_type>> row_index, index_type rows,
+         index_type cols, index_type vals)
       : m_col_index{std::move(col_index)},
         m_row_index{std::move(row_index)},
         m_rows{rows},
@@ -40,8 +42,8 @@ class matrix<bool, IndexType> {
     assert(m_row_index.size() == rows + 1);
   }
 
-  thrust::device_vector<index_type> m_col_index;
-  thrust::device_vector<index_type> m_row_index;
+  thrust::device_vector<index_type, nsparse::managed<index_type>> m_col_index;
+  thrust::device_vector<index_type, nsparse::managed<index_type>> m_row_index;
   index_type m_rows;
   index_type m_cols;
   index_type m_vals;

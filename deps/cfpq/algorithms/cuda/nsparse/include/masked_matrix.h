@@ -1,6 +1,7 @@
 #pragma once
 #include <matrix.h>
 #include <detail/add_values.h>
+#include <unified_allocator.h>
 
 namespace nsparse {
 
@@ -17,7 +18,7 @@ class masked_matrix {
                     sizeof(value_type) * m_skeleton.m_vals);
   }
 
-  masked_matrix(matrix<bool, index_type> skeleton, thrust::device_vector<value_type> values)
+  masked_matrix(matrix<bool, index_type> skeleton, thrust::device_vector<value_type, nsparse::managed<value_type>> values)
       : m_skeleton(std::move(skeleton)), m_values(std::move(values)) {
     assert(m_values.size() == m_skeleton.m_vals);
   }
@@ -26,13 +27,13 @@ class masked_matrix {
     return masked_matrix(matrix<bool, index_type>::identity(n), default_value);
   }
 
-  void set_values(const matrix<bool, index_type>& pos, value_type value) {
-    add_values(m_skeleton.m_rows, m_skeleton.m_col_index, m_skeleton.m_row_index, m_values,
-               pos.m_col_index, pos.m_row_index, value);
-  }
+//  void set_values(const matrix<bool, index_type>& pos, value_type value) {
+//    add_values(m_skeleton.m_rows, m_skeleton.m_col_index, m_skeleton.m_row_index, m_values,
+//               pos.m_col_index, pos.m_row_index, value);
+//  }
 
   matrix<bool, index_type> m_skeleton;
-  thrust::device_vector<value_type> m_values;
+  thrust::device_vector<value_type, nsparse::managed<value_type>> m_values;
 };
 
 }  // namespace nsparse

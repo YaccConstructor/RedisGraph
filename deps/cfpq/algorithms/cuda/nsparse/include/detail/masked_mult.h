@@ -4,24 +4,28 @@
 #include <thrust/device_vector.h>
 #include <detail/util.h>
 #include <detail/meta.h>
+#include <unified_allocator.h>
 
 namespace nsparse {
 
 template <typename value_type, typename index_type, value_type zero, typename Mul, typename Add>
 struct masked_mult_functor_t {
+  template <typename T>
+  using container_t = thrust::device_vector<T, nsparse::managed<T>>;
+
   masked_mult_functor_t(Mul mul, Add add) : m_mul(mul), m_add(add) {
   }
 
   template <typename... Borders>
-  void exec_masked_mult(const thrust::device_vector<index_type>& c_col_idx,
-                        const thrust::device_vector<index_type>& c_row_idx,
-                        thrust::device_vector<value_type>& c_values,
-                        const thrust::device_vector<index_type>& a_col_idx,
-                        const thrust::device_vector<index_type>& a_row_idx,
-                        const thrust::device_vector<value_type>& a_values,
-                        const thrust::device_vector<index_type>& b_col_idx,
-                        const thrust::device_vector<index_type>& b_row_idx,
-                        const thrust::device_vector<value_type>& b_values, std::tuple<Borders...>) {
+  void exec_masked_mult(const container_t<index_type>& c_col_idx,
+                        const container_t<index_type>& c_row_idx,
+                        container_t<value_type>& c_values,
+                        const container_t<index_type>& a_col_idx,
+                        const container_t<index_type>& a_row_idx,
+                        const container_t<value_type>& a_values,
+                        const container_t<index_type>& b_col_idx,
+                        const container_t<index_type>& b_row_idx,
+                        const container_t<value_type>& b_values, std::tuple<Borders...>) {
     EXPAND_SIDE_EFFECTS(
         (bin_size[Borders::bin_index] > 0
              ? masked_mult<value_type, index_type, zero, Borders::config_t::block_size,
@@ -35,15 +39,15 @@ struct masked_mult_functor_t {
   }
 
   template <typename... Borders>
-  void operator()(index_type n_rows, const thrust::device_vector<index_type>& c_col_idx,
-                  const thrust::device_vector<index_type>& c_row_idx,
-                  thrust::device_vector<value_type>& c_values,
-                  const thrust::device_vector<index_type>& a_col_idx,
-                  const thrust::device_vector<index_type>& a_row_idx,
-                  const thrust::device_vector<value_type>& a_values,
-                  const thrust::device_vector<index_type>& b_col_idx,
-                  const thrust::device_vector<index_type>& b_row_idx,
-                  const thrust::device_vector<value_type>& b_values, std::tuple<Borders...>) {
+  void operator()(index_type n_rows, const container_t<index_type>& c_col_idx,
+                  const container_t<index_type>& c_row_idx,
+                  container_t<value_type>& c_values,
+                  const container_t<index_type>& a_col_idx,
+                  const container_t<index_type>& a_row_idx,
+                  const container_t<value_type>& a_values,
+                  const container_t<index_type>& b_col_idx,
+                  const container_t<index_type>& b_row_idx,
+                  const container_t<value_type>& b_values, std::tuple<Borders...>) {
     constexpr size_t bin_count = sizeof...(Borders);
     constexpr size_t unused_bin = meta::max_bin<Borders...> + 1;
 
@@ -92,9 +96,9 @@ struct masked_mult_functor_t {
  private:
   Mul m_mul;
   Add m_add;
-  thrust::device_vector<index_type> bin_size;
-  thrust::device_vector<index_type> bin_offset;
-  thrust::device_vector<index_type> permutation_buffer;
+  container_t<index_type> bin_size;
+  container_t<index_type> bin_offset;
+  container_t<index_type> permutation_buffer;
 };
 
 }  // namespace nsparse

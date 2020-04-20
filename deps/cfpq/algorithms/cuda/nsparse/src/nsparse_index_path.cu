@@ -5,6 +5,8 @@
 #include <item_mapper.h>
 #include <response.h>
 #include <vector>
+#include <unified_allocator.h>
+
 
 using index_type = uint32_t;
 using value_type = uint64_t;
@@ -40,7 +42,8 @@ std::vector<nsparse::masked_matrix<value_type, index_type>> index_path(
       index_type left_size = init_matrices[i].m_vals;
 
       nsparse::masked_matrix<value_type, index_type> left(
-          std::move(init_matrices[i]), thrust::device_vector<value_type>(left_size, edge));
+          std::move(init_matrices[i]),
+          thrust::device_vector<value_type, nsparse::managed<value_type>>(left_size, edge));
 
       masked_id_spgemm(masked_matrices.back(), left, identity);
       cudaDeviceSynchronize();

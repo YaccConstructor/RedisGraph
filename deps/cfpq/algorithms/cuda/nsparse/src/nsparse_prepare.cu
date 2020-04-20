@@ -4,12 +4,16 @@
 #include <item_mapper.h>
 #include <response.h>
 #include <vector>
+#include <unified_allocator.h>
+
 
 using index_type = uint32_t;
 
-std::vector<nsparse::matrix<bool, index_type>> nsparse_prepare(
-    const Grammar* grammar, const GrB_Matrix* relations,
-    const char** relations_names, size_t relations_count, size_t graph_size) {
+std::vector<nsparse::matrix<bool, index_type>> nsparse_prepare(const Grammar* grammar,
+                                                               const GrB_Matrix* relations,
+                                                               const char** relations_names,
+                                                               size_t relations_count,
+                                                               size_t graph_size) {
   size_t nonterm_count = grammar->nontermMapper.count;
 
   std::vector<nsparse::matrix<bool, index_type>> matrices(
@@ -42,18 +46,20 @@ std::vector<nsparse::matrix<bool, index_type>> nsparse_prepare(
           GxB_Matrix_export_CSR(&tmp_matrix, &tp, &nrows, &ncols, &nvals, &nonempty, &row_idx,
                                 &col_idx, &vals, desc);
 
-          thrust::device_vector<index_type> col_index(col_idx, col_idx + nvals);
-          thrust::device_vector<index_type> row_index(row_idx, row_idx + nrows + 1);
+          thrust::device_vector<index_type, nsparse::managed<index_type>> col_index(
+              col_idx, col_idx + nvals);
+          thrust::device_vector<index_type, nsparse::managed<index_type>> row_index(
+              row_idx, row_idx + nrows + 1);
 
           matrices[simpleRule->l] = {
               std::move(col_index), std::move(row_index), static_cast<index_type>(graph_size),
               static_cast<index_type>(graph_size), static_cast<index_type>(nvals)};
 
-//          delete[] col_idx;
-//          delete[] row_idx;
-//          delete[](bool*) vals;
+          //          delete[] col_idx;
+          //          delete[] row_idx;
+          //          delete[](bool*) vals;
 
-//          GrB_Descriptor_free(&desc);
+          //          GrB_Descriptor_free(&desc);
         }
       }
     }

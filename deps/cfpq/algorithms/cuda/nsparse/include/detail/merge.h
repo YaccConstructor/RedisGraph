@@ -6,20 +6,22 @@
 
 #include <thrust/device_ptr.h>
 #include <thrust/device_vector.h>
+#include <unified_allocator.h>
 
 namespace nsparse {
 
 template <typename index_type>
 struct unique_merge_functor_t {
+  template <typename T>
+  using container_t = thrust::device_vector<T, nsparse::managed<T>>;
+
   template <typename... Borders>
-  void exec_merge_count(const thrust::device_vector<index_type>& rpt_a,
-                        const thrust::device_vector<index_type>& col_a,
-                        const thrust::device_vector<index_type>& rpt_b,
-                        const thrust::device_vector<index_type>& col_b,
-                        thrust::device_vector<index_type>& rpt_c,
-                        const thrust::device_vector<index_type>& permutation_buffer,
-                        const thrust::device_vector<index_type>& bin_offset,
-                        const thrust::device_vector<index_type>& bin_size, std::tuple<Borders...>) {
+  void exec_merge_count(const container_t<index_type>& rpt_a, const container_t<index_type>& col_a,
+                        const container_t<index_type>& rpt_b, const container_t<index_type>& col_b,
+                        container_t<index_type>& rpt_c,
+                        const container_t<index_type>& permutation_buffer,
+                        const container_t<index_type>& bin_offset,
+                        const container_t<index_type>& bin_size, std::tuple<Borders...>) {
     EXPAND_SIDE_EFFECTS(
         (bin_size[Borders::bin_index] > 0
              ? merge_path_count<index_type, Borders::config_t::block_size>
@@ -30,15 +32,12 @@ struct unique_merge_functor_t {
   }
 
   template <typename... Borders>
-  void exec_merge_fill(const thrust::device_vector<index_type>& rpt_a,
-                       const thrust::device_vector<index_type>& col_a,
-                       const thrust::device_vector<index_type>& rpt_b,
-                       const thrust::device_vector<index_type>& col_b,
-                       const thrust::device_vector<index_type>& rpt_c,
-                       thrust::device_vector<index_type>& col_c,
-                       const thrust::device_vector<index_type>& permutation_buffer,
-                       const thrust::device_vector<index_type>& bin_offset,
-                       const thrust::device_vector<index_type>& bin_size, std::tuple<Borders...>) {
+  void exec_merge_fill(const container_t<index_type>& rpt_a, const container_t<index_type>& col_a,
+                       const container_t<index_type>& rpt_b, const container_t<index_type>& col_b,
+                       const container_t<index_type>& rpt_c, container_t<index_type>& col_c,
+                       const container_t<index_type>& permutation_buffer,
+                       const container_t<index_type>& bin_offset,
+                       const container_t<index_type>& bin_size, std::tuple<Borders...>) {
     EXPAND_SIDE_EFFECTS(
         (bin_size[Borders::bin_index] > 0
              ? merge_path_fill<index_type, Borders::config_t::block_size>
@@ -49,11 +48,11 @@ struct unique_merge_functor_t {
   }
 
   template <typename... Borders>
-  std::pair<thrust::device_vector<index_type>, thrust::device_vector<index_type>> operator()(
-      const thrust::device_vector<index_type>& rpt_a,
-      const thrust::device_vector<index_type>& col_a,
-      const thrust::device_vector<index_type>& rpt_b,
-      const thrust::device_vector<index_type>& col_b, std::tuple<Borders...>) {
+  std::pair<container_t<index_type>, container_t<index_type>> operator()(
+      const container_t<index_type>& rpt_a,
+      const container_t<index_type>& col_a,
+      const container_t<index_type>& rpt_b,
+      const container_t<index_type>& col_b, std::tuple<Borders...>) {
     assert(rpt_a.size() == rpt_b.size());
     assert(rpt_a.size() > 0);
 
@@ -76,7 +75,7 @@ struct unique_merge_functor_t {
                          atomicAdd(row_per_bin.get() + bin, 1);
                      });
 
-    thrust::device_vector<index_type> bin_offset(bin_count);
+    container_t<index_type> bin_offset(bin_count);
     thrust::exclusive_scan(bin_size.begin(), bin_size.end(), bin_offset.begin());
 
     thrust::fill(bin_size.begin(), bin_size.end(), 0);
@@ -97,14 +96,14 @@ struct unique_merge_functor_t {
                        rows_in_bins[bin_offset[bin] + curr_bin_size] = rid;
                      });
 
-    thrust::device_vector<index_type> rpt_c(rows + 1, 0);
+    container_t<index_type> rpt_c(rows + 1, 0);
 
     exec_merge_count(rpt_a, col_a, rpt_b, col_b, rpt_c, permutation_buffer, bin_offset, bin_size,
                      std::tuple<Borders...>{});
 
     thrust::exclusive_scan(rpt_c.begin(), rpt_c.end(), rpt_c.begin());
 
-    thrust::device_vector<index_type> col_c(rpt_c.back());
+    container_t<index_type> col_c(rpt_c.back());
 
     exec_merge_fill(rpt_a, col_a, rpt_b, col_b, rpt_c, col_c, permutation_buffer, bin_offset,
                     bin_size, std::tuple<Borders...>{});
@@ -113,8 +112,8 @@ struct unique_merge_functor_t {
   }
 
  private:
-  thrust::device_vector<index_type> bin_size;
-  thrust::device_vector<index_type> permutation_buffer;
+  container_t<index_type> bin_size;
+  container_t<index_type> permutation_buffer;
 };
 
 }  // namespace nsparse

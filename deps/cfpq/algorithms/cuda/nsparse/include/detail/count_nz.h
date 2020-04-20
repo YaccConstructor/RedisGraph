@@ -12,33 +12,39 @@
 #include <thrust/device_vector.h>
 #include <utility>
 #include <vector>
+#include <unified_allocator.h>
+
 
 namespace nsparse {
 
 template <typename index_type>
 struct count_nz_functor_t {
+  template <typename T>
+  using container_t = thrust::device_vector<T, nsparse::managed<T>>;
+
+
   struct global_hash_table_state_t {
-    thrust::device_vector<index_type> hash_table;
-    thrust::device_vector<index_type> hashed_row_offsets;
-    thrust::device_vector<index_type> hashed_row_indices;
+    container_t<index_type> hash_table;
+    container_t<index_type> hashed_row_offsets;
+    container_t<index_type> hashed_row_indices;
   };
 
   struct row_index_res_t {
-    thrust::device_vector<index_type> row_index;
+    container_t<index_type> row_index;
     global_hash_table_state_t global_hash_table_state;
   };
 
   template <typename... Borders>
-  void exec_pwarp_row(const thrust::device_vector<index_type>& c_col_idx,
-                      const thrust::device_vector<index_type>& c_row_idx,
-                      const thrust::device_vector<index_type>& a_col_idx,
-                      const thrust::device_vector<index_type>& a_row_idx,
-                      const thrust::device_vector<index_type>& b_col_idx,
-                      const thrust::device_vector<index_type>& b_row_idx,
-                      const thrust::device_vector<index_type>& permutation_buffer,
-                      const thrust::device_vector<index_type>& bin_offset,
-                      const thrust::device_vector<index_type>& bin_size,
-                      thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
+  void exec_pwarp_row(const container_t<index_type>& c_col_idx,
+                      const container_t<index_type>& c_row_idx,
+                      const container_t<index_type>& a_col_idx,
+                      const container_t<index_type>& a_row_idx,
+                      const container_t<index_type>& b_col_idx,
+                      const container_t<index_type>& b_row_idx,
+                      const container_t<index_type>& permutation_buffer,
+                      const container_t<index_type>& bin_offset,
+                      const container_t<index_type>& bin_size,
+                      container_t<index_type>& row_idx, std::tuple<Borders...>) {
     constexpr size_t pwarp = 4;
 
     EXPAND_SIDE_EFFECTS(
@@ -55,16 +61,16 @@ struct count_nz_functor_t {
   }
 
   template <typename... Borders>
-  void exec_block_row(const thrust::device_vector<index_type>& c_col_idx,
-                      const thrust::device_vector<index_type>& c_row_idx,
-                      const thrust::device_vector<index_type>& a_col_idx,
-                      const thrust::device_vector<index_type>& a_row_idx,
-                      const thrust::device_vector<index_type>& b_col_idx,
-                      const thrust::device_vector<index_type>& b_row_idx,
-                      const thrust::device_vector<index_type>& permutation_buffer,
-                      const thrust::device_vector<index_type>& bin_offset,
-                      const thrust::device_vector<index_type>& bin_size,
-                      thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
+  void exec_block_row(const container_t<index_type>& c_col_idx,
+                      const container_t<index_type>& c_row_idx,
+                      const container_t<index_type>& a_col_idx,
+                      const container_t<index_type>& a_row_idx,
+                      const container_t<index_type>& b_col_idx,
+                      const container_t<index_type>& b_row_idx,
+                      const container_t<index_type>& permutation_buffer,
+                      const container_t<index_type>& bin_offset,
+                      const container_t<index_type>& bin_size,
+                      container_t<index_type>& row_idx, std::tuple<Borders...>) {
     static_assert(meta::all_of<(Borders::config_t::block_size % 32 == 0)...>);
 
     EXPAND_SIDE_EFFECTS(
@@ -78,26 +84,26 @@ struct count_nz_functor_t {
 
   template <typename Border>
   global_hash_table_state_t exec_global_row(
-      index_type n_cols, const thrust::device_vector<index_type>& c_col_idx,
-      const thrust::device_vector<index_type>& c_row_idx,
-      const thrust::device_vector<index_type>& a_col_idx,
-      const thrust::device_vector<index_type>& a_row_idx,
-      const thrust::device_vector<index_type>& b_col_idx,
-      const thrust::device_vector<index_type>& b_row_idx,
-      const thrust::device_vector<index_type>& permutation_buffer,
-      const thrust::device_vector<index_type>& bin_offset,
-      const thrust::device_vector<index_type>& bin_size, thrust::device_vector<index_type>& row_idx,
+      index_type n_cols, const container_t<index_type>& c_col_idx,
+      const container_t<index_type>& c_row_idx,
+      const container_t<index_type>& a_col_idx,
+      const container_t<index_type>& a_row_idx,
+      const container_t<index_type>& b_col_idx,
+      const container_t<index_type>& b_row_idx,
+      const container_t<index_type>& permutation_buffer,
+      const container_t<index_type>& bin_offset,
+      const container_t<index_type>& bin_size, container_t<index_type>& row_idx,
       std::tuple<Border>) {
     index_type size = bin_size[Border::bin_index];
 
     if (size == 0)
       return {};
 
-    thrust::device_vector<index_type> aka_fail_stat(
+    container_t<index_type> aka_fail_stat(
         permutation_buffer.begin() + bin_offset[Border::bin_index],
         permutation_buffer.begin() + bin_offset[Border::bin_index] + size);
 
-    thrust::device_vector<index_type> hash_table_offsets(size + 1);
+    container_t<index_type> hash_table_offsets(size + 1);
 
     thrust::transform(aka_fail_stat.begin(), aka_fail_stat.end(), hash_table_offsets.begin(),
                       [prod = row_idx.data()] __device__(auto row_id) { return prod[row_id]; });
@@ -114,7 +120,7 @@ struct count_nz_functor_t {
         b_row_idx.data(), b_col_idx.data(), aka_fail_stat.data(), hash_table_offsets.data(),
         hash_table.data(), row_idx.data());
 
-    thrust::device_vector<index_type> sorted_hash_table(hash_table.size());
+    container_t<index_type> sorted_hash_table(hash_table.size());
 
     size_t temp_storage_bytes = 0;
     cub::DeviceSegmentedRadixSort::SortKeys(
@@ -137,17 +143,17 @@ struct count_nz_functor_t {
 
   template <typename... Borders>
   row_index_res_t operator()(index_type n_rows, index_type n_cols,
-                             const thrust::device_vector<index_type>& c_col_idx,
-                             const thrust::device_vector<index_type>& c_row_idx,
-                             const thrust::device_vector<index_type>& a_col_idx,
-                             const thrust::device_vector<index_type>& a_row_idx,
-                             const thrust::device_vector<index_type>& b_col_idx,
-                             const thrust::device_vector<index_type>& b_row_idx,
+                             const container_t<index_type>& c_col_idx,
+                             const container_t<index_type>& c_row_idx,
+                             const container_t<index_type>& a_col_idx,
+                             const container_t<index_type>& a_row_idx,
+                             const container_t<index_type>& b_col_idx,
+                             const container_t<index_type>& b_row_idx,
                              std::tuple<Borders...>) {
     constexpr size_t bin_count = sizeof...(Borders);
     constexpr size_t unused_bin = meta::max_bin<Borders...> + 1;
 
-    thrust::device_vector<index_type> products_per_row(n_rows + 1, 0);
+    container_t<index_type> products_per_row(n_rows + 1, 0);
     util::resize_and_fill_zeros(bin_size, bin_count);
     bin_offset.resize(bin_count);
     permutation_buffer.resize(n_rows);
@@ -221,13 +227,13 @@ struct count_nz_functor_t {
   }
 
  private:
-  thrust::device_vector<index_type> bin_size;
-  thrust::device_vector<index_type> bin_offset;
-  thrust::device_vector<index_type> permutation_buffer;
-  thrust::device_vector<index_type> bucket_count;
-  thrust::device_vector<util::bucket_info_t<index_type>> bucket_info;
-  thrust::device_vector<index_type> hash_table;
-  thrust::device_vector<char> storage;
+  container_t<index_type> bin_size;
+  container_t<index_type> bin_offset;
+  container_t<index_type> permutation_buffer;
+  container_t<index_type> bucket_count;
+  container_t<util::bucket_info_t<index_type>> bucket_info;
+  container_t<index_type> hash_table;
+  container_t<char> storage;
 };
 
 }  // namespace nsparse

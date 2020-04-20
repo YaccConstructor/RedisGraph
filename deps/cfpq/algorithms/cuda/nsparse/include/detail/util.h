@@ -3,6 +3,7 @@
 #include <ostream>
 #include <thrust/device_vector.h>
 
+
 namespace nsparse {
 namespace util {
 
@@ -49,25 +50,25 @@ void kernel_call(G grid, B block, F&& functor) {
   detail::kernel_call_impl<<<grid, block>>>(std::forward<decltype(functor)>(functor));
 }
 
-template <typename T>
-void resize_and_fill_max(thrust::device_vector<T>& vec, size_t size) {
+template <typename T, typename Alloc>
+void resize_and_fill_max(thrust::device_vector<T, Alloc>& vec, size_t size) {
   vec.resize(size);
   cudaMemsetAsync(thrust::raw_pointer_cast(vec.data()), -1, sizeof(T) * size);
 }
 
-template <typename T>
-void resize_and_fill_zeros(thrust::device_vector<T>& vec, size_t size) {
+template <typename T, typename Alloc>
+void resize_and_fill_zeros(thrust::device_vector<T, Alloc>& vec, size_t size) {
   vec.resize(size);
   cudaMemsetAsync(thrust::raw_pointer_cast(vec.data()), 0, sizeof(T) * size);
 }
 
-template <typename T>
-void fill_zeros(thrust::device_vector<T>& vec, size_t size) {
+template <typename T, typename Alloc>
+void fill_zeros(thrust::device_vector<T, Alloc>& vec, size_t size) {
   cudaMemsetAsync(thrust::raw_pointer_cast(vec.data()), 0, sizeof(T) * size);
 }
 
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const thrust::device_vector<T>& vec) {
+template <typename T, typename Alloc>
+std::ostream& operator<<(std::ostream& os, const thrust::device_vector<T, Alloc>& vec) {
   thrust::host_vector<T> h_vec = vec;
   for (auto item : h_vec) {
     os << item << " ";

@@ -10,6 +10,8 @@
 
 #include <detail/count_nz.h>
 #include <detail/fill_nz.h>
+#include <unified_allocator.h>
+
 
 namespace nsparse {
 
@@ -51,7 +53,7 @@ struct spgemm_functor_t<bool, index_type> {
                                                  bin_info_t<nz_conf_t<block_row, 64>, 32, 512>,
                                                  bin_info_t<nz_conf_t<pwarp_row, 256>, 0, 32>>;
 
-    thrust::device_vector<index_type> col_index =
+    thrust::device_vector<index_type, nsparse::managed<index_type>> col_index =
         fill_nz_functor(rows, c.m_col_index, c.m_row_index, a.m_col_index, a.m_row_index,
                         b.m_col_index, b.m_row_index, res.row_index, config_fill_nz);
 

@@ -8,23 +8,23 @@
 #include <thrust/device_ptr.h>
 #include <thrust/device_vector.h>
 #include <utility>
+#include <unified_allocator.h>
 
 namespace nsparse {
 
 template <typename index_type>
 struct fill_nz_functor_t {
+  template <typename T>
+  using container_t = thrust::device_vector<T, nsparse::managed<T>>;
+
   template <typename... Borders>
-  void exec_pwarp_row(const thrust::device_vector<index_type>& c_col_idx,
-                      const thrust::device_vector<index_type>& c_row_idx,
-                      const thrust::device_vector<index_type>& a_col_idx,
-                      const thrust::device_vector<index_type>& a_row_idx,
-                      const thrust::device_vector<index_type>& b_col_idx,
-                      const thrust::device_vector<index_type>& b_row_idx,
-                      const thrust::device_vector<index_type>& permutation_buffer,
-                      const thrust::device_vector<index_type>& bin_offset,
-                      const thrust::device_vector<index_type>& bin_size,
-                      thrust::device_vector<index_type>& col_idx,
-                      const thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
+  void exec_pwarp_row(
+      const container_t<index_type>& c_col_idx, const container_t<index_type>& c_row_idx,
+      const container_t<index_type>& a_col_idx, const container_t<index_type>& a_row_idx,
+      const container_t<index_type>& b_col_idx, const container_t<index_type>& b_row_idx,
+      const container_t<index_type>& permutation_buffer, const container_t<index_type>& bin_offset,
+      const container_t<index_type>& bin_size, container_t<index_type>& col_idx,
+      const container_t<index_type>& row_idx, std::tuple<Borders...>) {
     constexpr index_type pwarp = 4;
     constexpr index_type block_sz = 256;
     EXPAND_SIDE_EFFECTS(
@@ -39,17 +39,13 @@ struct fill_nz_functor_t {
   }
 
   template <typename... Borders>
-  void exec_block_row(const thrust::device_vector<index_type>& c_col_idx,
-                      const thrust::device_vector<index_type>& c_row_idx,
-                      const thrust::device_vector<index_type>& a_col_idx,
-                      const thrust::device_vector<index_type>& a_row_idx,
-                      const thrust::device_vector<index_type>& b_col_idx,
-                      const thrust::device_vector<index_type>& b_row_idx,
-                      const thrust::device_vector<index_type>& permutation_buffer,
-                      const thrust::device_vector<index_type>& bin_offset,
-                      const thrust::device_vector<index_type>& bin_size,
-                      thrust::device_vector<index_type>& col_idx,
-                      const thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
+  void exec_block_row(
+      const container_t<index_type>& c_col_idx, const container_t<index_type>& c_row_idx,
+      const container_t<index_type>& a_col_idx, const container_t<index_type>& a_row_idx,
+      const container_t<index_type>& b_col_idx, const container_t<index_type>& b_row_idx,
+      const container_t<index_type>& permutation_buffer, const container_t<index_type>& bin_offset,
+      const container_t<index_type>& bin_size, container_t<index_type>& col_idx,
+      const container_t<index_type>& row_idx, std::tuple<Borders...>) {
     static_assert(meta::all_of<(Borders::max_border / 8 % 32 == 0)...>);
 
     EXPAND_SIDE_EFFECTS(
@@ -63,17 +59,13 @@ struct fill_nz_functor_t {
   }
 
   template <typename... Borders>
-  void exec_global_row(const thrust::device_vector<index_type>& c_col_idx,
-                       const thrust::device_vector<index_type>& c_row_idx,
-                       const thrust::device_vector<index_type>& a_col_idx,
-                       const thrust::device_vector<index_type>& a_row_idx,
-                       const thrust::device_vector<index_type>& b_col_idx,
-                       const thrust::device_vector<index_type>& b_row_idx,
-                       const thrust::device_vector<index_type>& permutation_buffer,
-                       const thrust::device_vector<index_type>& bin_offset,
-                       const thrust::device_vector<index_type>& bin_size,
-                       thrust::device_vector<index_type>& col_idx,
-                       const thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
+  void exec_global_row(
+      const container_t<index_type>& c_col_idx, const container_t<index_type>& c_row_idx,
+      const container_t<index_type>& a_col_idx, const container_t<index_type>& a_row_idx,
+      const container_t<index_type>& b_col_idx, const container_t<index_type>& b_row_idx,
+      const container_t<index_type>& permutation_buffer, const container_t<index_type>& bin_offset,
+      const container_t<index_type>& bin_size, container_t<index_type>& col_idx,
+      const container_t<index_type>& row_idx, std::tuple<Borders...>) {
     static_assert(sizeof...(Borders) <= 1);
 
     constexpr index_type block_sz = 1024;
@@ -90,14 +82,14 @@ struct fill_nz_functor_t {
   }
 
   template <typename... Borders>
-  thrust::device_vector<index_type> operator()(
-      index_type n_rows, const thrust::device_vector<index_type>& c_col_idx,
-      const thrust::device_vector<index_type>& c_row_idx,
-      const thrust::device_vector<index_type>& a_col_idx,
-      const thrust::device_vector<index_type>& a_row_idx,
-      const thrust::device_vector<index_type>& b_col_idx,
-      const thrust::device_vector<index_type>& b_row_idx,
-      const thrust::device_vector<index_type>& row_idx, std::tuple<Borders...>) {
+  container_t<index_type> operator()(index_type n_rows, const container_t<index_type>& c_col_idx,
+                                     const container_t<index_type>& c_row_idx,
+                                     const container_t<index_type>& a_col_idx,
+                                     const container_t<index_type>& a_row_idx,
+                                     const container_t<index_type>& b_col_idx,
+                                     const container_t<index_type>& b_row_idx,
+                                     const container_t<index_type>& row_idx,
+                                     std::tuple<Borders...>) {
     constexpr size_t bin_count = sizeof...(Borders);
     constexpr size_t unused_bin = meta::max_bin<Borders...> + 1;
 
@@ -120,7 +112,6 @@ struct fill_nz_functor_t {
 
     thrust::fill(bin_size.begin(), bin_size.end(), 0);
 
-
     thrust::for_each(
         thrust::counting_iterator<index_type>(0), thrust::counting_iterator<index_type>(n_rows),
         [rpt = row_idx.data(), bin_offset = bin_offset.data(), bin_size = bin_size.data(),
@@ -138,7 +129,7 @@ struct fill_nz_functor_t {
 
     index_type values_count = row_idx.back();
 
-    thrust::device_vector<index_type> col_idx(values_count, std::numeric_limits<index_type>::max());
+    container_t<index_type> col_idx(values_count, std::numeric_limits<index_type>::max());
 
     exec_pwarp_row(c_col_idx, c_row_idx, a_col_idx, a_row_idx, b_col_idx, b_row_idx,
                    permutation_buffer, bin_offset, bin_size, col_idx, row_idx,
@@ -156,14 +147,15 @@ struct fill_nz_functor_t {
   }
 
  private:
-  thrust::device_vector<index_type> bin_size;
-  thrust::device_vector<index_type> bin_offset;
-  thrust::device_vector<index_type> permutation_buffer;
+  container_t<index_type> bin_size;
+  container_t<index_type> bin_offset;
+  container_t<index_type> permutation_buffer;
 };
 
 template <typename index_type>
 void reuse_global_hash_table(
-    const thrust::device_vector<index_type>& row_idx, thrust::device_vector<index_type>& col_idx,
+    const thrust::device_vector<index_type, nsparse::managed<index_type>>& row_idx,
+    thrust::device_vector<index_type, nsparse::managed<index_type>>& col_idx,
     const typename count_nz_functor_t<index_type>::global_hash_table_state_t& state) {
   constexpr index_type block_sz = 1024;
   auto hashed_row_count = state.hashed_row_indices.size();
