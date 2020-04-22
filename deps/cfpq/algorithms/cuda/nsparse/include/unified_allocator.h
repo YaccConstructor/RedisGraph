@@ -7,14 +7,36 @@
 
 #include <limits>
 #include <stdexcept>
+#include <iostream>
+
+namespace nsparse {
+inline cudaError_t cudaMallocManagedPrefetch(void** ptr, std::size_t bytes) {
+  auto status = thrust::system::cuda::detail::cudaMallocManaged(ptr, bytes);
+  if (status != cudaSuccess) {
+    return status;
+  }
+
+  int device = -1;
+  status = cudaGetDevice(&device);
+  if (status != cudaSuccess) {
+    return status;
+  }
+  status = cudaMemPrefetchAsync(*ptr, bytes, device, NULL);
+  return status;
+}
+
+using universal_prefetched_memory_resource =
+    thrust::system::cuda::detail::cuda_memory_resource<cudaMallocManagedPrefetch, cudaFree,
+                                                       thrust::cuda::pointer<void>>;
+}  // namespace nsparse
 
 namespace thrust {
 
 template <typename T>
 class device_unified_allocator : public thrust::mr::stateless_resource_allocator<
-                                     T, device_ptr_memory_resource<universal_memory_resource>> {
+                                     T, device_ptr_memory_resource<nsparse::universal_prefetched_memory_resource>> {
   typedef thrust::mr::stateless_resource_allocator<
-      T, device_ptr_memory_resource<universal_memory_resource>>
+      T, device_ptr_memory_resource<nsparse::universal_prefetched_memory_resource>>
       base;
 
  public:
