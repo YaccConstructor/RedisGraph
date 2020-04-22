@@ -5,6 +5,15 @@ This document is based on the Cypher Query Language Reference (version 9), avail
 ## Patterns
 Patterns are fully supported.
 
+## Path patterns
+
+Path patterns support is based on [this OpenCypher extension proposal](https://github.com/thobe/openCypher/blob/rpq/cip/1.accepted/CIP2017-02-06-Path-Patterns.adoc).
+
++ Supported 1
++ Supported 2
+
+**Unsupported:**
+
 ## Types
 ### Structural types
 + Nodes
