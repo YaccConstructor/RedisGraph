@@ -28,48 +28,36 @@ void automat_init(automat *aut)
 
 void automat_delete(automat *aut)
 {
-    vector_int_delete(&aut->matrix);
-    vector_int_delete(&aut->states);
-    vector_int_delete(&aut->startSymbols);
-
-    vector_int_delete(&aut->edg.edges_i);
-    vector_int_delete(&aut->edg.edges_j);
-    vector_int_delete(&aut->edg.edges_label);
-
-    vector_int_delete(&aut->paths.edges_i);
-    vector_int_delete(&aut->paths.edges_j);
-    vector_int_delete(&aut->paths.edges_label);
-
-    map_delete(aut->indices);
-
     aut->init = 0;
 }
 
 void automat_load_from_file(automat *aut, FILE *file)
 {
-    assert(aut->init == 1);
+    automat_init(aut);
+    char *buf;
+    size_t buf_size = 0;
+
+    getline(&buf, &buf_size, file);
 
     int edgesCount = 0;
-    fscanf(file, "%d", &edgesCount);
-
-    char skip;
-    fscanf(file, "%c", &skip);
+    sscanf(buf, "%d", &edgesCount);
 
     char label[100];
     for (int i = 0; i < edgesCount; i++)
     {
+        getline(&buf, &buf_size, file);
         int k = 0;
         int l = 0;
 
-        int count = fscanf(file, "%d%c%s%c%d%c", &k, &skip, label, &skip, &l, &skip);
+        sscanf(buf, "%d %100s %d", &k, label, &l);
 
         int j = 0;
-        int found = map_get_second_by_first(aut->indices, label);
+        int found = map_get_second_by_first(&aut->indices, label);
         if (found == INT_MIN)
         {
              j = 1 << aut->indicesCount;
              aut->indicesCount++;
-             map_append(aut->indices, label, j);
+             map_append(&aut->indices, label, j);
         }
         else
         {
@@ -82,26 +70,27 @@ void automat_load_from_file(automat *aut, FILE *file)
 
         aut->statesCount = (k > aut->statesCount ? k: aut->statesCount);
         aut->statesCount = (l > aut->statesCount ? l: aut->statesCount);
+
     }
 
     aut->statesCount++;
 
+    getline(&buf, &buf_size, file);
     int pathsCount = 0;
-    fscanf(file, "%d", &pathsCount);
+    sscanf(buf, "%d", &pathsCount);
 
     for (int i = 0; i < pathsCount; i++)
     {
         int k = 0;
         int l = 0;
-        fscanf(file, "%d", &k);
-        fscanf(file, "%s", label);
-        fscanf(file, "%d", &l);
+        getline(&buf, &buf_size, file);
+        sscanf(buf, "%d %100s %d", &k, label, &l);
 
         int j = 0;
-        int found = map_get_second_by_first(aut->indices, label);
+        int found = map_get_second_by_first(&aut->indices, label);
         if (found == INT_MIN)
         {
-             printf("%s%s", "Automata has incomplete type [name: ", file_name);
+	    printf("%s", "Automata has incomplete type");
              continue;
         }
         else
@@ -114,23 +103,27 @@ void automat_load_from_file(automat *aut, FILE *file)
         vector_int_append(&aut->paths.edges_label, j);
     }
 
-    fscanf(file, "%d", &aut->startSymbolsCount);
+    getline(&buf, &buf_size, file);
+    sscanf(buf, "%d", &aut->startSymbolsCount);
+
     for (int i = 0; i < aut->startSymbolsCount; i++)
     {
-        fscanf(file, "%s", label);
+        getline(&buf, &buf_size, file);
+        sscanf(buf, "%100s", label);
 
         int j = 0;
-        int found = map_get_second_by_first(aut->indices, label);
+        int found = map_get_second_by_first(&aut->indices, label);
         if (found == INT_MIN)
         {
-             printf("%s%s", "Automata has incomplete type [name: ", file_name);
-             continue;
+             j = 1 << aut->indicesCount;
+             aut->indicesCount++;
+             map_append(&aut->indices, label, j); 
         }
         else
         {
-            j = found;
+	    j = found;
         }
-        vector_int_append(&aut->startSymbols, label);
+        vector_int_append(&aut->startSymbols, j);
     }
 
     fclose(file);
@@ -158,66 +151,11 @@ void automat_load_from_file(automat *aut, FILE *file)
         int p_i = vector_int_get_element_by_index(&aut->paths.edges_i, i);
         int p_j = vector_int_get_element_by_index(&aut->paths.edges_j, i);
         int p_label = vector_int_get_element_by_index(&aut->paths.edges_label, i);
-
-        int newdata = vector_int_get_element_by_index(&aut->states, p_i*aut->statesCount + p_j);
+    	int newdata = vector_int_get_element_by_index(&aut->states, p_i*aut->statesCount + p_j);
         newdata |= p_label;
 
         vector_int_set_element(&aut->states, newdata, p_i*aut->statesCount + p_j);
     }
 
 
-#ifdef DEBUG
-	{
-		printf("%d", aut->statesCount);
-    	printf("%c", '\n');
-    	printf("%c", '\n');
-
-    	for (int i = 0; i < aut->statesCount; i++)
-    	{
-        	for (int j = 0; j < aut->statesCount; j++)
-            	printf("%d", vector_int_get_element_by_index(&aut->matrix, i*aut->statesCount + j));
-
-        	printf("%c", '\n');
-    	}
-
-    	printf("%c", '\n');
-    	printf("%c", '\n');
-
-    	for (int i = 0; i < aut->statesCount; i++)
-    	{
-        	for (int j = 0; j < aut->statesCount; j++)
-            	printf("%d", vector_int_get_element_by_index(&aut->states, i*aut->statesCount + j));
-
-        	printf("%c", '\n');
-    	}
-
-    	printf("%c", '\n');
-    	printf("%c", '\n');
-
-    	for (int i = 0; i < vector_int_get_size(&aut->edg.edges_i); i++)
-    	{
-        	int e_i = vector_int_get_element_by_index(&aut->edg.edges_i, i);
-        	int e_j = vector_int_get_element_by_index(&aut->edg.edges_j, i);
-        	int e_label = vector_int_get_element_by_index(&aut->edg.edges_label, i);
-
-        	printf("%d %d %d", e_i, e_label, e_j);
-        	printf("%c", ' ');
-        	printf("%c", ' ');
-        	printf("%c", ' ');
-    	}
-
-    	printf("%c", '\n');
-    	printf("%c", '\n');
-
-    	for (int i = 0; i < vector_int_get_size(&aut->paths.edges_i); i++)
-    	{
-        	int p_i = vector_int_get_element_by_index(&aut->paths.edges_i, i);
-        	int p_j = vector_int_get_element_by_index(&aut->paths.edges_j, i);
-        	int p_label = vector_int_get_element_by_index(&aut->paths.edges_label, i);
-
-        	printf("%d %d %d", p_i, p_label, p_j);
-        	printf("%c", '\n');
-    	}
-	}
-#endif
 }

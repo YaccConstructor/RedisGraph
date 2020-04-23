@@ -1,30 +1,22 @@
 #pragma once
+
+#include <stdint.h>
 #include <string.h>
 
-typedef struct list_element
-{
-    char *first;
-    int second;
-    struct list_element *next;
-    struct list_element *prev;
-} list_map_element;
+typedef int64_t MapIndex;
 
 typedef struct
 {
-    list_map_element *head;
-    list_map_element *tail;
-    unsigned int size;
-} list_map;
-
-typedef struct
-{
-    list_map *m;
     int init;
+    uint16_t count;
+    MapIndex id_items[150];
+    int64_t max_id_items;
+    char items[150][30];
 } map;
 
-void map_delete(map *m);
-int map_get_size(map *m);
-char *map_get_first_by_second(map *m, int sec); // считается, что между множеством char *first
-int map_get_second_by_first(map *m, char *f);  //      и множеством int second имеется биекция
 void map_init(map *m);
-void map_append(map *m, char *f, int sec);
+int map_get_size(map *m);
+char *map_get_first_by_second(map *m, MapIndex index);
+MapIndex map_get_second_by_first(map *m, char *f);
+void map_append(map *m, char *f, MapIndex sec);
+

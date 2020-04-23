@@ -29,5 +29,5 @@ typedef struct
 } automat;
 
 void automat_delete(automat *aut);
-void automat_load_from_file(automat *aut, char *file_name);
+void automat_load_from_file(automat *aut, FILE *file);
 void automat_init(automat *aut);

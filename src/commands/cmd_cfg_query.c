@@ -1,5 +1,6 @@
 #include "../redismodule.h"
 #include "../graph/graphcontext.h"
+#include "../bool_automat/bool_automat.h"
 #include "../automat/automat.h"
 #include "../cfpq_algorithms/algo_registrator.h"
 #include "../cfpq_algorithms/response.h"
@@ -26,18 +27,18 @@ int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     // Load grammar
     FILE* f = fopen(grammar_file_path, "r");
-	automat grammar;
-	if (f == NULL)
-	{
-		sprintf(msg, "): File \"%s\" not found :(", grammar_file_path);
+    bool_automat grammar;
+    if (f == NULL)
+    {
+	sprintf(msg, "): File \"%s\" not found :(", grammar_file_path);
         RedisModule_ReplyWithError(ctx, msg);
         return REDISMODULE_ERR;
-	}
-	automat_load_from_file(&grammar, f);
-	fclose(f);
+    }
+    automat_bool_load(&grammar, f);
+    fclose(f);
 
     // Check algo exist
-    AlgoPointer algo = AlgoStorage_Get(algo_name);
+    AlgoPointer_bool_automat algo = AlgoStorage_bool_automat_Get(algo_name);
     if (algo == NULL) {
         sprintf(msg, "): Algorithm \"%s\" not registered :(", algo_name);
         RedisModule_ReplyWithError(ctx, msg);
@@ -56,14 +57,39 @@ int MGraph_CFPQ(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     // Reply
     char raw_response[MAX_ITEM_NAME_LEN + 40];
-    RedisModule_ReplyWithArray(ctx, response.count + 1);
+    RedisModule_ReplyWithArray(ctx, 3 + (response.customResp != NULL ? 1 : 0));
 
-    sprintf(raw_response, "Time spent: %f", time_spent);
-    RedisModule_ReplyWithSimpleString(ctx, raw_response);
+    RedisModule_ReplyWithArray(ctx, 2);
+    RedisModule_ReplyWithSimpleString(ctx, "time");
+    RedisModule_ReplyWithDouble(ctx, time_spent);
 
+    printf("%d" , response.rss_dif);
+    printf("%d" , response.vms_dif);
+    //RedisModule_ReplyWithArray(ctx, 2);
+    //RedisModule_ReplyWithSimpleString(ctx, "mem rss");
+    //RedisModule_ReplyWithLongLong(ctx, response.rss_dif);
+  
+    //RedisModule_ReplyWithArray(ctx, 2);
+    //RedisModule_ReplyWithSimpleString(ctx, "mem vms");
+    //RedisModule_ReplyWithLongLong(ctx, response.vms_dif);
+
+
+    RedisModule_ReplyWithArray(ctx, 2);
+    RedisModule_ReplyWithSimpleString(ctx, "iters");
+    RedisModule_ReplyWithLongLong(ctx, response.iteration_count);
+
+    RedisModule_ReplyWithArray(ctx, response.count);
     for (int i = 0; i < response.count; ++i) {
-        sprintf(raw_response, "%s: %lu", response.nonterms[i], response.control_sums[i]);
-        RedisModule_ReplyWithSimpleString(ctx, raw_response);
+        RedisModule_ReplyWithArray(ctx, 2);
+        RedisModule_ReplyWithSimpleString(ctx, response.nonterms[i]);
+        RedisModule_ReplyWithLongLong(ctx, response.control_sums[i]);
     }
+
+    if (response.customResp != NULL) {
+        response.customResp->reply(response.customResp, ctx);
+        response.customResp->free(response.customResp);
+    }
+
+
     return REDISMODULE_OK;
 }
