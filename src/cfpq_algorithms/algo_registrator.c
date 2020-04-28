@@ -35,4 +35,5 @@ void AlgoStorage_RegisterAlgorithms() {
     AlgoStorage_Add("cusp", CFPQ_gpu2);
     AlgoStorage_Add("nsparse", CFPQ_gpu3);
     AlgoStorage_Add("nsparse_path", CFPQ_gpu4);
+    AlgoStorage_Add("cusparse", CFPQ_gpu5);
 }

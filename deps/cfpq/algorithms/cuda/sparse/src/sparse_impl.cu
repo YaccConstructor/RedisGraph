@@ -11,39 +11,31 @@
 
 using namespace std::chrono;
 
-int sparse_impl(
-    const Grammar *grammar, CfpqResponse *response,
-    const std::map<MapperIndex, std::set<std::pair<GrB_Index, GrB_Index>>>
-        &sparse_matrices,
-    size_t graph_size) {
-
+int sparse_impl(const Grammar* grammar, CfpqResponse* response,
+                std::map<MapperIndex, std::pair<std::vector<GrB_Index>, std::vector<GrB_Index>>>
+                    sparse_matrices,
+                size_t graph_size) {
   auto t1 = high_resolution_clock::now();
 
   std::vector<cusp::coo_matrix<GrB_Index, bool, cusp::device_memory>> matrices(
       grammar->nontermMapper.count, {graph_size, graph_size, 0});
 
-  for (const auto &elem : sparse_matrices) {
-    const auto &index = elem.first;
-    const auto &values = elem.second;
+  for (auto& elem : sparse_matrices) {
+    auto& index = elem.first;
+    auto& values = elem.second;
+    size_t len = values.second.size();
 
     using IndexArray = cusp::array1d<GrB_Index, cusp::host_memory>;
     using ValueArray = cusp::array1d<bool, cusp::host_memory>;
 
-    ValueArray value(values.size(), true);
-    IndexArray rows, cols;
+    ValueArray value(len, true);
+    IndexArray rows = std::move(values.first);
+    IndexArray cols = std::move(values.second);
 
-    rows.reserve(values.size());
-    cols.reserve(values.size());
-    std::for_each(values.begin(), values.end(), [&](auto &pair) {
-      rows.push_back(pair.first);
-      cols.push_back(pair.second);
-    });
+    cusp::coo_matrix_view<IndexArray::view, IndexArray::view, ValueArray::view> view(
+        graph_size, graph_size, len, rows, cols, value);
 
-    cusp::coo_matrix_view<IndexArray::view, IndexArray::view, ValueArray::view>
-        view(graph_size, graph_size, values.size(), rows, cols, value);
-
-    matrices[index] =
-        cusp::coo_matrix<GrB_Index, bool, cusp::device_memory>(view);
+    matrices[index] = cusp::coo_matrix<GrB_Index, bool, cusp::device_memory>(view);
   }
 
   auto t2 = high_resolution_clock::now();
@@ -74,10 +66,10 @@ int sparse_impl(
 
   for (int i = 0; i < grammar->nontermMapper.count; i++) {
     size_t nvals;
-    char *nonterm;
+    char* nonterm;
 
     nvals = matrices[i].num_entries;
-    nonterm = ItemMapper_Map((ItemMapper *)&grammar->nontermMapper, i);
+    nonterm = ItemMapper_Map((ItemMapper*)&grammar->nontermMapper, i);
     CfpqResponse_Append(response, nonterm, nvals);
   }
 

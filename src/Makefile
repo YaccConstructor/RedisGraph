@@ -10,7 +10,7 @@ XXHASH_DIR = ../deps/xxHash
 REDISEARCH_DIR = ../deps/RediSearch/src
 LIBCYPHER-PARSER_DIR = ../deps/libcypher-parser/lib/src
 GRAPHBLAS_DIR = ../deps/GraphBLAS/Include
-CFPQ_DIR = ../deps/cfpq ../deps/cfpq/grammar/include ../deps/cfpq/response/include ../deps/cfpq/algorithms/cpu-graphblas/include ../deps/cfpq/algorithms/cuda/m4ri/include ../deps/cfpq/algorithms/cuda/sparse/include ../deps/cfpq/algorithms/cuda/nsparse/include
+CFPQ_DIR = ../deps/cfpq ../deps/cfpq/grammar/include ../deps/cfpq/response/include ../deps/cfpq/algorithms/cpu-graphblas/include ../deps/cfpq/algorithms/cuda/m4ri/include ../deps/cfpq/algorithms/cuda/sparse/include ../deps/cfpq/algorithms/cuda/nsparse/include ../../deps/cfpq/build/algorithms/cuda/cusparse/include
 # if DEBUG env var is set, we compile with "debug" cflags
 DEBUGFLAGS = -g -ggdb -O3
 ifeq ($(DEBUG), 1)
@@ -88,9 +88,9 @@ LIBXXHASH=../deps/xxHash/libxxhash.a
 GRAPHBLAS=../deps/GraphBLAS/build/libgraphblas.a
 REDISEARCH=../deps/RediSearch/build/libredisearch.a
 LIBCYPHER-PARSER=../deps/libcypher-parser/lib/src/.libs/libcypher-parser.a
-CFPQ=../deps/cfpq/build/grammar/libgrammar.a ../deps/cfpq/build/response/libresponse.a ../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a ../deps/cfpq/build/algorithms/cuda/m4ri/libm4ri.a ../deps/cfpq/build/algorithms/cuda/sparse/libsparse.a ../deps/cfpq/build/algorithms/cuda/nsparse/libnsparse_cfpq.a
+CFPQ=../deps/cfpq/build/grammar/libgrammar.a ../deps/cfpq/build/response/libresponse.a ../deps/cfpq/build/algorithms/cpu-graphblas/libcpu-graphblas.a ../deps/cfpq/build/algorithms/cuda/m4ri/libm4ri.a ../deps/cfpq/build/algorithms/cuda/sparse/libsparse.a ../deps/cfpq/build/algorithms/cuda/nsparse/libnsparse_cfpq.a ../../deps/cfpq/build/algorithms/cuda/cusparse/libcusparse_cfpq.a
 # Deps fo CFPQ
-CFPQ-RUNTIME-DEPS=-L/usr/local/cuda/lib64 -lcudart -lstdc++
+CFPQ-RUNTIME-DEPS=-L/usr/local/cuda/lib64 -lcudart -lcusparse -lstdc++
 SHOBJ_LDFLAGS += $(CFPQ-RUNTIME-DEPS)
 
 # Compilation deps for the module

@@ -10,3 +10,4 @@ int CFPQ_gpu1(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqRespo
 int CFPQ_gpu2(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
 int CFPQ_gpu3(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
 int CFPQ_gpu4(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
+int CFPQ_gpu5(RedisModuleCtx *ctx, GraphContext* gc, Grammar* grammar, CfpqResponse* response);
