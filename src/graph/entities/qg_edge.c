@@ -10,7 +10,7 @@
 #include "../../util/arr.h"
 #include <assert.h>
 
-QGEdge *QGEdge_New(QGNode *src, QGNode *dest, const char *relationship, const char *alias) {
+QGEdge *QGEdge_NewRelationPattern(QGNode *src, QGNode *dest, const char *relationship, const char *alias) {
 	QGEdge *e = rm_malloc(sizeof(QGEdge));
     e->type = QG_RELATION_PATTERN;
     e->alias = alias;
@@ -25,7 +25,7 @@ QGEdge *QGEdge_New(QGNode *src, QGNode *dest, const char *relationship, const ch
 	return e;
 }
 
-QGEdge *QGEdge_NewPattern(QGNode *src, QGNode *dest, EBNFBase *pattern) {
+QGEdge *QGEdge_NewPathPattern(QGNode *src, QGNode *dest, EBNFBase *pattern) {
     QGEdge *p = rm_malloc(sizeof(QGEdge));
     p->type = QG_PATH_PATTERN;
     p->src = src;

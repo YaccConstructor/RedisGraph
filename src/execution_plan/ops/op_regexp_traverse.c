@@ -1,6 +1,7 @@
 #include "op_regexp_traverse.h"
 #include "../../query_ctx.h"
 #include "../../arithmetic/algebraic_expression/utils.h"
+#include "../../util/simple_timer.h"
 
 static Record RegexpTraverseConsume(OpBase *opBase);
 static OpResult RegexpTraverseReset(OpBase *ctx);
@@ -43,12 +44,17 @@ OpBase *NewRegexpTraverseOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpres
     assert(OpBase_Aware((OpBase *)op, AlgebraicExpression_Source(ae), &op->srcNodeIdx));
     op->destNodeIdx = OpBase_Modifies((OpBase *)op, AlgebraicExpression_Destination(ae));
 
+    op->cnt = 0;
     return (OpBase *)op;
 }
 
 static Record RegexpTraverseConsume(OpBase *opBase) {
     RegexpTraverse *op = (RegexpTraverse*) opBase;
     OpBase *child = op->op.children[0];
+
+//    op->cnt += 1;
+//    printf("%d\n", op->cnt);
+//    fflush(stdout);
 
     bool depleted = true;
     NodeID src_id = INVALID_ENTITY_ID;
@@ -131,6 +137,8 @@ static void _populate_filter_matrix(RegexpTraverse *op) {
 void _path_pattern_traverse(RegexpTraverse *op) {
     bool is_changed;
     while (true) {
+//		printf("here3.5\n");
+//		fflush(stdout);
         is_changed = false;
         for (int i = 0; i < array_len(op->deps); ++i) {
             PathPattern *pattern = op->deps[i];
@@ -159,13 +167,18 @@ void _path_pattern_traverse(RegexpTraverse *op) {
 void _regexp_traverse(RegexpTraverse *op) {
     // Precompute all Algebraic Expression result
     // and store it in ae_m.
+//    printf("here1\n");
+//    fflush(stdout);
     if (op->ae_m == NULL) {
         size_t required_dim = Graph_RequiredMatrixDim(op->graph);
         GrB_Matrix_new(&op->ae_m, GrB_BOOL, required_dim, required_dim);
 
         // Here would be execute cfpq algorithm...
+//		printf("here3\n");
+//		fflush(stdout);
         _path_pattern_traverse(op);
-
+//		printf("here4\n");
+//		fflush(stdout);
 #ifdef DEBUG_PATH_PATTERNS
         for (int i = 0; i < array_len(op->deps); ++i) {
             PathPattern *pattern = op->deps[i];
@@ -176,12 +189,16 @@ void _regexp_traverse(RegexpTraverse *op) {
 
         _AlgebraicExpression_FetchReferences(op->ae, op->plan->path_pattern_ctx);
         op->ae_m = AlgebraicExpression_EvalArbitrary(op->ae);
+//		printf("here5\n");
+//		fflush(stdout);
 
 #ifdef DEBUG_PATH_PATTERNS
         printf("_regexp_traverse ae_result = %s\n", AlgebraicExpression_ToStringDebug(op->ae));
         GxB_print(op->ae_m, GxB_COMPLETE);
 #endif
     }
+//	printf("here6\n");
+//	fflush(stdout);
 
     // Create both filter and result matrices.
     if(op->F == GrB_NULL) {
@@ -191,7 +208,7 @@ void _regexp_traverse(RegexpTraverse *op) {
     }
     _populate_filter_matrix(op);
 
-    AlgebraicExpression *expr = AlgebraicExpression_NewOperand(op->ae_m, false, NULL, NULL, NULL, NULL);
+    AlgebraicExpression *expr = AlgebraicExpression_NewOperand(op->ae_m, false, NULL, NULL, NULL, NULL, NULL);
     AlgebraicExpression_MultiplyToTheLeft(&expr, op->F);
     op->M = AlgebraicExpression_EvalArbitrary(expr);
     AlgebraicExpression_Free(expr);

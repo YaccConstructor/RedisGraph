@@ -60,7 +60,7 @@ static void _BuildQueryGraphAddEdgeRelationPattern(QueryGraph *qg, const cypher_
 	// Each edge can only appear once in a QueryGraph.
 	assert(QueryGraph_GetEdgeByAlias(qg, alias) == NULL);
 
-	QGEdge *edge = QGEdge_New(NULL, NULL, NULL, alias);
+	QGEdge *edge = QGEdge_NewRelationPattern(NULL, NULL, NULL, alias);
 	edge->bidirectional = (dir == CYPHER_REL_BIDIRECTIONAL);
 
 	// Add the IDs of all reltype matrixes
@@ -95,13 +95,16 @@ static void _BuildQueryGraphAddEdgeRelationPattern(QueryGraph *qg, const cypher_
 
 static void _BuildQueryGraphAddEdgePathPattern(QueryGraph *qg,
         const cypher_astnode_t *ast_entity, QGNode *src, QGNode *dest) {
-    if (cypher_ast_path_pattern_get_direction(ast_entity) == CYPHER_REL_INBOUND) {
+	QGEdge *pattern = QGEdge_NewPathPattern(NULL, NULL, BuildEBNFBaseFromPathPattern(ast_entity));
+
+	enum cypher_rel_direction direction = cypher_ast_path_pattern_get_direction(ast_entity);
+    if (direction == CYPHER_REL_INBOUND) {
         QGNode *tmp = src;
         src = dest;
         dest = tmp;
     }
 
-    QGEdge *pattern = QGEdge_NewPattern(NULL, NULL, BuildEBNFBaseFromPathPattern(ast_entity));
+    pattern->bidirectional = (direction == CYPHER_REL_BIDIRECTIONAL);
     AST *ast = QueryCtx_GetAST();
     const char *alias = AST_GetEntityName(ast, ast_entity);
     pattern->alias = alias;

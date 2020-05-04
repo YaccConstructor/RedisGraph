@@ -23,7 +23,10 @@ static GrB_Matrix _Eval_Operand( const AlgebraicExpression *exp) {
 }
 
 static GrB_Matrix _Eval_TransposeArbitrary( const AlgebraicExpression *exp) {
-    // In path patterns transpose operation can contain another operation
+    // In path patterns transpose operation can contain another operation.
+    // This function is called only if transpose is the root of algebraic
+    // expression. Otherwise transpose is evaluated via descriptor.
+
     assert(exp && AlgebraicExpression_ChildCount(exp) == 1);
 
     GrB_Info info;
@@ -58,7 +61,7 @@ static GrB_Matrix _Eval_AddArbitrary(const AlgebraicExpression *exp) {
 
     GrB_Matrix A = GrB_NULL;        // Left operand.
     GrB_Matrix B = GrB_NULL;        // Right operand.
-    GrB_Matrix res = GrB_NULL;    // Intermidate matrix.
+    GrB_Matrix res = GrB_NULL;     // Intermidate matrix.
 
     bool need_free_A = false;
     bool need_free_B = false;
@@ -74,8 +77,9 @@ static GrB_Matrix _Eval_AddArbitrary(const AlgebraicExpression *exp) {
     AlgebraicExpression *left = CHILD_AT(exp, 0);
     AlgebraicExpression *right = CHILD_AT(exp, 1);
 
-    /* If left operand is a matrix or transpose operation with one operand, simply get it.
-     * Otherwise evaluate left hand side, in this case we need to free A. */
+    /* If left operand is a matrix or transpose operation with one operand matrix, simply get it.
+     * Otherwise evaluate left hand or child of transpose operation.
+     * In this case we need to free A. */
     if(left->type == AL_OPERAND) {
         A = left->operand.matrix;
     } else {
@@ -90,14 +94,14 @@ static GrB_Matrix _Eval_AddArbitrary(const AlgebraicExpression *exp) {
                 need_free_A = true;
             }
         } else {
-            // Evaluate
             A = _AlgebraicExpression_EvalArbitrary(left);
             need_free_A = true;
         }
     }
 
-    /* If left operand is a matrix or transpose operation with one operand, simply get it.
-     * Otherwise evaluate left hand side, in this case we need to free A. */
+	/* If left operand is a matrix or transpose operation with one operand matrix, simply get it.
+	 * Otherwise evaluate left hand or child of transpose operation.
+ 	 * In this case we need to free B. */
     if(right->type == AL_OPERAND) {
         B = right->operand.matrix;
     } else {
@@ -112,7 +116,6 @@ static GrB_Matrix _Eval_AddArbitrary(const AlgebraicExpression *exp) {
                 need_free_B = true;
             }
         } else {
-            // Evaluate
             B = _AlgebraicExpression_EvalArbitrary(right);
             need_free_B = true;
         }
@@ -210,8 +213,9 @@ static GrB_Matrix _Eval_MulArbitrary(const AlgebraicExpression *exp) {
     AlgebraicExpression *left = CHILD_AT(exp, 0);
     AlgebraicExpression *right = CHILD_AT(exp, 1);
 
-    /* If left operand is a matrix or transpose operation with one operand, simply get it.
-     * Otherwise evaluate left hand side, in this case we need to free A. */
+	/* If left operand is a matrix or transpose operation with one operand matrix, simply get it.
+	 * Otherwise evaluate left hand or child of transpose operation.
+	 * In this case we need to free A. */
     if(left->type == AL_OPERAND) {
         A = left->operand.matrix;
     } else {
@@ -232,8 +236,9 @@ static GrB_Matrix _Eval_MulArbitrary(const AlgebraicExpression *exp) {
         }
     }
 
-    /* If left operand is a matrix or transpose operation with one operand, simply get it.
-     * Otherwise evaluate left hand side, in this case we need to free A. */
+	/* If left operand is a matrix or transpose operation with one operand matrix, simply get it.
+	 * Otherwise evaluate left hand or child of transpose operation.
+	 * In this case we need to free B. */
     if(right->type == AL_OPERAND) {
         B = right->operand.matrix;
     } else {
@@ -334,15 +339,12 @@ GrB_Matrix _AlgebraicExpression_EvalArbitrary(const AlgebraicExpression *exp) {
             switch (exp->operation.op) {
                 case AL_EXP_MUL:
                     return _Eval_MulArbitrary(exp);
-                    break;
 
                 case AL_EXP_ADD:
                     return _Eval_AddArbitrary(exp);
-                    break;
 
                 case AL_EXP_TRANSPOSE:
                     return _Eval_TransposeArbitrary(exp);
-                    break;
 
                 default:
                     assert("Unknown algebraic expression operation" && false);
@@ -358,10 +360,10 @@ GrB_Matrix _AlgebraicExpression_EvalArbitrary(const AlgebraicExpression *exp) {
 
 GrB_Matrix AlgebraicExpression_EvalArbitrary(const AlgebraicExpression *exp) {
     // Fetch operands and evalute operation.
-    // Return NEW matrix with computing result. In case of operand return duplicate.
+    // Return new matrix with computing result.
+    // In case of operand return duplicate.
     assert(exp);
 
-    // On first evaluation we need to fetch operands
     _AlgebraicExpression_FetchOperands((AlgebraicExpression *)exp, QueryCtx_GetGraphCtx(),
                                        QueryCtx_GetGraph());
 

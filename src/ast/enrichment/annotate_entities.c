@@ -47,6 +47,8 @@ static void _annotate_entity_names(AST *ast, const cypher_astnode_t *node, uint 
 	} else if(t == CYPHER_AST_REL_PATTERN) {
 		ast_identifier = cypher_ast_rel_pattern_get_identifier(node);
 	} else if(t == CYPHER_AST_PATH_PATTERN) {
+	    // Path patterns don't have identifiers, but we need to create
+	    // anon aliases for them. They should behave just like anon rel patterns.
         ast_identifier = NULL;
 	}
 	else {

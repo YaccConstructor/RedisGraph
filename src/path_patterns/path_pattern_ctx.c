@@ -2,7 +2,6 @@
 #include "../util/arr.h"
 #include "ebnf_construction.h"
 #include "../arithmetic/algebraic_expression/utils.h"
-#include "../arithmetic/algebraic_expression.h"
 
 PathPattern* _PathPatternCtx_FindPathPattern(PathPattern **patterns, const char* name) {
     for (int i = 0; i < array_len(patterns); ++i) {

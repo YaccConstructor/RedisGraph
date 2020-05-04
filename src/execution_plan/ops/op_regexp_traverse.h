@@ -27,6 +27,7 @@ typedef struct {
     Record *records;            // Array of records.
     Record r;                   // Current selected record.
 
+    int cnt;
 } RegexpTraverse;
 
 /* Creates a new Traverse operation */

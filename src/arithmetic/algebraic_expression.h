@@ -39,7 +39,7 @@ struct AlgebraicExpression {
             const char *dest;       // Alias given to operand's columns (destination node).
             const char *edge;       // Alias given to operand (edge).
             const char *label;      // Label attached to matrix.
-            const char *reference;  // Reference to named path pattern
+            const char *reference;  // Reference (name) to named path pattern.
         } operand;
 		struct {
 			AL_EXP_OP op;                       // Operation: `*`,`+`,`transpose`
@@ -82,7 +82,8 @@ AlgebraicExpression *AlgebraicExpression_NewOperand
     const char *src,    // Operand row domain (src node).
     const char *dest,   // Operand column domain (destination node).
     const char *edge,   // Operand alias (edge).
-    const char *label   // Label attached to matrix.
+    const char *label,   // Label attached to matrix.
+	const char *reference // Reference (name) to named path pattern.
 );
 
 // Clone algebraic expression node.
@@ -224,6 +225,8 @@ void AlgebraicExpression_Eval
     GrB_Matrix res                  // Result output.
 );
 
+// Evaluate arbitrary algebraic expression,
+// return new GrB_Matrix.
 GrB_Matrix AlgebraicExpression_EvalArbitrary
 (
     const AlgebraicExpression *exp

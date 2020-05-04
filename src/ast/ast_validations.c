@@ -373,7 +373,8 @@ static AST_Validation _ValidateRelation(rax *projections, const cypher_astnode_t
 }
 
 static AST_Validation _ValidatePathPattern(const cypher_astnode_t *path_pattern) {
-    return AST_VALID;
+    // TODO: (simpleton) validate path patterns
+	return AST_VALID;
 }
 
 static AST_Validation _ValidatePath(const cypher_astnode_t *path,
@@ -736,6 +737,7 @@ static AST_Validation _Validate_MERGE_Clauses(const AST *ast, char **reason) {
 			    if (cypher_astnode_instanceof(entity, CYPHER_AST_REL_PATTERN)) {
                     res = _ValidateMergeRelation(entity, defined_aliases, reason);
                 } else {
+					asprintf(reason, "Path patterns not allowed in MERGE clause");
 			        res = AST_INVALID;
 			    }
 			} else {
@@ -776,6 +778,7 @@ static AST_Validation _Validate_CREATE_Entities(const cypher_astnode_t *clause,
 		 * MATCH (a) CREATE (a)-[:E]->(:B) */
 		for(uint j = 1; j < nelems; j += 2) {
 			const cypher_astnode_t *rel = cypher_ast_pattern_path_get_element(path, j);
+
 			if (cypher_astnode_instanceof(rel, CYPHER_AST_REL_PATTERN)) {
                 const cypher_astnode_t *identifier = cypher_ast_rel_pattern_get_identifier(rel);
                 // Validate that no relation aliases are previously bound.
@@ -794,6 +797,7 @@ static AST_Validation _Validate_CREATE_Entities(const cypher_astnode_t *clause,
                     return AST_INVALID;
                 }
             } else if (cypher_astnode_instanceof(rel, CYPHER_AST_PATH_PATTERN)) {
+				asprintf(reason, "Path patterns not allowed for CREATE");
 			    return AST_INVALID;
 			}
 		}
