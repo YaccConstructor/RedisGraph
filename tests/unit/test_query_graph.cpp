@@ -90,9 +90,9 @@ class QueryGraphTest: public ::testing::Test {
 		QGNode *B = QGNode_New(label, "B");
 		QGNode *C = QGNode_New(label, "C");
 
-		QGEdge *AB = QGEdge_New(A, B, relation, "AB");
-		QGEdge *BC = QGEdge_New(B, C, relation, "BC");
-		QGEdge *CA = QGEdge_New(C, A, relation, "CA");
+		QGEdge *AB = QGEdge_NewRelationPattern(A, B, relation, "AB");
+		QGEdge *BC = QGEdge_NewRelationPattern(B, C, relation, "BC");
+		QGEdge *CA = QGEdge_NewRelationPattern(C, A, relation, "CA");
 
 		QueryGraph *g = QueryGraph_New(node_cap, edge_cap);
 		QueryGraph_AddNode(g, A);
@@ -120,7 +120,7 @@ class QueryGraphTest: public ::testing::Test {
 		QGNode *B = QGNode_New(label, "B");
 		QGNode *C = QGNode_New(label, "C");
 
-		QGEdge *AB = QGEdge_New(A, B, relation, "AB");
+		QGEdge *AB = QGEdge_NewRelationPattern(A, B, relation, "AB");
 
 		QueryGraph *g = QueryGraph_New(node_cap, edge_cap);
 		QueryGraph_AddNode(g, A);
@@ -143,7 +143,7 @@ class QueryGraphTest: public ::testing::Test {
 		const char *relation = "R";
 
 		QGNode *A = QGNode_New(label, "A");
-		QGEdge *AA = QGEdge_New(A, A, relation, "AA");
+		QGEdge *AA = QGEdge_NewRelationPattern(A, A, relation, "AA");
 
 		QueryGraph *g = QueryGraph_New(node_cap, edge_cap);
 		QueryGraph_AddNode(g, A);
@@ -168,9 +168,9 @@ TEST_F(QueryGraphTest, QueryGraphClone) {
 	QGNode *B = QGNode_New(label, "B");
 	QGNode *C = QGNode_New(label, "C");
 
-	QGEdge *AB = QGEdge_New(A, B, relation, "AB");
-	QGEdge *BC = QGEdge_New(B, C, relation, "BC");
-	QGEdge *CA = QGEdge_New(C, A, relation, "CA");
+	QGEdge *AB = QGEdge_NewRelationPattern(A, B, relation, "AB");
+	QGEdge *BC = QGEdge_NewRelationPattern(B, C, relation, "BC");
+	QGEdge *CA = QGEdge_NewRelationPattern(C, A, relation, "CA");
 
 	QueryGraph *g = QueryGraph_New(node_cap, edge_cap);
 	QueryGraph_AddNode(g, A);
@@ -221,9 +221,9 @@ TEST_F(QueryGraphTest, QueryGraphRemoveEntities) {
 	QGNode *B = QGNode_New(label, "B");
 	QGNode *C = QGNode_New(label, "C");
 
-	QGEdge *AB = QGEdge_New(A, B, relation, "AB");
-	QGEdge *BC = QGEdge_New(B, C, relation, "BC");
-	QGEdge *CA = QGEdge_New(C, A, relation, "CA");
+	QGEdge *AB = QGEdge_NewRelationPattern(A, B, relation, "AB");
+	QGEdge *BC = QGEdge_NewRelationPattern(B, C, relation, "BC");
+	QGEdge *CA = QGEdge_NewRelationPattern(C, A, relation, "CA");
 
 	QueryGraph *g = QueryGraph_New(node_cap, edge_cap);
 	QueryGraph_AddNode(g, A);

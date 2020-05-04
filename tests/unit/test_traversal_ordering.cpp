@@ -78,9 +78,9 @@ TEST_F(TraversalOrderingTest, TransposeFree) {
 	QGNode *C = QGNode_New(NULL, "C");
 	QGNode *D = QGNode_New(NULL, "D");
 
-	QGEdge *AB = QGEdge_New(A, B, "E", "AB");
-	QGEdge *BC = QGEdge_New(B, C, "E", "BC");
-	QGEdge *CD = QGEdge_New(C, D, "E", "CD");
+	QGEdge *AB = QGEdge_NewRelationPattern(A, B, "E", "AB");
+	QGEdge *BC = QGEdge_NewRelationPattern(B, C, "E", "BC");
+	QGEdge *CD = QGEdge_NewRelationPattern(C, D, "E", "CD");
 
 	QueryGraph *qg = QueryGraph_New(4, 3);
 
@@ -93,9 +93,9 @@ TEST_F(TraversalOrderingTest, TransposeFree) {
 	QueryGraph_ConnectNodes(qg, C, D, CD);
 
 	AlgebraicExpression *set[3];
-	AlgebraicExpression *ExpAB = AlgebraicExpression_NewOperand(GrB_NULL, false, "A", "B", NULL, NULL);
-	AlgebraicExpression *ExpBC = AlgebraicExpression_NewOperand(GrB_NULL, false, "B", "C", NULL, NULL);
-	AlgebraicExpression *ExpCD = AlgebraicExpression_NewOperand(GrB_NULL, false, "C", "D", NULL, NULL);
+	AlgebraicExpression *ExpAB = AlgebraicExpression_NewOperand(GrB_NULL, false, "A", "B", NULL, NULL, NULL);
+	AlgebraicExpression *ExpBC = AlgebraicExpression_NewOperand(GrB_NULL, false, "B", "C", NULL, NULL, NULL);
+	AlgebraicExpression *ExpCD = AlgebraicExpression_NewOperand(GrB_NULL, false, "C", "D", NULL, NULL, NULL);
 
 	// { [CD], [BC], [AB] }
 	set[0] = ExpCD;
@@ -182,9 +182,9 @@ TEST_F(TraversalOrderingTest, FilterFirst) {
 	QGNode *C = QGNode_New(NULL, "C");
 	QGNode *D = QGNode_New(NULL, "D");
 
-	QGEdge *AB = QGEdge_New(A, B, "E", "AB");
-	QGEdge *BC = QGEdge_New(B, C, "E", "BC");
-	QGEdge *CD = QGEdge_New(C, D, "E", "CD");
+	QGEdge *AB = QGEdge_NewRelationPattern(A, B, "E", "AB");
+	QGEdge *BC = QGEdge_NewRelationPattern(B, C, "E", "BC");
+	QGEdge *CD = QGEdge_NewRelationPattern(C, D, "E", "CD");
 
 	QueryGraph *qg = QueryGraph_New(4, 3);
 
@@ -197,9 +197,9 @@ TEST_F(TraversalOrderingTest, FilterFirst) {
 	QueryGraph_ConnectNodes(qg, C, D, CD);
 
 	AlgebraicExpression *set[3];
-    AlgebraicExpression *ExpAB = AlgebraicExpression_NewOperand(GrB_NULL, false, "A", "B", NULL, NULL);
-	AlgebraicExpression *ExpBC = AlgebraicExpression_NewOperand(GrB_NULL, false, "B", "C", NULL, NULL);
-	AlgebraicExpression *ExpCD = AlgebraicExpression_NewOperand(GrB_NULL, false, "C", "D", NULL, NULL);
+    AlgebraicExpression *ExpAB = AlgebraicExpression_NewOperand(GrB_NULL, false, "A", "B", NULL, NULL, NULL);
+	AlgebraicExpression *ExpBC = AlgebraicExpression_NewOperand(GrB_NULL, false, "B", "C", NULL, NULL, NULL);
+	AlgebraicExpression *ExpCD = AlgebraicExpression_NewOperand(GrB_NULL, false, "C", "D", NULL, NULL, NULL);
 
 	// { [AB], [BC], [CD] }
 	set[0] = ExpAB;
