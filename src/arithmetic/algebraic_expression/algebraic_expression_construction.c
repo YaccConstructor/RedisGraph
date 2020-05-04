@@ -3,7 +3,6 @@
 *
 * This file is available under the Redis Labs Source Available License Agreement
 */
-#define DEBUG_PATH_PATTERNS
 #include "../algebraic_expression.h"
 #include "utils.h"
 #include "../../util/arr.h"
