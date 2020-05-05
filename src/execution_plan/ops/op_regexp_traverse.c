@@ -10,7 +10,14 @@ static inline int RegexpTraverseToString(const OpBase *op_base, char *buf, uint 
 void _regexp_traverse(RegexpTraverse *op);
 
 OpBase *NewRegexpTraverseOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpression *ae) {
-    RegexpTraverse *op = rm_calloc(1, sizeof(RegexpTraverse));
+#ifdef DEBUG_PATH_PATTERNS
+	printf("------Regexp------\n");
+	PathPatternCtx_Show(plan->path_pattern_ctx);
+	printf("AlgeExp: %s\n", AlgebraicExpression_ToStringDebug(ae));
+	printf("------------------\n");
+	fflush(stdout);
+#endif
+	RegexpTraverse *op = rm_calloc(1, sizeof(RegexpTraverse));
     op->plan = plan;
     op->graph = g;
 
