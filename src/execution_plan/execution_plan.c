@@ -21,6 +21,7 @@
 #include "../ast/ast_build_filter_tree.h"
 #include "./optimizations/optimizations.h"
 #include "../arithmetic/algebraic_expression.h"
+#include "../path_patterns/path_pattern_ctx_construction.h"
 
 #include <assert.h>
 #include <setjmp.h>
@@ -230,15 +231,6 @@ static AR_ExpNode **_BuildCallArguments(const cypher_astnode_t *call_clause) {
 	}
 
 	return arguments;
-}
-
-static void _ExecutionPlan_ProcessPathPatternCtx(ExecutionPlan *plan) {
-    PathPatternCtx *pathPatternCtx = plan->path_pattern_ctx;
-    for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
-        PathPattern *pattern = pathPatternCtx->patterns[i];
-        EBNFBase *root = pattern->ebnf_root;
-        pattern->ae = AlgebraicExpression_FromEbnf(root);
-    }
 }
 
 static void _ExecutionPlan_ProcessQueryGraph(ExecutionPlan *plan, QueryGraph *qg,
@@ -695,18 +687,13 @@ void ExecutionPlan_PopulateExecutionPlan(ExecutionPlan *plan) {
 	// It will already be set if this ExecutionPlan has been created to populate a single stream.
 	if(plan->record_map == NULL) plan->record_map = raxNew();
 
+	// Build and set path pattern context
+	PathPatternCtx *path_pattern_ctx = PathPatternCtx_Build(ast, Graph_RequiredMatrixDim(gc->g));
+	QueryCtx_SetPathPatternCtx(path_pattern_ctx);
+	plan->path_pattern_ctx = path_pattern_ctx;
+
 	// Build query graph
 	plan->query_graph = BuildQueryGraph(gc, ast);
-
-	// Build and process path pattern ctx
-	plan->path_pattern_ctx = BuildPathPatternCtx(ast, Graph_RequiredMatrixDim(gc->g));
-    _ExecutionPlan_ProcessPathPatternCtx(plan);
-
-#ifdef DEBUG_PATH_PATTERNS
-    for (int j = 0; j < array_len(plan->path_pattern_ctx->patterns); ++j) {
-        printf("%s\n", PathPattern_ToString(plan->path_pattern_ctx->patterns[j]));
-    }
-#endif
 
 	// Build filter tree
 	plan->filter_tree = AST_BuildFilterTree(ast);
@@ -1073,7 +1060,7 @@ static void _ExecutionPlan_FreeSubPlan(ExecutionPlan *plan) {
 	}
 
 	QueryGraph_Free(plan->query_graph);
-    PathPatternCtx_Free(plan->path_pattern_ctx);
+	PathPatternCtx_Free(plan->path_pattern_ctx);
     if(plan->record_map) raxFree(plan->record_map);
 	if(plan->record_pool) ObjectPool_Free(plan->record_pool);
 	if(plan->ast_segment) AST_Free(plan->ast_segment);
@@ -1103,7 +1090,7 @@ void ExecutionPlan_Free(ExecutionPlan *plan) {
 	}
 
 	QueryGraph_Free(plan->query_graph);
-    PathPatternCtx_Free(plan->path_pattern_ctx);
+	PathPatternCtx_Free(plan->path_pattern_ctx);
 	if(plan->record_map) raxFree(plan->record_map);
 	if(plan->record_pool) ObjectPool_Free(plan->record_pool);
 	if(plan->ast_segment) AST_Free(plan->ast_segment);

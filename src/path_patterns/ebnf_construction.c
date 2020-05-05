@@ -1,12 +1,12 @@
 #include "ebnf_construction.h"
 
-EBNFBase *_BuildEBNFBase(const cypher_astnode_t *node) {
+EBNFBase *_BuildEBNFBase(const cypher_astnode_t *node, PathPatternCtx *ctx) {
     if (cypher_astnode_instanceof(node, CYPHER_AST_PATH_PATTERN_EXPRESSION)) {
         EBNFBase *seq = EBNFSequence_New();
         unsigned int nelem = cypher_ast_path_pattern_expression_get_nelements(node);
         for (int i = 0; i < nelem; ++i) {
             const cypher_astnode_t *child_node = cypher_ast_path_pattern_expression_get_element(node, i);
-            EBNFBase *child = _BuildEBNFBase(child_node);
+            EBNFBase *child = _BuildEBNFBase(child_node, ctx);
             EBNFBase_AddChild(seq, child);
         }
         return seq;
@@ -15,15 +15,40 @@ EBNFBase *_BuildEBNFBase(const cypher_astnode_t *node) {
         unsigned int nelem = cypher_ast_path_pattern_alternative_get_nelements(node);
         for (int i = 0; i < nelem; ++i) {
             const cypher_astnode_t *child_node = cypher_ast_path_pattern_alternative_get_element(node, i);
-            EBNFBase *child = _BuildEBNFBase(child_node);
+            EBNFBase *child = _BuildEBNFBase(child_node, ctx);
             EBNFBase_AddChild(alt, child);
         }
         return alt;
     } else if (cypher_astnode_instanceof(node, CYPHER_AST_PATH_PATTERN_BASE)) {
-        EBNFBase *group = EBNFGroup_New(cypher_ast_path_pattern_base_get_direction(node), EBNF_ONE);
-        EBNFBase *child = _BuildEBNFBase(cypher_ast_path_pattern_base_get_child(node));
-        EBNFBase_AddChild(group, child);
-        return group;
+		enum cypher_rel_direction dir = cypher_ast_path_pattern_base_get_direction(node);
+		const cypher_astnode_t *range = cypher_ast_path_pattern_base_get_varlength(node);
+
+		EBNFBase *group = EBNFGroup_New(dir, EBNF_ONE);
+        EBNFBase *child = _BuildEBNFBase(cypher_ast_path_pattern_base_get_child(node), ctx);
+		EBNFBase_AddChild(group, child);
+
+		if(range) {
+			const cypher_astnode_t *start = cypher_ast_range_get_start(range);
+			const cypher_astnode_t *end = cypher_ast_range_get_end(range);
+			assert(start == NULL && end == NULL);
+
+			const char *anon_name = PathPatternCtx_GetNextAnonName(ctx);
+
+			EBNFBase *seq = EBNFSequence_New();
+			EBNFBase_AddChild(seq, group);
+			EBNFBase_AddChild(seq, EBNFReference_New(anon_name));
+
+			EBNFBase *alt = EBNFAlternative_New();
+			EBNFBase_AddChild(alt, seq);
+			EBNFBase_AddChild(alt, EBNFNode_New(NULL));
+
+			PathPattern *anon_pattern = PathPattern_New(anon_name, alt, ctx->required_matrix_dim);
+			PathPatternCtx_AddPathPattern(ctx, anon_pattern);
+
+			return EBNFReference_New(anon_name);
+		} else {
+			return group;
+		}
     } else if (cypher_astnode_instanceof(node, CYPHER_AST_PATH_PATTERN_EDGE)){
         const cypher_astnode_t *reltype = cypher_ast_path_pattern_edge_get_reltype(node);
         return EBNFEdge_New(cypher_ast_reltype_get_name(reltype));
@@ -46,9 +71,9 @@ EBNFBase *_BuildEBNFBase(const cypher_astnode_t *node) {
     }
 }
 
-EBNFBase *BuildEBNFBaseFromPathPattern(const cypher_astnode_t *path_pattern) {
-    REQUIRE_TYPE(path_pattern, CYPHER_AST_PATH_PATTERN, NULL);
+EBNFBase *EBNFBase_Build(const cypher_astnode_t *path_pattern, PathPatternCtx *path_pattern_ctx) {
+    REQUIRE_TYPE(path_pattern, CYPHER_AST_PATH_PATTERN, path_pattern_ctx);
 
     const cypher_astnode_t *expr = cypher_ast_path_pattern_get_expression(path_pattern);
-    return _BuildEBNFBase(expr);
+    return _BuildEBNFBase(expr, path_pattern_ctx);
 }

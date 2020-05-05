@@ -15,6 +15,7 @@
 #include "commands/cmd_context.h"
 #include "resultset/resultset.h"
 #include "execution_plan/ops/op.h"
+#include "path_patterns/path_pattern_ctx.h"
 
 extern pthread_key_t _tlsQueryCtxKey;  // Thread local storage query context key.
 
@@ -45,6 +46,7 @@ typedef struct {
 	QueryCtx_InternalExecCtx internal_exec_ctx; // The data related to internal query execution.
 	QueryCtx_GlobalExecCtx global_exec_ctx;     // The data rlated to global redis execution.
 	GraphContext *gc;                           // The GraphContext associated with this query's graph.
+	PathPatternCtx *path_pattern_ctx;
 } QueryCtx;
 
 /* On invocation, set an exception handler, returning 0 from this macro.
@@ -83,6 +85,8 @@ void QueryCtx_SetRedisModuleCtx(RedisModuleCtx *redisctx);
 void QueryCtx_SetResultSet(ResultSet *result_set);
 /* Set the last writer which needs to commit */
 void QueryCtx_SetLastWriter(OpBase *op);
+/**/
+void QueryCtx_SetPathPatternCtx(PathPatternCtx *ctx);
 
 /* Getters */
 /* Retrieve the AST. */
@@ -99,6 +103,8 @@ RedisModuleCtx *QueryCtx_GetRedisModuleCtx(void);
 ResultSet *QueryCtx_GetResultSet(void);
 /* Retrive the resultset statistics. */
 ResultSetStatistics *QueryCtx_GetResultSetStatistics(void);
+/**/
+PathPatternCtx *QueryCtx_GetPathPatternCtx(void);
 
 /* Print the current query. */
 void QueryCtx_PrintQuery(void);

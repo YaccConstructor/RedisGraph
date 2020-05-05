@@ -5,8 +5,8 @@ PathPattern *PathPattern_New(const char *name, EBNFBase *ebnf, size_t reqiured_m
     PathPattern *pattern = rm_malloc(sizeof(PathPattern));
 
     pattern->name = name;
-    pattern->ebnf_root = EBNFBase_Clone(ebnf);
-    pattern->ae = NULL;
+    pattern->ebnf_root = ebnf;
+    pattern->ae = AlgebraicExpression_FromEbnf(ebnf);
     GrB_Matrix_new(&pattern->m, GrB_BOOL, reqiured_mdim, reqiured_mdim);
 
     return pattern;
