@@ -14,6 +14,17 @@ struct masked_mult_functor_t {
   using container_t = thrust::device_vector<T, nsparse::managed<T>>;
 
   masked_mult_functor_t(Mul mul, Add add) : m_mul(mul), m_add(add) {
+        for (auto& s: streams) {
+      cudaStreamCreate( &s);
+    }
+  }
+
+  cudaStream_t streams[15];
+
+  ~masked_mult_functor_t() {
+    for (auto& s: streams) {
+      cudaStreamDestroy(s);
+    }
   }
 
   template <typename... Borders>
@@ -26,14 +37,17 @@ struct masked_mult_functor_t {
                         const container_t<index_type>& b_col_idx,
                         const container_t<index_type>& b_row_idx,
                         const container_t<value_type>& b_values, std::tuple<Borders...>) {
+    thrust::host_vector<index_type> bin_offset_ = bin_offset;
+    thrust::host_vector<index_type> bin_size_ = bin_size;
+
     EXPAND_SIDE_EFFECTS(
-        (bin_size[Borders::bin_index] > 0
+        (bin_size_[Borders::bin_index] > 0
              ? masked_mult<value_type, index_type, zero, Borders::config_t::block_size,
                            Borders::config_t::cache_size, Borders::config_t::cache_step>
-             <<<(index_type)bin_size[Borders::bin_index], Borders::config_t::block_size>>>(
+             <<<(index_type)bin_size_[Borders::bin_index], Borders::config_t::block_size, 0, streams[Borders::bin_index]>>>(
                  c_col_idx.data(), c_row_idx.data(), c_values.data(), a_col_idx.data(),
                  a_row_idx.data(), a_values.data(), b_col_idx.data(), b_row_idx.data(),
-                 b_values.data(), permutation_buffer.data() + bin_offset[Borders::bin_index], m_mul,
+                 b_values.data(), permutation_buffer.data() + bin_offset_[Borders::bin_index], m_mul,
                  m_add)
              : void()));
   }
@@ -91,6 +105,8 @@ struct masked_mult_functor_t {
 
     exec_masked_mult(c_col_idx, c_row_idx, c_values, a_col_idx, a_row_idx, a_values, b_col_idx,
                      b_row_idx, b_values, std::tuple<Borders...>{});
+
+    cudaDeviceSynchronize();
   }
 
  private:

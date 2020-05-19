@@ -14,6 +14,8 @@ typedef struct {
     MapperIndex count;
     char nonterms[MAX_NONTERM_COUNT][MAX_ITEM_NAME_LEN];
     GrB_Index control_sums[MAX_NONTERM_COUNT];
+
+    double time_to;
 } CfpqResponse;
 
 void CfpqResponse_Init(CfpqResponse *resp);

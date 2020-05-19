@@ -1,12 +1,8 @@
 #include "nsparse.h"
 #include "masked_spgemm.h"
 
-#include <grammar.h>
-#include <item_mapper.h>
-#include <response.h>
 #include <vector>
 #include <unified_allocator.h>
-
 
 using index_type = uint32_t;
 using value_type = uint64_t;
@@ -14,8 +10,9 @@ using value_type = uint64_t;
 std::vector<nsparse::masked_matrix<value_type, index_type>> index_path(
     std::vector<nsparse::matrix<bool, index_type>> init_matrices,
     std::vector<nsparse::matrix<bool, index_type>> final_matrices,
-    const std::vector<std::tuple<int, int, int>>& evaluation_plan, index_type graph_size,
-    index_type nonterm_count) {
+    const std::vector<std::tuple<int, int, int>>& evaluation_plan, index_type graph_size) {
+  assert(init_matrices.size() == final_matrices.size());
+  auto nonterm_count = init_matrices.size();
   std::vector<nsparse::masked_matrix<value_type, index_type>> masked_matrices;
   masked_matrices.reserve(nonterm_count);
 
@@ -42,8 +39,7 @@ std::vector<nsparse::masked_matrix<value_type, index_type>> index_path(
       index_type left_size = init_matrices[i].m_vals;
 
       nsparse::masked_matrix<value_type, index_type> left(
-          std::move(init_matrices[i]),
-          thrust::device_vector<value_type, nsparse::managed<value_type>>(left_size, edge));
+          std::move(init_matrices[i]), nsparse::managed_vector<value_type>(left_size, edge));
 
       masked_id_spgemm(masked_matrices.back(), left, identity);
       cudaDeviceSynchronize();

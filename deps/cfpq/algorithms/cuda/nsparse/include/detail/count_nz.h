@@ -14,7 +14,6 @@
 #include <vector>
 #include <unified_allocator.h>
 
-
 namespace nsparse {
 
 template <typename index_type>
@@ -22,6 +21,19 @@ struct count_nz_functor_t {
   template <typename T>
   using container_t = thrust::device_vector<T, nsparse::managed<T>>;
 
+  cudaStream_t streams[9];
+
+  count_nz_functor_t() {
+    for (auto& s: streams) {
+      cudaStreamCreate( &s);
+    }
+  }
+
+  ~count_nz_functor_t() {
+    for (auto& s: streams) {
+      cudaStreamDestroy(s);
+    }
+  }
 
   struct global_hash_table_state_t {
     container_t<index_type> hash_table;
@@ -35,16 +47,13 @@ struct count_nz_functor_t {
   };
 
   template <typename... Borders>
-  void exec_pwarp_row(const container_t<index_type>& c_col_idx,
-                      const container_t<index_type>& c_row_idx,
-                      const container_t<index_type>& a_col_idx,
-                      const container_t<index_type>& a_row_idx,
-                      const container_t<index_type>& b_col_idx,
-                      const container_t<index_type>& b_row_idx,
-                      const container_t<index_type>& permutation_buffer,
-                      const container_t<index_type>& bin_offset,
-                      const container_t<index_type>& bin_size,
-                      container_t<index_type>& row_idx, std::tuple<Borders...>) {
+  void exec_pwarp_row(
+      const container_t<index_type>& c_col_idx, const container_t<index_type>& c_row_idx,
+      const container_t<index_type>& a_col_idx, const container_t<index_type>& a_row_idx,
+      const container_t<index_type>& b_col_idx, const container_t<index_type>& b_row_idx,
+      const container_t<index_type>& permutation_buffer, const container_t<index_type>& bin_offset,
+      const container_t<index_type>& bin_size, container_t<index_type>& row_idx,
+      std::tuple<Borders...>) {
     constexpr size_t pwarp = 4;
 
     EXPAND_SIDE_EFFECTS(
@@ -61,21 +70,18 @@ struct count_nz_functor_t {
   }
 
   template <typename... Borders>
-  void exec_block_row(const container_t<index_type>& c_col_idx,
-                      const container_t<index_type>& c_row_idx,
-                      const container_t<index_type>& a_col_idx,
-                      const container_t<index_type>& a_row_idx,
-                      const container_t<index_type>& b_col_idx,
-                      const container_t<index_type>& b_row_idx,
-                      const container_t<index_type>& permutation_buffer,
-                      const container_t<index_type>& bin_offset,
-                      const container_t<index_type>& bin_size,
-                      container_t<index_type>& row_idx, std::tuple<Borders...>) {
+  void exec_block_row(
+      const container_t<index_type>& c_col_idx, const container_t<index_type>& c_row_idx,
+      const container_t<index_type>& a_col_idx, const container_t<index_type>& a_row_idx,
+      const container_t<index_type>& b_col_idx, const container_t<index_type>& b_row_idx,
+      const container_t<index_type>& permutation_buffer, thrust::host_vector<index_type> bin_offset,
+      thrust::host_vector<index_type> bin_size, container_t<index_type>& row_idx,
+      std::tuple<Borders...>) {
     static_assert(meta::all_of<(Borders::config_t::block_size % 32 == 0)...>);
 
     EXPAND_SIDE_EFFECTS(
         (bin_size[Borders::bin_index] > 0 ? count_nz_block_row<index_type, Borders::max_border>
-             <<<(index_type)bin_size[Borders::bin_index], Borders::config_t::block_size>>>(
+             <<<(index_type)bin_size[Borders::bin_index], Borders::config_t::block_size, 0, streams[Borders::bin_index]>>>(
                  c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
                  b_row_idx.data(), b_col_idx.data(),
                  permutation_buffer.data() + bin_offset[Borders::bin_index], row_idx.data())
@@ -85,15 +91,11 @@ struct count_nz_functor_t {
   template <typename Border>
   global_hash_table_state_t exec_global_row(
       index_type n_cols, const container_t<index_type>& c_col_idx,
-      const container_t<index_type>& c_row_idx,
-      const container_t<index_type>& a_col_idx,
-      const container_t<index_type>& a_row_idx,
-      const container_t<index_type>& b_col_idx,
-      const container_t<index_type>& b_row_idx,
-      const container_t<index_type>& permutation_buffer,
-      const container_t<index_type>& bin_offset,
-      const container_t<index_type>& bin_size, container_t<index_type>& row_idx,
-      std::tuple<Border>) {
+      const container_t<index_type>& c_row_idx, const container_t<index_type>& a_col_idx,
+      const container_t<index_type>& a_row_idx, const container_t<index_type>& b_col_idx,
+      const container_t<index_type>& b_row_idx, const container_t<index_type>& permutation_buffer,
+      const container_t<index_type>& bin_offset, const container_t<index_type>& bin_size,
+      container_t<index_type>& row_idx, std::tuple<Border>) {
     index_type size = bin_size[Border::bin_index];
 
     if (size == 0)
@@ -148,8 +150,7 @@ struct count_nz_functor_t {
                              const container_t<index_type>& a_col_idx,
                              const container_t<index_type>& a_row_idx,
                              const container_t<index_type>& b_col_idx,
-                             const container_t<index_type>& b_row_idx,
-                             std::tuple<Borders...>) {
+                             const container_t<index_type>& b_row_idx, std::tuple<Borders...>) {
     constexpr size_t bin_count = sizeof...(Borders);
     constexpr size_t unused_bin = meta::max_bin<Borders...> + 1;
 
@@ -219,7 +220,7 @@ struct count_nz_functor_t {
         exec_global_row(n_cols, c_col_idx, c_row_idx, a_col_idx, a_row_idx, b_col_idx, b_row_idx,
                         permutation_buffer, bin_offset, bin_size, products_per_row,
                         meta::filter<meta::global_row, Borders...>);
-
+    cudaDeviceSynchronize();
     thrust::exclusive_scan(products_per_row.begin(), products_per_row.end(),
                            products_per_row.begin());
 

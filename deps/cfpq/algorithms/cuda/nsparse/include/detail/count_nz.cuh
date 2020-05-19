@@ -83,10 +83,13 @@ __global__ void count_nz_block_row(
     hash_table[m] = hash_invalidated;
   }
 
-  __syncthreads();
 
   rid = rows_in_bins[rid];  // permutation
   T nz = 0;
+
+  nz_per_row[rid] = 0;
+
+  __syncthreads();
 
   for (T j = rpt_a[rid] + wid; j < rpt_a[rid + 1]; j += warpCount) {
     T a_col = col_a[j];
@@ -114,27 +117,7 @@ __global__ void count_nz_block_row(
     }
   }
 
-  for (auto j = warpSize / 2; j >= 1; j /= 2) {
-    nz += __shfl_xor_sync(0xffffffff, nz, j);
-  }
-
-  __syncthreads();
-
-  if (threadIdx.x == 0) {
-    hash_table[0] = 0;
-  }
-
-  __syncthreads();
-
-  if (i == 0) {
-    atomicAdd(hash_table, nz);
-  }
-
-  __syncthreads();
-
-  if (threadIdx.x == 0) {
-    nz_per_row[rid] = hash_table[0];
-  }
+  atomicAdd(nz_per_row.get() + rid, nz);
 }
 
 template <typename T, T pwarp, T block_sz, T max_per_row>

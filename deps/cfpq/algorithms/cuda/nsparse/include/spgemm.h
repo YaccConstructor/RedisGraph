@@ -12,7 +12,6 @@
 #include <detail/fill_nz.h>
 #include <unified_allocator.h>
 
-
 namespace nsparse {
 
 template <typename ValueType, typename IndexType>
@@ -23,9 +22,9 @@ struct spgemm_functor_t<bool, index_type> {
   /*
    * returns c + a * b
    */
-  const matrix<bool, index_type> operator()(const matrix<bool, index_type>& c,
-                                            const matrix<bool, index_type>& a,
-                                            const matrix<bool, index_type>& b) {
+  matrix<bool, index_type> operator()(const matrix<bool, index_type>& c,
+                                      const matrix<bool, index_type>& a,
+                                      const matrix<bool, index_type>& b) {
     assert(a.m_cols == b.m_rows);
     assert(c.m_rows == a.m_rows);
     assert(c.m_cols == b.m_cols);
@@ -36,11 +35,14 @@ struct spgemm_functor_t<bool, index_type> {
     constexpr size_t max = std::numeric_limits<size_t>::max();
 
     using namespace meta;
-    constexpr auto config_find_nz = make_bin_seq<bin_info_t<nz_conf_t<global_row, 128>, 4096, max>,
+    constexpr auto config_find_nz = make_bin_seq<bin_info_t<nz_conf_t<global_row, 1024>, 4096, max>,
                                                  bin_info_t<nz_conf_t<block_row, 512>, 2048, 4096>,
                                                  bin_info_t<nz_conf_t<block_row, 256>, 1024, 2048>,
                                                  bin_info_t<nz_conf_t<block_row, 128>, 512, 1024>,
-                                                 bin_info_t<nz_conf_t<block_row, 64>, 32, 512>,
+                                                 bin_info_t<nz_conf_t<block_row, 128>, 256, 512>,
+                                                 bin_info_t<nz_conf_t<block_row, 128>, 128, 256>,
+                                                 bin_info_t<nz_conf_t<block_row, 64>, 64, 128>,
+                                                 bin_info_t<nz_conf_t<block_row, 32>, 32, 64>,
                                                  bin_info_t<nz_conf_t<pwarp_row, 256>, 0, 32>>;
 
     typename count_nz_functor_t<index_type>::row_index_res_t res =
@@ -50,7 +52,10 @@ struct spgemm_functor_t<bool, index_type> {
     constexpr auto config_fill_nz = make_bin_seq<bin_info_t<nz_conf_t<block_row, 512>, 2048, 4096>,
                                                  bin_info_t<nz_conf_t<block_row, 256>, 1024, 2048>,
                                                  bin_info_t<nz_conf_t<block_row, 128>, 512, 1024>,
-                                                 bin_info_t<nz_conf_t<block_row, 64>, 32, 512>,
+                                                 bin_info_t<nz_conf_t<block_row, 128>, 256, 512>,
+                                                 bin_info_t<nz_conf_t<block_row, 128>, 128, 256>,
+                                                 bin_info_t<nz_conf_t<block_row, 64>, 64, 128>,
+                                                 bin_info_t<nz_conf_t<block_row, 32>, 32, 64>,
                                                  bin_info_t<nz_conf_t<pwarp_row, 256>, 0, 32>>;
 
     thrust::device_vector<index_type, nsparse::managed<index_type>> col_index =

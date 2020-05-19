@@ -8,4 +8,4 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr --expt-extend
 add_library(cusparse_cfpq src/cusparse_cfpq.cpp src/cusparse.cu)
 target_include_directories(cusparse_cfpq PUBLIC include/)
 target_include_directories(cusparse_cfpq PRIVATE ${CUDA_INCLUDE_DIRS})
-target_link_libraries(cusparse_cfpq grammar response ${GRAPH_BLAS_LIBRARY} cudart cusparse)
+target_link_libraries(cusparse_cfpq generic cudart cusparse)

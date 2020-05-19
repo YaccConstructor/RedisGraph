@@ -26,11 +26,10 @@ struct fill_nz_functor_t {
       const container_t<index_type>& bin_size, container_t<index_type>& col_idx,
       const container_t<index_type>& row_idx, std::tuple<Borders...>) {
     constexpr index_type pwarp = 4;
-    constexpr index_type block_sz = 256;
     EXPAND_SIDE_EFFECTS(
         (bin_size[Borders::bin_index] > 0
-             ? fill_nz_pwarp_row<index_type, pwarp, block_sz, Borders::max_border>
-             <<<util::div(bin_size[Borders::bin_index] * pwarp, block_sz), block_sz>>>(
+             ? fill_nz_pwarp_row<index_type, pwarp, Borders::config_t::block_size, Borders::max_border>
+             <<<util::div(bin_size[Borders::bin_index] * pwarp, (uint)Borders::config_t::block_size), Borders::config_t::block_size>>>(
                  c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
                  b_row_idx.data(), b_col_idx.data(),
                  permutation_buffer.data() + bin_offset[Borders::bin_index], col_idx.data(),
@@ -46,11 +45,11 @@ struct fill_nz_functor_t {
       const container_t<index_type>& permutation_buffer, const container_t<index_type>& bin_offset,
       const container_t<index_type>& bin_size, container_t<index_type>& col_idx,
       const container_t<index_type>& row_idx, std::tuple<Borders...>) {
-    static_assert(meta::all_of<(Borders::max_border / 8 % 32 == 0)...>);
+    static_assert(meta::all_of<(Borders::config_t::block_size % 32 == 0)...>);
 
     EXPAND_SIDE_EFFECTS(
         (bin_size[Borders::bin_index] > 0 ? fill_nz_block_row<index_type, Borders::max_border>
-             <<<(index_type)bin_size[Borders::bin_index], Borders::max_border / 8>>>(
+             <<<(index_type)bin_size[Borders::bin_index], Borders::config_t::block_size>>>(
                  c_row_idx.data(), c_col_idx.data(), a_row_idx.data(), a_col_idx.data(),
                  b_row_idx.data(), b_col_idx.data(),
                  permutation_buffer.data() + bin_offset[Borders::bin_index], col_idx.data(),
