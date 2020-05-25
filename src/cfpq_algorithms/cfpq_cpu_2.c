@@ -134,7 +134,7 @@ int CFPQ_cpu2(RedisModuleCtx *ctx, GraphContext *gc, bool_automat *grammar, Cfpq
         GxB_select(Kproduct, NULL, NULL, GxB_NONZERO, Kproduct, NULL, NULL);
 
         // transitive clouser
-	bool transitive_matrix_is_changed = true;
+		bool transitive_matrix_is_changed = true;
 
         info = GrB_Matrix_dup(&degreeKproduct, Kproduct);
         assert(info == GrB_SUCCESS && "2");
