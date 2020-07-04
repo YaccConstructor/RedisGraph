@@ -128,10 +128,6 @@ int CFPQ_cpu3(RedisModuleCtx *ctx, GraphContext *gc, bool_automat *grammar, Cfpq
                 GrB_eWiseAdd_Matrix_BinaryOp(Kproduct, NULL, NULL, GrB_LOR, Kproduct, partKproduct, NULL);
                 GrB_Matrix_clear(partKproduct);
         }
-		
-		GxB_kron(partKproduct, NULL, NULL, GrB_LAND, Automat[i], matrices[i], NULL);
-        GrB_eWiseAdd_Matrix_BinaryOp(Kproduct, NULL, NULL, GrB_LOR, Kproduct, partKproduct, NULL);
-        GrB_Matrix_clear(partKproduct);
 
         GxB_select(Kproduct, NULL, NULL, GxB_NONZERO, Kproduct, NULL, NULL);
 
