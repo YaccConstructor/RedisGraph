@@ -87,7 +87,8 @@ inline void AlgoStorage_RegisterAlgorithms() {
     AlgoStorage_Add("cpu", CFPQ_cpu1);
     //AlgoStorage_automat_Add("tensor", CFPQ_tensor);
     AlgoStorage_automat_Add("nt", CFPQ_tensor_new);
-    AlgoStorage_bool_automat_Add("nt", CFPQ_cpu2);    
+    AlgoStorage_bool_automat_Add("cpu2", CFPQ_cpu2);
+	AlgoStorage_bool_automat_Add("cpu3", CFPQ_cpu3);
 }
 
 
