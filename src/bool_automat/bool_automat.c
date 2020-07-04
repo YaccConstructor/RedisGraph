@@ -62,6 +62,11 @@ void automat_bool_load(bool_automat *aut, FILE *file)
         char label[10];
         fscanf(file, "%10s", label);
         int id = map_get_second_by_first(&aut->indices, label);
+	if (id == INT_MIN)
+	{
+	    id = 1 << (count_matrices + i);
+	    map_append(&aut->indices, label, id);
+	}
         aut->id[count_matrices + i] = id;
 
         int count_edges = 0;
