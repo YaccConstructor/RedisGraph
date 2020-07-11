@@ -1,0 +1,14 @@
+B1 -> P R | W D1 | Z A1
+L -> P C1 | X L | r
+D1 -> P R | W D1 | Z A1
+V -> L B1 | P R | W D1 | Z A1
+C1 -> X L | r
+Z -> b
+Y -> d
+M -> Z A1
+A1 -> V Y
+X -> r
+W -> a
+R -> W D1
+S0 -> Z A1
+P -> Z A1
