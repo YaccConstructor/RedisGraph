@@ -82,7 +82,8 @@ AlgebraicExpression *AlgebraicExpression_NewOperand
 	const char *src,    // Operand row domain (src node).
 	const char *dest,   // Operand column domain (destination node).
 	const char *edge,   // Operand alias (edge).
-	const char *label   // Label attached to matrix.
+	const char *label,   // Label attached to matrix.
+	const char *reference // Reference (name) to named path pattern.
 ) {
 	AlgebraicExpression *node = rm_malloc(sizeof(AlgebraicExpression));
 	node->type = AL_OPERAND;
@@ -93,6 +94,7 @@ AlgebraicExpression *AlgebraicExpression_NewOperand
 	node->operand.dest = dest;
 	node->operand.edge = edge;
 	node->operand.label = label;
+	node->operand.reference = reference;
 	return node;
 }
 
@@ -432,7 +434,7 @@ void AlgebraicExpression_MultiplyToTheLeft
 	 * from the current left most operand. */
 	AlgebraicExpression *left_most_operand = _leftMostNode(rhs);
 	AlgebraicExpression *lhs = AlgebraicExpression_NewOperand(m, false, left_most_operand->operand.src,
-															  left_most_operand->operand.dest, NULL, NULL);
+															  left_most_operand->operand.dest, NULL, NULL, NULL);
 
 	*root = _AlgebraicExpression_MultiplyToTheLeft(lhs, rhs);
 }
@@ -450,7 +452,7 @@ void AlgebraicExpression_MultiplyToTheRight
 	 * from the current right most operand. */
 	AlgebraicExpression *right_most_operand = _rightMostNode(lhs);
 	AlgebraicExpression *rhs = AlgebraicExpression_NewOperand(m, false, right_most_operand->operand.src,
-															  right_most_operand->operand.dest, NULL, NULL);
+															  right_most_operand->operand.dest, NULL, NULL, NULL);
 
 	*root = _AlgebraicExpression_MultiplyToTheRight(lhs, rhs);
 }
@@ -468,7 +470,7 @@ void AlgebraicExpression_AddToTheLeft
 	 * from the current left most operand. */
 	AlgebraicExpression *left_most_operand = _leftMostNode(rhs);
 	AlgebraicExpression *lhs = AlgebraicExpression_NewOperand(m, false, left_most_operand->operand.src,
-															  left_most_operand->operand.dest, left_most_operand->operand.edge, NULL);
+															  left_most_operand->operand.dest, left_most_operand->operand.edge, NULL, NULL);
 
 	*root = _AlgebraicExpression_AddToTheLeft(lhs, rhs);
 }
@@ -486,7 +488,7 @@ void AlgebraicExpression_AddToTheRight
 	 * from the current right most operand. */
 	AlgebraicExpression *right_most_operand = _rightMostNode(lhs);
 	AlgebraicExpression *rhs = AlgebraicExpression_NewOperand(m, false, right_most_operand->operand.src,
-															  right_most_operand->operand.dest, right_most_operand->operand.edge, NULL);
+															  right_most_operand->operand.dest, right_most_operand->operand.edge, NULL, NULL);
 
 	*root = _AlgebraicExpression_AddToTheRight(lhs, rhs);
 }

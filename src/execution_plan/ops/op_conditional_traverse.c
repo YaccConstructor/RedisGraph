@@ -91,7 +91,6 @@ OpBase *NewCondTraverseOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpressi
 	QGNode *dest_node = QueryGraph_GetNodeByAlias(plan->query_graph, dest);
 	op->dest_label = dest_node->label;
 	op->dest_label_id = dest_node->labelID;
-
 	const char *edge = AlgebraicExpression_Edge(ae);
 	if(edge) {
 		/* This operation will populate an edge in the Record.

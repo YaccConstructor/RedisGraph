@@ -40,6 +40,7 @@ struct AlgebraicExpression {
 			const char *dest;       // Alias given to operand's columns (destination node).
 			const char *edge;       // Alias given to operand (edge).
 			const char *label;      // Label attached to matrix.
+            const char *reference;  // Reference (name) to named path pattern.
 		} operand;
 		struct {
 			AL_EXP_OP op;                   // Operation: `*`,`+`,`transpose`
@@ -57,6 +58,11 @@ struct AlgebraicExpression {
 AlgebraicExpression **AlgebraicExpression_FromQueryGraph
 (
 	const QueryGraph *qg    // Query-graph to process
+);
+
+// Construct algebraic expression form ebnf expression.
+AlgebraicExpression *AlgebraicExpression_FromEbnf(
+        const EBNFBase *ebnf
 );
 
 //------------------------------------------------------------------------------
@@ -77,7 +83,8 @@ AlgebraicExpression *AlgebraicExpression_NewOperand
 	const char *src,    // Operand row domain (src node).
 	const char *dest,   // Operand column domain (destination node).
 	const char *edge,   // Operand alias (edge).
-	const char *label   // Label attached to matrix.
+	const char *label,   // Label attached to matrix.
+	const char *reference // Reference (name) to named path pattern.
 );
 
 // Clone algebraic expression node.
@@ -217,6 +224,12 @@ void AlgebraicExpression_Eval
 	GrB_Matrix res                  // Result output.
 );
 
+// Evaluate arbitrary algebraic expression,
+// return new GrB_Matrix.
+GrB_Matrix AlgebraicExpression_EvalArbitrary
+(
+    const AlgebraicExpression *exp
+);
 //------------------------------------------------------------------------------
 // AlgebraicExpression debugging utilities.
 //------------------------------------------------------------------------------
@@ -243,6 +256,11 @@ void AlgebraicExpression_Print
 
 // Return a string representation of expression.
 char *AlgebraicExpression_ToString
+(
+	const AlgebraicExpression *exp  // Root node.
+);
+
+char *AlgebraicExpression_ToStringDebug
 (
 	const AlgebraicExpression *exp  // Root node.
 );

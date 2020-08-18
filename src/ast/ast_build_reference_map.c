@@ -80,8 +80,7 @@ static void _AST_MapReferencedNode(AST *ast, const cypher_astnode_t *node, bool 
 
 // Adds an edge to the referenced entities rax if it has multiple types or any properties (inline filter).
 static void _AST_MapReferencedEdge(AST *ast, const cypher_astnode_t *edge, bool force_mapping) {
-
-	const cypher_astnode_t *properties = cypher_ast_rel_pattern_get_properties(edge);
+    const cypher_astnode_t *properties = cypher_ast_rel_pattern_get_properties(edge);
 	// An edge with inlined filters is always referenced for the FilterTree.
 	// (In the case of a CREATE path, these are properties being set)
 	if(properties || force_mapping) {
@@ -103,8 +102,11 @@ static void _AST_MapReferencedEntitiesInPath(AST *ast, const cypher_astnode_t *p
 	for(uint i = 0; i < path_len; i += 2)
 		_AST_MapReferencedNode(ast, cypher_ast_pattern_path_get_element(path, i), force_mapping);
 	// Edges are in odd positions.
-	for(uint i = 1; i < path_len; i += 2)
-		_AST_MapReferencedEdge(ast, cypher_ast_pattern_path_get_element(path, i), force_mapping);
+	for(uint i = 1; i < path_len; i += 2) {
+        const cypher_astnode_t *elem = cypher_ast_pattern_path_get_element(path, i);
+        if (cypher_astnode_instanceof(elem, CYPHER_AST_REL_PATTERN))
+            _AST_MapReferencedEdge(ast, elem, force_mapping);
+    }
 }
 
 // Add referenced aliases from MATCH clause - inline filtered and explicit WHERE filter.
