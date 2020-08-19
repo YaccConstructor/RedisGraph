@@ -4,7 +4,7 @@
  * This file is available under the Redis Labs Source Available License Agreement
  */
 
-//#define DEBUG_PATH_PATTERNS
+//#define DPP
 
 #include "execution_plan.h"
 #include "../RG.h"
@@ -271,6 +271,11 @@ static void _ExecutionPlan_ProcessQueryGraph(ExecutionPlan *plan, QueryGraph *qg
 			AlgebraicExpression **exps = AlgebraicExpression_FromQueryGraph(cc);
 			uint expCount = array_len(exps);
 
+#ifdef DPP
+			for (int j = 0; j < expCount; ++j) {
+				printf("AlgExp[%d]: %s\n", j, AlgebraicExpression_ToStringDebug(exps[j]));
+			}
+#endif
 			// Reorder exps, to the most performant arrangement of evaluation.
 			orderExpressions(qg, exps, expCount, ft, bound_vars);
 
@@ -294,7 +299,7 @@ static void _ExecutionPlan_ProcessQueryGraph(ExecutionPlan *plan, QueryGraph *qg
 				// Empty expression, already freed.
 				if(AlgebraicExpression_OperandCount(exp) == 0) continue;
 
-#ifdef DEBUG_PATH_PATTERNS
+#ifdef DPP
                 printf("Alg' %d) %s\n", j, AlgebraicExpression_ToStringDebug(exp));
 #endif
                 QGEdge *edge = NULL;
@@ -303,7 +308,7 @@ static void _ExecutionPlan_ProcessQueryGraph(ExecutionPlan *plan, QueryGraph *qg
 				if(edge && QGEdge_VariableLength(edge)) {
 					root = NewCondVarLenTraverseOp(plan, gc->g, exp);
 				} else if (edge && edge->type == QG_PATH_PATTERN) {
-                    root = NewRegexpTraverseOp(plan, gc->g, exp);
+                    root = NewCondTraverseDevOp(plan, gc->g, exp);
 				} else {
 					root = NewCondTraverseOp(plan, gc->g, exp);
 				}

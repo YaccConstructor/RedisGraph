@@ -272,13 +272,17 @@ AlgebraicExpression *_AlgebraicExpression_OperandFromEbnf(const EBNFBase *root, 
 			// TODO: Translate closure
 			assert(child_count == 1);
 			EBNFGroup *group = (EBNFGroup *) root;
-			alg_exp = _AlgebraicExpression_OperandFromEbnf(group->base.children[0], src, dest, path_alias);
 
-			if (group->direction == CYPHER_REL_INBOUND) {
+			if (group->direction == CYPHER_REL_OUTBOUND) {
+				alg_exp = _AlgebraicExpression_OperandFromEbnf(group->base.children[0], src, dest, path_alias);
+			}
+			else if (group->direction == CYPHER_REL_INBOUND) {
+				alg_exp = _AlgebraicExpression_OperandFromEbnf(group->base.children[0], dest, src, path_alias);
 				AlgebraicExpression *op_transpose = AlgebraicExpression_NewOperation(AL_EXP_TRANSPOSE);
 				AlgebraicExpression_AddChild(op_transpose, alg_exp);
 				alg_exp = op_transpose;
 			} else if (group->direction == CYPHER_REL_BIDIRECTIONAL) {
+				alg_exp = _AlgebraicExpression_OperandFromEbnf(group->base.children[0], src, dest, path_alias);
 				alg_exp = _AlgebraicExpression_AddTranspose(alg_exp);
 			}
 			break;
@@ -287,11 +291,14 @@ AlgebraicExpression *_AlgebraicExpression_OperandFromEbnf(const EBNFBase *root, 
 	return alg_exp;
 }
 
-static AlgebraicExpression *_AlgebraicExpression_OperandFromPathPattern(QGEdge *e) {
+static AlgebraicExpression *_AlgebraicExpression_OperandFromPathPattern(QGEdge *e, bool transpose) {
 	assert(e->type == QG_PATH_PATTERN && e->pattern);
 
-	const char *src = e->src->alias;
-	const char *dest = e->dest->alias;
+	QGNode *src_node = e->src;
+	QGNode *dest_node = e->dest;
+
+	const char *src = (transpose) ? dest_node->alias : src_node->alias;
+	const char *dest = (transpose) ? src_node->alias : dest_node->alias;
 
 	AlgebraicExpression *root = _AlgebraicExpression_OperandFromEbnf(e->pattern, src, dest, e->alias);
 	if(e->bidirectional) {
@@ -367,6 +374,12 @@ static AlgebraicExpression *_AlgebraicExpression_OperandFromEdge
 	QGEdge *e,
 	bool transpose
 ) {
+#ifdef DPP
+	printf("_AlgebraicExpression_OperandFromEdge\n");
+	printf("src: %s\n", e->src->alias);
+	printf("dst: %s\n", e->dest->alias);
+	printf("transpose: %d\n", transpose);
+#endif
 	AlgebraicExpression *root = NULL;
 	AlgebraicExpression *src_filter = NULL;
 
@@ -380,7 +393,7 @@ static AlgebraicExpression *_AlgebraicExpression_OperandFromEdge
 			root = _AlgebraicExpression_OperandFromRelPattern(e, transpose);
 			break;
 		case QG_PATH_PATTERN:
-			root = _AlgebraicExpression_OperandFromPathPattern(e);
+			root = _AlgebraicExpression_OperandFromPathPattern(e, transpose);
 	}
 
 	// Transpose entire expression.
@@ -394,7 +407,10 @@ static AlgebraicExpression *_AlgebraicExpression_OperandFromEdge
 	if(src_filter) {
 		root = _AlgebraicExpression_MultiplyToTheLeft(src_filter, root);
 	}
-
+#ifdef DPP
+	printf("Constructed AlgExp: %s\n", AlgebraicExpression_ToStringDebug(root));
+	printf("AlgExp source: %s\n", AlgebraicExpression_Source(root));
+#endif
 	return root;
 }
 

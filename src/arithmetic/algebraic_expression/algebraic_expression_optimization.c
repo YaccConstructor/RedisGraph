@@ -529,8 +529,17 @@ void AlgebraicExpression_Optimize
 	assert(exp);
 
 	_AlgebraicExpression_PushDownTranspose(*exp);
+#ifdef PDD
+	printf("After _AlgebraicExpression_PushDownTranspose:\n\t%s\n", AlgebraicExpression_ToStringDebug(*exp));
+#endif
 	_AlgebraicExpression_MulOverAdd(exp);
+#ifdef PDD
+	printf("After _AlgebraicExpression_MulOverAdd:\n\t%s\n", AlgebraicExpression_ToStringDebug(*exp));
+#endif
 	_AlgebraicExpression_FlattenMultiplications(*exp);
+#ifdef PDD
+	printf("After _AlgebraicExpression_FlattenMultiplications:\n\t%s\n", AlgebraicExpression_ToStringDebug(*exp));
+#endif
 
 	// Retrieve all operands now that they are guaranteed to be leaves.
 	_AlgebraicExpression_PopulateOperands(*exp, QueryCtx_GetGraphCtx());
