@@ -21,6 +21,7 @@ PathPatternCtx *PathPatternCtx_Build(AST *ast, size_t required_dim) {
 
 			PathPatternCtx_AddPathPattern(pathPatternCtx, path_pattern);
 		}
+		array_free(named_path_clauses);
 	}
 	return pathPatternCtx;
 }

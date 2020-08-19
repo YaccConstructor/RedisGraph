@@ -40,7 +40,7 @@ PathPattern *PathPattern_Clone(PathPattern *pathPattern) {
     GrB_Matrix_nrows(&nraws, pathPattern->m);
 
 	PathPattern *clone = PathPattern_New(pathPattern->name, EBNFBase_Clone(pathPattern->ebnf_root), nraws);
+	GrB_Matrix_free(&clone->m);
     GrB_Matrix_dup(&clone->m, pathPattern->m);
-    clone->ae = AlgebraicExpression_Clone(pathPattern->ae);
     return clone;
 }

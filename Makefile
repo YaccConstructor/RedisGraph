@@ -39,5 +39,8 @@ test:
 memcheck:
 	@$(MAKE) -C ./src memcheck
 
+memcheck_test:
+	@$(MAKE) -C ./src memcheck_test
+
 format:
 	astyle -Q --options=.astylerc -R --ignore-exclude-errors "./*.c,*.h,*.cpp"

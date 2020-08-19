@@ -43,6 +43,11 @@ memcheck:
 	@$(MAKE) -C tck TEST_ARGS="$(MEMCHECK_ARGS)"
 	./memcheck.sh
 
+memcheck_test: export RS_GLOBAL_DTORS = 1
+memcheck_test:
+	@$(MAKE) -C flow TEST_ARGS="$(MEMCHECK_ARGS) -t $(TEST)"
+	./memcheck.sh
+
 clean:
 	@find . -name '*.[oad]' -type f -delete
 	@find . -name '*.run' -type f -delete

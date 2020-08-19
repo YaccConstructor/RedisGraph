@@ -14,6 +14,7 @@ void EBNFBase_Free(EBNFBase *node) {
     for (int i = 0; i < array_len(node->children); ++i) {
         EBNFBase_Free(node->children[i]);
     }
+    array_free(node->children);
     rm_free(node);
 }
 

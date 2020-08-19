@@ -203,3 +203,8 @@ memcheck: CFLAGS += -fno-omit-frame-pointer -g -ggdb -O0 -D MEMCHECK
 memcheck: SHOBJ_LDFLAGS += -u RediSearch_CleanupModule
 memcheck: redisgraph.so
 	@$(MAKE) -C ../tests memcheck
+
+memcheck_test: CFLAGS += -fno-omit-frame-pointer -g -ggdb -O0 -D MEMCHECK
+memcheck_test: SHOBJ_LDFLAGS += -u RediSearch_CleanupModule
+memcheck_test: redisgraph.so
+	@$(MAKE) -C ../tests memcheck_test
