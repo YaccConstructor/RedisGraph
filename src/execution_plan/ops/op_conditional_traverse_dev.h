@@ -17,6 +17,8 @@ typedef struct {
 	OpBase op;
 	Graph *graph;
 	AlgebraicExpression *ae;
+	PathPatternCtx *pathPatternCtx;
+	PathPattern **deps;
 	GrB_Matrix F;               // Filter matrix.
 	GrB_Matrix M;               // Algebraic expression result.
 	NodeID dest_label_id;       // ID of destination node label if known.

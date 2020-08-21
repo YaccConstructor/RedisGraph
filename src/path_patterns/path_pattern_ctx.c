@@ -72,8 +72,22 @@ void PathPatternCtx_Show(PathPatternCtx *pathPatternCtx) {
 		printf("PATH PATTERN %s, %s, %s\n", pathPatternCtx->patterns[i]->name,
 				EBNFBase_ToStr(pathPatternCtx->patterns[i]->ebnf_root),
 				AlgebraicExpression_ToStringDebug(pathPatternCtx->patterns[i]->ae));
+		printf("Src: (%p)\n", pathPatternCtx->patterns[i]->src);
+		GxB_print(pathPatternCtx->patterns[i]->src, GxB_COMPLETE);
+		printf("M (%p):\n", pathPatternCtx->patterns[i]->m);
+		GxB_print(pathPatternCtx->patterns[i]->m, GxB_COMPLETE);
 	}
-	printf("----------------\n");
+}
+
+void PathPatternCtx_ShowMatrices(PathPatternCtx *pathPatternCtx) {
+	printf("PathPatternCtx: [%d]\n", array_len(pathPatternCtx->patterns));
+	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
+		printf("PATH PATTERN %s\n", pathPatternCtx->patterns[i]->name);
+		printf("--src:\n");
+		GxB_print(pathPatternCtx->patterns[i]->src, GxB_COMPLETE);
+		printf("--m:\n");
+		GxB_print(pathPatternCtx->patterns[i]->m, GxB_COMPLETE);
+	}
 }
 
 PathPatternCtx *PathPatternCtx_Clone(PathPatternCtx *pathCtx) {
@@ -84,4 +98,12 @@ PathPatternCtx *PathPatternCtx_Clone(PathPatternCtx *pathCtx) {
 									   PathPattern_Clone(pathCtx->patterns[i]));
     }
     return clone;
+}
+
+void PathPatternCtx_ClearMatrices(PathPatternCtx *pathCtx) {
+	for (int i = 0; i < array_len(pathCtx->patterns); ++i) {
+		PathPattern *pathPattern = pathCtx->patterns[i];
+		GrB_Matrix_clear(pathPattern->m);
+		GrB_Matrix_clear(pathPattern->src);
+	}
 }

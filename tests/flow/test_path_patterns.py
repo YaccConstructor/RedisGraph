@@ -42,28 +42,6 @@ class testPathPattern(FlowTestsBase):
 
         redis_graph.commit()
 
-    # def test00_path_pattern(self):
-    #     query = """MATCH (a)-/:A :A/->(b) RETURN a.val, b.val ORDER BY a.val, b.val"""
-    #     actual_result = redis_graph.query(query)
-    #     expected_result = [['v1', 'v3']]
-    #     self.env.assertEquals(actual_result.result_set, expected_result)
-    #
-    # def test01_path_pattern(self):
-    #     query = """MATCH (a)-/:A :B/->(b) RETURN a.val, b.val ORDER BY a.val, b.val"""
-    #     actual_result = redis_graph.query(query)
-    #     expected_result = [['v2', 'v4']]
-    #     self.env.assertEquals(actual_result.result_set, expected_result)
-    #
-    # def test02_path_pattern(self):
-    #     query = """
-    #     PATH PATTERN S = ()-/ :A [~S | ()] :B /-()
-    #     MATCH (a)-/ ~S /->(b)
-    #     RETURN a.val, b.val ORDER BY a.val, b.val"""
-    #     actual_result = redis_graph.query(query)
-    #     expected_result = [['v1', 'v5'],
-    #                        ['v2', 'v4']]
-    #     self.env.assertEquals(actual_result.result_set, expected_result)
-
     def test00_path_pattern_explain(self):
         query = """
         PATH PATTERN S = ()-/ :A [~S | ()] :B /-()
@@ -109,4 +87,42 @@ class testPathPattern(FlowTestsBase):
         RETURN a.val, b.val ORDER BY a.val, b.val"""
         actual_result = redis_graph.query(query)
         expected_result = [['v1', 'v2'], ['v2', 'v3'], ['v4', 'v3'], ['v5', 'v4']]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+
+    def test04_path_pattern_execution(self):
+        query = """
+        PATH PATTERN S = ()-/ :B /->()
+        MATCH (a)-/ :A ~S /->(b)
+        RETURN a, b ORDER BY a.val, b.val"""
+        actual_result = redis_graph.query(query)
+
+    def test05_path_pattern_execution(self):
+        query = """
+        PATH PATTERN S = ()-/ [:A ~S :B] | [:A :B] /-()
+        MATCH (a)-/ ~S /->(b)
+        RETURN a.val, b.val ORDER BY a.val, b.val"""
+        actual_result = redis_graph.query(query)
+        expected_result = [['v1', 'v5'], ['v2', 'v4']]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+
+    def test06_path_pattern_execution(self):
+        query = """MATCH (a)-/:A :A /->(b) RETURN a.val, b.val ORDER BY a.val, b.val"""
+        actual_result = redis_graph.query(query)
+        expected_result = [['v1', 'v3']]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+
+    def test07_path_pattern_execution(self):
+        query = """MATCH (a)-/:A :B /->(b) RETURN a.val, b.val ORDER BY a.val, b.val"""
+        actual_result = redis_graph.query(query)
+        expected_result = [['v2', 'v4']]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+
+    def test08_path_pattern_execution(self):
+        query = """
+        PATH PATTERN S = ()-/ :A [~S | ()] :B /-()
+        MATCH (a)-/ ~S /->(b)
+        RETURN a.val, b.val ORDER BY a.val, b.val"""
+        actual_result = redis_graph.query(query)
+        expected_result = [['v1', 'v5'],
+                           ['v2', 'v4']]
         self.env.assertEquals(actual_result.result_set, expected_result)

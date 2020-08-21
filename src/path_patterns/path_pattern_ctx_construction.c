@@ -1,6 +1,7 @@
 #include "path_pattern_ctx_construction.h"
 #include "ebnf_construction.h"
 #include "../util/arr.h"
+#include "../arithmetic/algebraic_expression/algebraic_expression_eval_dev.h"
 
 PathPatternCtx *PathPatternCtx_Build(AST *ast, size_t required_dim) {
 	PathPatternCtx *pathPatternCtx = PathPatternCtx_New(required_dim);
@@ -22,6 +23,9 @@ PathPatternCtx *PathPatternCtx_Build(AST *ast, size_t required_dim) {
 			PathPatternCtx_AddPathPattern(pathPatternCtx, path_pattern);
 		}
 		array_free(named_path_clauses);
+	}
+	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
+		AlgebraicExpression_PopulateReferences(pathPatternCtx->patterns[i]->ae, pathPatternCtx);
 	}
 	return pathPatternCtx;
 }

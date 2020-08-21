@@ -6,6 +6,7 @@
 #include "../algebraic_expression.h"
 #include "utils.h"
 #include "../../util/rmalloc.h"
+#include "../../util/arr.h"
 
 //------------------------------------------------------------------------------
 // AlgebraicExpression debugging utilities.
@@ -332,10 +333,36 @@ void _AlgebraicExpression_ToStringDebug
 }
 
 char *AlgebraicExpression_ToStringDebug
-        (
-                const AlgebraicExpression *exp  // Root node.
-        ) {
+(
+	const AlgebraicExpression *exp  // Root node.
+) {
     char *buff = rm_calloc(1024, sizeof(char));
     _AlgebraicExpression_ToStringDebug(exp, buff);
     return buff;
+}
+
+void _AlgebraicExpression_TotalShow(
+	const AlgebraicExpression *exp  // Root node.
+) {
+	switch(exp->type) {
+		case AL_OPERATION:
+			for (int i = 0; i < array_len(exp->operation.children); ++i) {
+				_AlgebraicExpression_TotalShow(exp->operation.children[i]);
+			}
+			break;
+		case AL_OPERAND:
+			printf("%s (%p):\n", AlgebraicExpression_ToStringDebug(exp), exp->operand.matrix);
+			GxB_Matrix_fprint(exp->operand.matrix, "some", GxB_COMPLETE, stdout);
+			break;
+	}
+}
+
+void AlgebraicExpression_TotalShow
+(
+	const AlgebraicExpression *exp  // Root node.
+) {
+	printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	printf("%s\n", AlgebraicExpression_ToStringDebug(exp));
+	_AlgebraicExpression_TotalShow(exp);
+	printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 }

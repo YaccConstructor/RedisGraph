@@ -25,3 +25,7 @@ PathPattern* PathPatternCtx_GetPathPattern(PathPatternCtx *ctx, const char* name
 PathPattern** PathPatternCtx_GetDependencies(PathPatternCtx *ctx, AlgebraicExpression *expr);
 
 void PathPatternCtx_Show(PathPatternCtx *pathPatternCtx);
+
+void PathPatternCtx_ShowMatrices(PathPatternCtx *pathPatternCtx);
+
+void PathPatternCtx_ClearMatrices(PathPatternCtx *pathCtx);

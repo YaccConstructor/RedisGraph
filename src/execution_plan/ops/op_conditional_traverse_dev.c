@@ -7,6 +7,7 @@
 #include "op_conditional_traverse_dev.h"
 #include "shared/print_functions.h"
 #include "../../query_ctx.h"
+#include "../../arithmetic/algebraic_expression/algebraic_expression_eval_dev.h"
 //#define DPP
 
 /* Forward declarations. */
@@ -20,7 +21,6 @@ static int CondTraverseDevToString(const OpBase *ctx, char *buf, uint buf_len) {
 	int offset = 0;
 	offset += snprintf(buf, buf_len, "%s", ctx->name);
 	return offset;
-//	return TraversalToString(ctx, buf, buf_len, ((const CondTraverseDev *)ctx)->ae);
 }
 
 static void _populate_filter_matrix_dev(CondTraverseDev *op) {
@@ -32,6 +32,80 @@ static void _populate_filter_matrix_dev(CondTraverseDev *op) {
 		NodeID srcId = ENTITY_GET_ID(n);
 		GrB_Matrix_setElement_BOOL(op->F, true, i, srcId);
 	}
+}
+
+static void _transitive_closure(PathPattern **deps, PathPatternCtx *pathPatternCtx, CondTraverseDev *op) {
+#ifdef DPP
+	printf("--------------before trans closure----------------\n");
+	PathPatternCtx_Show(op->pathPatternCtx);
+	for (int i = 0; i < array_len(deps); ++i) {
+		PathPattern *p = deps[i];
+		printf("Path Pattern %s:\n", p->name);
+		AlgebraicExpression_TotalShow(p->ae);
+	}
+#endif
+	bool changed = true;
+
+	size_t deps_size = array_len(deps);
+	GrB_Index *nvals_ms = array_new(GrB_Index, deps_size);
+	GrB_Index *nvals_srcs = array_new(GrB_Index, deps_size);
+
+	GrB_Matrix *tmps = array_new(GrB_Matrix, deps_size);
+	for (int i = 0; i < deps_size; ++i) {
+		GrB_Index nrows, ncols;
+		GrB_Matrix_nrows(&nrows, deps[i]->m);
+		GrB_Matrix_ncols(&ncols, deps[i]->m);
+		GrB_Matrix_new(&tmps[i], GrB_BOOL, nrows, ncols);
+	}
+
+	while (changed) {
+		changed = false;
+		for (int i = 0; i < deps_size; ++i) {
+			GrB_Matrix_nvals(&nvals_ms[i], deps[i]->m);
+			GrB_Matrix_nvals(&nvals_srcs[i], deps[i]->src);
+		}
+
+		for (int i = 0; i < array_len(deps); ++i) {
+			PathPattern *pattern = deps[i];
+			AlgebraicExpression_Eval_Dev(pattern->ae, tmps[i], pathPatternCtx);
+			GrB_eWiseAdd_Matrix_BinaryOp(pattern->m, NULL, NULL, GrB_LOR, pattern->m, tmps[i], NULL);
+		}
+
+#ifdef DPP
+		printf("------------------iter %d---------------------:\n", i);
+		for (int i = 0; i < array_len(deps); ++i) {
+			AlgebraicExpression_TotalShow(deps[i]->ae);
+		}
+#endif
+
+		for (int i = 0; i < deps_size; ++i) {
+			GrB_Index nvals_m_new, nvals_src_new;
+			GrB_Matrix_nvals(&nvals_m_new, deps[i]->m);
+			GrB_Matrix_nvals(&nvals_src_new, deps[i]->src);
+
+			if (nvals_ms[i] != nvals_m_new || nvals_srcs[i] != nvals_src_new) {
+				changed = true;
+			}
+		}
+	}
+
+	for (int j = 0; j < deps_size; ++j) {
+		GrB_Matrix_free(&tmps[j]);
+	}
+	array_free(tmps);
+	array_free(nvals_srcs);
+	array_free(nvals_ms);
+#ifdef DPP
+	printf("----after trans closure\n");
+	for (int i = 0; i < array_len(deps); ++i) {
+		PathPattern *p = deps[i];
+		printf("PathPattern %s:\n", p->name);
+		printf("Src:\n");
+		GxB_print(p->src, GxB_COMPLETE);
+		printf("M:\n");
+		GxB_print(p->m, GxB_COMPLETE);
+	}
+#endif
 }
 
 /* Evaluate algebraic expression:
@@ -54,13 +128,18 @@ void _traverse_dev(CondTraverseDev *op) {
 
 		// Prepend the filter matrix to algebraic expression as the leftmost operand.
 		AlgebraicExpression_MultiplyToTheLeft(&op->ae, op->F);
-#ifdef DPP
-		printf("ALgExp after mul left:\n\t%s\n", AlgebraicExpression_ToStringDebug(op->ae));
-#endif
+
 		// Optimize the expression tree.
 		AlgebraicExpression_Optimize(&op->ae);
+
+		// Populate algebraic operand references with named path pattern matrices
+		AlgebraicExpression_PopulateReferences(op->ae, op->pathPatternCtx);
+		for (int i = 0; i < array_len(op->deps); ++i) {
+			AlgebraicExpression_PopulateReferences(op->deps[i]->ae, op->pathPatternCtx);
+		}
+
 #ifdef DPP
-		printf("AlgExp after optimize: %s\n", AlgebraicExpression_ToStringDebug(op->ae));
+		printf("AlgExp after optimize and populate: %s\n", AlgebraicExpression_ToStringDebug(op->ae));
 		printf("---------------\n");
 #endif
 	}
@@ -68,8 +147,32 @@ void _traverse_dev(CondTraverseDev *op) {
 	// Populate filter matrix.
 	_populate_filter_matrix_dev(op);
 
+#ifdef DPP
+	printf("Filter matrix:\n");
+	GxB_print(op->F, GxB_COMPLETE);
+#endif
+
+	// Clear named path patterns matrices
+	PathPatternCtx_ClearMatrices(op->pathPatternCtx);
+
+	// Evaluate expression for construct sources
+	AlgebraicExpression_Eval_Dev(op->ae, op->M, op->pathPatternCtx);
+
+#ifdef DPP
+	printf("Result M before trans:\n");
+	GxB_print(op->M, GxB_COMPLETE);
+#endif
+
+	// Perform transitive closure of named path patterns
+	_transitive_closure(op->deps, op->pathPatternCtx, op);
+
 	// Evaluate expression.
-	AlgebraicExpression_Eval(op->ae, op->M);
+	AlgebraicExpression_Eval_Dev(op->ae, op->M, op->pathPatternCtx);
+
+#ifdef DPP
+	printf("Result M after trans:\n");
+	GxB_print(op->M, GxB_COMPLETE);
+#endif
 
 	if(op->iter == NULL) GxB_MatrixTupleIter_new(&op->iter, op->M);
 	else GxB_MatrixTupleIter_reuse(op->iter, op->M);
@@ -83,14 +186,25 @@ OpBase *NewCondTraverseDevOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpre
 	printf("---------------------\n");
 	printf("NewCondTraverseDevOp:\n");
 	printf("AlgExp: %s\n", AlgebraicExpression_ToStringDebug(ae));
-	printf("PathCtx:\n");
 	PathPatternCtx_Show(plan->path_pattern_ctx);
+	AlgebraicExpression_TotalShow(plan->path_pattern_ctx->patterns[0]->ae);
 	printf("---------------------\n");
 #endif
 
 	CondTraverseDev *op = rm_malloc(sizeof(CondTraverseDev));
 	op->graph = g;
 	op->ae = ae;
+
+	op->pathPatternCtx = plan->path_pattern_ctx;
+	op->deps = PathPatternCtx_GetDependencies(op->pathPatternCtx, op->ae);
+
+#ifdef DPP
+	printf("Deps: ");
+	for (int i = 0; i < array_len(op->deps); ++i) {
+		printf("%s ", op->deps[i]->name);
+	}
+	printf("\n");
+#endif
 
 	op->r = NULL;
 	op->iter = NULL;
@@ -239,6 +353,10 @@ static void CondTraverseDevFree(OpBase *ctx) {
 		for(uint i = 0; i < op->recordCount; i++) OpBase_DeleteRecord(op->records[i]);
 		rm_free(op->records);
 		op->records = NULL;
+	}
+
+	if (op->deps) {
+		array_free(op->deps);
 	}
 }
 

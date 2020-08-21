@@ -229,7 +229,7 @@ AlgebraicExpression *_AlgebraicExpression_OperandFromEbnf(const EBNFBase *root, 
 			EBNFNode *node = (EBNFNode *) root;
 			GrB_Matrix m = GrB_NULL;
 			if (node->label == NULL) {
-				m = GrB_Matrix_NewIdentity(Graph_RequiredMatrixDim(QueryCtx_GetGraph()));
+				m = IDENTITY_MATRIX;
 			}
 			alg_exp = AlgebraicExpression_NewOperand(m, true, src, dest, path_alias, node->label, NULL);
 			break;
@@ -245,12 +245,24 @@ AlgebraicExpression *_AlgebraicExpression_OperandFromEbnf(const EBNFBase *root, 
 				alg_exp = _AlgebraicExpression_OperandFromEbnf(root->children[0], src, dest, path_alias);
 			else {
 				alg_exp = AlgebraicExpression_NewOperation(AL_EXP_MUL);
-				for (int i = 0; i < child_count; ++i) {
-					const char *new_src = (i == 0) ? src : NULL;
-					const char *new_dest = (i == child_count - 1) ? dest : NULL;
+
+				EBNFBase *left_child = root->children[0];
+				EBNFBase *right_child = root->children[1];
+				AlgebraicExpression_AddChild(alg_exp,
+					_AlgebraicExpression_OperandFromEbnf(left_child, src, NULL, path_alias));
+				AlgebraicExpression_AddChild(alg_exp,
+					_AlgebraicExpression_OperandFromEbnf(right_child, NULL, (child_count == 2) ? dest : NULL, path_alias));
+
+				for (int i = 2; i < child_count; ++i) {
+					AlgebraicExpression *new_alg_exp = AlgebraicExpression_NewOperation(AL_EXP_MUL);
 
 					EBNFBase *child = root->children[i];
-					AlgebraicExpression_AddChild(alg_exp, _AlgebraicExpression_OperandFromEbnf(child, new_src, new_dest, path_alias));
+					const char *new_dest = (i == child_count - 1) ? dest : NULL;
+					AlgebraicExpression *right = _AlgebraicExpression_OperandFromEbnf(child, NULL, new_dest, path_alias);
+
+					AlgebraicExpression_AddChild(new_alg_exp, alg_exp);
+					AlgebraicExpression_AddChild(new_alg_exp, right);
+					alg_exp = new_alg_exp;
 				}
 			}
 			break;

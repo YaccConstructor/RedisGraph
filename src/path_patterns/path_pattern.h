@@ -7,7 +7,9 @@ typedef struct {
     const char *name;
     EBNFBase *ebnf_root;
     AlgebraicExpression *ae;
+
     GrB_Matrix m;
+    GrB_Matrix src;
 } PathPattern;
 
 /* Create new PathPattern with NULL algebraic expression. */
