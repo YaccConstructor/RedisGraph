@@ -220,9 +220,9 @@ static GrB_Matrix _Eval_Mul_Dev(const AlgebraicExpression *exp, GrB_Matrix res, 
 		}
 	} else {
 		// If B is matrix of named path pattern, add sources
-		if (right->operand.reference) {
+		if (AlgebraicExpression_OperandIsReference(right)) {
 			if (B_trans) {
-				fprintf(stderr, "don`t support trans named path pattern %s\n", right->operand.reference);
+				fprintf(stderr, "don`t support trans named path pattern %s\n", right->operand.reference.name);
 				assert(false);
 			}
 			PathPattern *pattern = PathPatternCtx_GetPathPattern(pathCtx, right->operand.reference);
@@ -259,9 +259,9 @@ static GrB_Matrix _Eval_Mul_Dev(const AlgebraicExpression *exp, GrB_Matrix res, 
 		B = right->operand.matrix;
 
 		if(B != IDENTITY_MATRIX) {
-			if (right->operand.reference) {
+			if (right->operand.reference.name) {
 				if (B_trans) {
-					fprintf(stderr, "don`t support trans named path pattern %s\n", right->operand.reference);
+					fprintf(stderr, "don`t support trans named path pattern %s\n", right->operand.reference.name);
 					assert(false);
 				}
 				PathPattern *pattern = PathPatternCtx_GetPathPattern(pathCtx, right->operand.reference);
@@ -336,9 +336,8 @@ void AlgebraicExpression_PopulateReferences(AlgebraicExpression *exp, PathPatter
 			break;
 		}
 		case AL_OPERAND: {
-			const char *reference = exp->operand.reference;
-			if (exp->operand.reference != NULL) {
-				PathPattern *pathPattern = PathPatternCtx_GetPathPattern(pathPatternCtx, reference);
+			if (AlgebraicExpression_OperandIsReference(exp)) {
+				PathPattern *pathPattern = PathPatternCtx_GetPathPattern(pathPatternCtx, exp->operand.reference);
 				exp->operand.matrix = pathPattern->m;
 			}
 			break;
@@ -346,5 +345,40 @@ void AlgebraicExpression_PopulateReferences(AlgebraicExpression *exp, PathPatter
 		default:
 			assert("Unknow algebraic expression node type" && false);
 			break;
+	}
+}
+
+void AlgebraicExpression_ReplaceTransposedReferences(AlgebraicExpression *ae) {
+	if (ae->type == AL_OPERATION) {
+		for (int i = 0; i < array_len(ae->operation.children); ++i) {
+			AlgebraicExpression *child = ae->operation.children[i];
+			if (child->type == AL_OPERATION) {
+				if (child->operation.op == AL_EXP_TRANSPOSE) {
+					AlgebraicExpression *grand_child = child->operation.children[0];
+					assert(grand_child->type == AL_OPERAND && "Transpose op must have operand child");
+
+					if (AlgebraicExpression_OperandIsReference(grand_child)) {
+						assert(grand_child->operand.matrix == NULL);
+
+						const char *src = grand_child->operand.dest;
+						const char *dest = grand_child->operand.src;
+						const char *label = grand_child->operand.label;
+						const char *edge = grand_child->operand.edge;
+
+						// Free transpose subtree
+						AlgebraicExpression_Free(child);
+
+						// Replace it by new reference
+						AlgExpReference algexp_ref = grand_child->operand.reference;
+						algexp_ref.transposed = true;
+						ae->operation.children[i] = AlgebraicExpression_NewOperand(
+								NULL, false, dest, src, edge, label, algexp_ref);
+					}
+				} else {
+					AlgebraicExpression_ReplaceTransposedReferences(ae->operation.children[i]);
+				}
+			}
+		}
+
 	}
 }

@@ -40,7 +40,7 @@ static void _transitive_closure(PathPattern **deps, PathPatternCtx *pathPatternC
 	PathPatternCtx_Show(op->pathPatternCtx);
 	for (int i = 0; i < array_len(deps); ++i) {
 		PathPattern *p = deps[i];
-		printf("Path Pattern %s:\n", p->name);
+		printf("Path Pattern %s:\n", p->reference.name);
 		AlgebraicExpression_TotalShow(p->ae);
 	}
 #endif
@@ -58,6 +58,9 @@ static void _transitive_closure(PathPattern **deps, PathPatternCtx *pathPatternC
 		GrB_Matrix_new(&tmps[i], GrB_BOOL, nrows, ncols);
 	}
 
+#ifdef DPP
+	int iter = 0;
+#endif
 	while (changed) {
 		changed = false;
 		for (int i = 0; i < deps_size; ++i) {
@@ -72,7 +75,8 @@ static void _transitive_closure(PathPattern **deps, PathPatternCtx *pathPatternC
 		}
 
 #ifdef DPP
-		printf("------------------iter %d---------------------:\n", i);
+		iter++;
+		printf("------------------iter %d---------------------:\n", iter);
 		for (int i = 0; i < array_len(deps); ++i) {
 			AlgebraicExpression_TotalShow(deps[i]->ae);
 		}
@@ -99,7 +103,7 @@ static void _transitive_closure(PathPattern **deps, PathPatternCtx *pathPatternC
 	printf("----after trans closure\n");
 	for (int i = 0; i < array_len(deps); ++i) {
 		PathPattern *p = deps[i];
-		printf("PathPattern %s:\n", p->name);
+		printf("PathPattern %s:\n", p->reference.name);
 		printf("Src:\n");
 		GxB_print(p->src, GxB_COMPLETE);
 		printf("M:\n");
@@ -131,6 +135,16 @@ void _traverse_dev(CondTraverseDev *op) {
 
 		// Optimize the expression tree.
 		AlgebraicExpression_Optimize(&op->ae);
+		AlgebraicExpression_ReplaceTransposedReferences(op->ae);
+		op->deps = PathPatternCtx_GetDependencies(op->pathPatternCtx, op->ae);
+
+#ifdef DPP
+		printf("Deps: ");
+		for (int i = 0; i < array_len(op->deps); ++i) {
+			printf("%s ", op->deps[i]->reference.name);
+		}
+		printf("\n");
+#endif
 
 		// Populate algebraic operand references with named path pattern matrices
 		AlgebraicExpression_PopulateReferences(op->ae, op->pathPatternCtx);
@@ -187,7 +201,6 @@ OpBase *NewCondTraverseDevOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpre
 	printf("NewCondTraverseDevOp:\n");
 	printf("AlgExp: %s\n", AlgebraicExpression_ToStringDebug(ae));
 	PathPatternCtx_Show(plan->path_pattern_ctx);
-	AlgebraicExpression_TotalShow(plan->path_pattern_ctx->patterns[0]->ae);
 	printf("---------------------\n");
 #endif
 
@@ -196,15 +209,6 @@ OpBase *NewCondTraverseDevOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpre
 	op->ae = ae;
 
 	op->pathPatternCtx = plan->path_pattern_ctx;
-	op->deps = PathPatternCtx_GetDependencies(op->pathPatternCtx, op->ae);
-
-#ifdef DPP
-	printf("Deps: ");
-	for (int i = 0; i < array_len(op->deps); ++i) {
-		printf("%s ", op->deps[i]->name);
-	}
-	printf("\n");
-#endif
 
 	op->r = NULL;
 	op->iter = NULL;

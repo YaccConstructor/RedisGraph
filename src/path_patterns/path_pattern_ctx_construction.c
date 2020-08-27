@@ -15,12 +15,18 @@ PathPatternCtx *PathPatternCtx_Build(AST *ast, size_t required_dim) {
 
 			// Support global named patterns only like ()-/ ... /-()
 			const cypher_astnode_t *path_pattern_node = cypher_ast_pattern_path_get_element(pattern_path_node, 1);
-
 			const char *name = cypher_ast_identifier_get_name(identifier);
-			EBNFBase *ebnf = EBNFBase_Build(path_pattern_node, pathPatternCtx);
-			PathPattern *path_pattern = PathPattern_New(name, ebnf, required_dim);
+
+			EBNFBase *ebnf_root = EBNFBase_Build(path_pattern_node, pathPatternCtx);
+			PathPattern *path_pattern = PathPattern_New(name, ebnf_root, required_dim, false);
+
+			EBNFBase *ebnf_root_transposed = EBNFGroup_New(CYPHER_REL_INBOUND, EBNF_ONE);
+			EBNFBase_AddChild(ebnf_root_transposed, EBNFBase_Clone(ebnf_root));
+
+			PathPattern *path_pattern_transposed = PathPattern_New(name, ebnf_root_transposed, required_dim, true);
 
 			PathPatternCtx_AddPathPattern(pathPatternCtx, path_pattern);
+			PathPatternCtx_AddPathPattern(pathPatternCtx, path_pattern_transposed);
 		}
 		array_free(named_path_clauses);
 	}

@@ -27,6 +27,11 @@ typedef enum {
 	AL_OPERATION  = (1 << 1),
 } AlgebraicExpressionType;
 
+typedef struct {
+	const char *name;
+	bool transposed;
+} AlgExpReference;
+
 /* Forward declarations. */
 typedef struct AlgebraicExpression AlgebraicExpression;
 
@@ -40,7 +45,7 @@ struct AlgebraicExpression {
 			const char *dest;       // Alias given to operand's columns (destination node).
 			const char *edge;       // Alias given to operand (edge).
 			const char *label;      // Label attached to matrix.
-            const char *reference;  // Reference (name) to named path pattern.
+			AlgExpReference reference;
 		} operand;
 		struct {
 			AL_EXP_OP op;                   // Operation: `*`,`+`,`transpose`
@@ -84,7 +89,7 @@ AlgebraicExpression *AlgebraicExpression_NewOperand
 	const char *dest,   // Operand column domain (destination node).
 	const char *edge,   // Operand alias (edge).
 	const char *label,   // Label attached to matrix.
-	const char *reference // Reference (name) to named path pattern.
+	AlgExpReference ref
 );
 
 // Clone algebraic expression node.
@@ -153,6 +158,21 @@ bool AlgebraicExpression_DiagonalOperand
 (
 	const AlgebraicExpression *root,    // Root of expression.
 	uint operand_idx                    // Operand position (LTR, zero based).
+);
+
+AlgExpReference AlgExpReference_NewEmpty();
+
+AlgExpReference AlgExpReference_New(
+	const char *name,
+	bool transposed
+);
+
+bool AlgebraicExpression_OperandIsReference(
+		const AlgebraicExpression *root
+);
+
+void AlgebraicExpression_ReplaceTransposedReferences(
+	AlgebraicExpression *ae
 );
 
 //------------------------------------------------------------------------------

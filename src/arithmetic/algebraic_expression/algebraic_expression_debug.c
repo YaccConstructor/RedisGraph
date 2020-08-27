@@ -86,7 +86,7 @@ AlgebraicExpression *_AlgebraicExpression_FromString
 				m = (GrB_Matrix)raxFind(matrices, (unsigned char *)alias, strlen(alias));
 				assert(m != raxNotFound && "Missing matrix");
 			}
-			root = AlgebraicExpression_NewOperand(m, false, alias, alias, NULL, NULL, NULL);
+			root = AlgebraicExpression_NewOperand(m, false, alias, alias, NULL, NULL, AlgExpReference_NewEmpty());
 
 			// Clear
 			i = 0;
@@ -322,8 +322,13 @@ void _AlgebraicExpression_ToStringDebug
             }
             break;
         case AL_OPERAND:
-            if(exp->operand.reference)
-                sprintf(buff + strlen(buff), "%s-%s:~%s-%s", exp->operand.src, exp->operand.edge, exp->operand.reference, exp->operand.dest);
+            if(AlgebraicExpression_OperandIsReference(exp))
+                sprintf(buff + strlen(buff), "%s-%s:~%s%s-%s",
+						exp->operand.src,
+						exp->operand.edge,
+						exp->operand.reference.name,
+						exp->operand.reference.transposed ? "_T" : "",
+						exp->operand.dest);
             else
                 sprintf(buff + strlen(buff), "%s-%s:%s-%s", exp->operand.src, exp->operand.edge, exp->operand.label, exp->operand.dest);
         default:
@@ -352,7 +357,11 @@ void _AlgebraicExpression_TotalShow(
 			break;
 		case AL_OPERAND:
 			printf("%s (%p):\n", AlgebraicExpression_ToStringDebug(exp), exp->operand.matrix);
-			GxB_Matrix_fprint(exp->operand.matrix, "some", GxB_COMPLETE, stdout);
+			if (exp->operand.matrix == IDENTITY_MATRIX) {
+				printf("Identity\n");
+			} else {
+				GxB_Matrix_fprint(exp->operand.matrix, "some", GxB_COMPLETE, stdout);
+			}
 			break;
 	}
 }

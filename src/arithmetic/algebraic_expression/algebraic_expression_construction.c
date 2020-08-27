@@ -199,7 +199,8 @@ static AlgebraicExpression *_AlgebraicExpression_OperandFromNode
 ) {
 	bool diagonal = true;
 	bool transpose = false;
-	return AlgebraicExpression_NewOperand(GrB_NULL, diagonal, n->alias, n->alias, NULL, n->label, NULL);
+	return AlgebraicExpression_NewOperand(GrB_NULL, diagonal, n->alias, n->alias, NULL, n->label,
+										  AlgExpReference_NewEmpty());
 }
 
 GrB_Matrix GrB_Matrix_NewIdentity(GrB_Index n) {
@@ -222,7 +223,8 @@ AlgebraicExpression *_AlgebraicExpression_OperandFromEbnf(const EBNFBase *root, 
 	switch (root->type) {
 		case EBNF_EDGE: {
 			EBNFEdge *edge = (EBNFEdge *) root;
-			alg_exp = AlgebraicExpression_NewOperand(NULL, false, src, dest, path_alias, edge->reltype, NULL);
+			alg_exp = AlgebraicExpression_NewOperand(NULL, false, src, dest, path_alias, edge->reltype,
+													 AlgExpReference_NewEmpty());
 			break;
 		}
 		case EBNF_NODE: {
@@ -231,12 +233,14 @@ AlgebraicExpression *_AlgebraicExpression_OperandFromEbnf(const EBNFBase *root, 
 			if (node->label == NULL) {
 				m = IDENTITY_MATRIX;
 			}
-			alg_exp = AlgebraicExpression_NewOperand(m, true, src, dest, path_alias, node->label, NULL);
+			alg_exp = AlgebraicExpression_NewOperand(m, true, src, dest, path_alias, node->label,
+													 AlgExpReference_NewEmpty());
 			break;
 		}
 		case EBNF_REF: {
 			EBNFReference *ref = (EBNFReference *) root;
-			alg_exp = AlgebraicExpression_NewOperand(NULL, false, src, dest, path_alias, NULL, ref->name);
+			AlgExpReference algexp_ref = {.name = ref->name, .transposed = false};
+			alg_exp = AlgebraicExpression_NewOperand(NULL, false, src, dest, path_alias, NULL, algexp_ref);
 			break;
 		}
 		case EBNF_SEQ: {
@@ -338,21 +342,23 @@ static AlgebraicExpression *_AlgebraicExpression_OperandFromRelPattern(QGEdge *e
 	 * in this case we want to use the identity matrix
 	 * f * I  = f */
 	if(!var_len_traversal && e->minHops == 0) {
-		root = AlgebraicExpression_NewOperand(IDENTITY_MATRIX, true, src, dest, edge, "I", NULL);
+		root = AlgebraicExpression_NewOperand(IDENTITY_MATRIX, true, src, dest, edge, "I", AlgExpReference_NewEmpty());
 	} else {
 		uint reltype_count = array_len(e->reltypeIDs);
 		switch(reltype_count) {
 			case 0: // No relationship types specified; use the full adjacency matrix
-				root = AlgebraicExpression_NewOperand(GrB_NULL, false, src, dest, edge, NULL, NULL);
+				root = AlgebraicExpression_NewOperand(GrB_NULL, false, src, dest, edge, NULL, AlgExpReference_NewEmpty());
 				break;
 			case 1: // One relationship type
-				root = AlgebraicExpression_NewOperand(GrB_NULL, false, src, dest, edge, e->reltypes[0], NULL);
+				root = AlgebraicExpression_NewOperand(GrB_NULL, false, src, dest, edge, e->reltypes[0],
+													  AlgExpReference_NewEmpty());
 				break;
 			default: // Multiple edge type: -[:A|:B]->
 				add = AlgebraicExpression_NewOperation(AL_EXP_ADD);
 				for(uint i = 0; i < reltype_count; i++) {
 					AlgebraicExpression *operand = AlgebraicExpression_NewOperand(GrB_NULL, false, src, dest,
-																				  edge, e->reltypes[i], NULL);
+																				  edge, e->reltypes[i],
+																				  AlgExpReference_NewEmpty());
 					AlgebraicExpression_AddChild(add, operand);
 				}
 				root = add;

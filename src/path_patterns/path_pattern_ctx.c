@@ -2,11 +2,13 @@
 #include "../util/arr.h"
 #include "../arithmetic/algebraic_expression/utils.h"
 
-PathPattern* _PathPatternCtx_FindPathPattern(PathPattern **patterns, const char* name) {
+PathPattern* _PathPatternCtx_FindPathPattern(PathPattern **patterns, AlgExpReference ref) {
     for (int i = 0; i < array_len(patterns); ++i) {
         PathPattern *pattern = patterns[i];
-        if (strcmp(pattern->name, name) == 0)
-            return pattern;
+        assert(pattern->reference.name);
+        if (strcmp(pattern->reference.name, ref.name) == 0 && pattern->reference.transposed == ref.transposed) {
+			return pattern;
+		}
     }
     return NULL;
 }
@@ -17,8 +19,8 @@ void _PathPatternCtx_DFS(PathPatternCtx *ctx, AlgebraicExpression *root, PathPat
             _PathPatternCtx_DFS(ctx, CHILD_AT(root, i), visited);
         }
     } else {
-        const char *reference = root->operand.reference;
-        if (reference != NULL && (_PathPatternCtx_FindPathPattern(*visited, reference) == NULL)) {
+        AlgExpReference reference = root->operand.reference;
+        if (AlgebraicExpression_OperandIsReference(root) && (_PathPatternCtx_FindPathPattern(*visited, reference) == NULL)) {
             PathPattern *next = PathPatternCtx_GetPathPattern(ctx, reference);
             assert(next != NULL && "Unresolved path reference");
 
@@ -46,8 +48,8 @@ const char *PathPatternCtx_GetNextAnonName(PathPatternCtx *ctx) {
 	return name;
 }
 
-PathPattern* PathPatternCtx_GetPathPattern(PathPatternCtx *ctx, const char* name) {
-    return _PathPatternCtx_FindPathPattern(ctx->patterns, name);
+PathPattern* PathPatternCtx_GetPathPattern(PathPatternCtx *ctx, AlgExpReference reference) {
+    return _PathPatternCtx_FindPathPattern(ctx->patterns, reference);
 }
 
 PathPattern **PathPatternCtx_GetDependencies(PathPatternCtx *ctx, AlgebraicExpression *expr) {
@@ -69,7 +71,7 @@ void PathPatternCtx_Free(PathPatternCtx *pathPatternCtx) {
 void PathPatternCtx_Show(PathPatternCtx *pathPatternCtx) {
 	printf("PathPatternCtx: [%d]\n", array_len(pathPatternCtx->patterns));
 	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
-		printf("PATH PATTERN %s, %s, %s\n", pathPatternCtx->patterns[i]->name,
+		printf("PATH PATTERN %s, %s, %s\n", pathPatternCtx->patterns[i]->reference.name,
 				EBNFBase_ToStr(pathPatternCtx->patterns[i]->ebnf_root),
 				AlgebraicExpression_ToStringDebug(pathPatternCtx->patterns[i]->ae));
 		printf("Src: (%p)\n", pathPatternCtx->patterns[i]->src);
@@ -82,7 +84,7 @@ void PathPatternCtx_Show(PathPatternCtx *pathPatternCtx) {
 void PathPatternCtx_ShowMatrices(PathPatternCtx *pathPatternCtx) {
 	printf("PathPatternCtx: [%d]\n", array_len(pathPatternCtx->patterns));
 	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
-		printf("PATH PATTERN %s\n", pathPatternCtx->patterns[i]->name);
+		printf("PATH PATTERN %s\n", pathPatternCtx->patterns[i]->reference.name);
 		printf("--src:\n");
 		GxB_print(pathPatternCtx->patterns[i]->src, GxB_COMPLETE);
 		printf("--m:\n");

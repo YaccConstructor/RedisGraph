@@ -505,10 +505,12 @@ static void _AlgebraicExpression_ApplyTranspose(AlgebraicExpression *root) {
 			child = _AlgebraicExpression_OperationRemoveRightmostChild(root);
 			// Transpose operands will currently always have an operand child.
 			assert(child->type == AL_OPERAND && "encountered unexpected operation as transpose child");
-			// Transpose the child operand.
-			_AlgebraicExpression_TransposeOperand(child);
-			// Replace this operation with the transposed operand.
-			_AlgebraicExpression_InplaceRepurpose(root, child);
+			if (!AlgebraicExpression_OperandIsReference(child)) {
+				// Transpose the child operand.
+				_AlgebraicExpression_TransposeOperand(child);
+				// Replace this operation with the transposed operand.
+				_AlgebraicExpression_InplaceRepurpose(root, child);
+			}
 			break;
 		default:
 			assert("Unknown operation" && false);
@@ -543,12 +545,14 @@ void AlgebraicExpression_Optimize
 
 	// Retrieve all operands now that they are guaranteed to be leaves.
 	_AlgebraicExpression_PopulateOperands(*exp, QueryCtx_GetGraphCtx());
+#ifdef DPP
+	printf("_AlgebraicExpression_PopulateOperands:\n\t%s\n", AlgebraicExpression_ToStringDebug(*exp));
+#endif
 
 	// If we are maintaining transposed matrices, all transpose operations have already been replaced.
 	if(Config_MaintainTranspose() == false) {
 		// Replace transpose operators with actual transposed operands.
 		_AlgebraicExpression_ApplyTranspose(*exp);
 	}
-
 }
 

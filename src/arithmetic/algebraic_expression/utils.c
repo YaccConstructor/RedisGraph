@@ -267,11 +267,13 @@ void _AlgebraicExpression_PopulateOperands(AlgebraicExpression *root, const Grap
 		// If we are maintaining transposed matrices, it can be retrieved now.
 		if(root->operation.op == AL_EXP_TRANSPOSE && Config_MaintainTranspose()) {
 			assert(child_count == 1 && "Transpose operation had invalid number of children");
-			AlgebraicExpression *child = _AlgebraicExpression_OperationRemoveRightmostChild(root);
-			// Fetch the transposed matrix and update the operand.
-			_AlgebraicExpression_PopulateTransposedOperand(child, gc);
-			// Replace this operation with the transposed operand.
-			_AlgebraicExpression_InplaceRepurpose(root, child);
+			if (!AlgebraicExpression_OperandIsReference(root->operation.children[0])) {
+				AlgebraicExpression *child = _AlgebraicExpression_OperationRemoveRightmostChild(root);
+				// Fetch the transposed matrix and update the operand.
+				_AlgebraicExpression_PopulateTransposedOperand(child, gc);
+				// Replace this operation with the transposed operand.
+				_AlgebraicExpression_InplaceRepurpose(root, child);
+			}
 			break;
 		}
 		for(uint i = 0; i < child_count; i++) {

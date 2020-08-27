@@ -135,9 +135,8 @@ void _AlgebraicExpression_FetchReferences(AlgebraicExpression *exp, PathPatternC
             break;
         }
         case AL_OPERAND: {
-            const char *reference = exp->operand.reference;
-            if (exp->operand.reference != NULL) {
-                PathPattern *pathPattern = PathPatternCtx_GetPathPattern(pathPatternCtx,reference);
+            if (AlgebraicExpression_OperandIsReference(exp)) {
+                PathPattern *pathPattern = PathPatternCtx_GetPathPattern(pathPatternCtx, exp->operand.reference);
                 exp->operand.matrix = pathPattern->m;
             }
             break;
@@ -236,7 +235,8 @@ void _regexp_traverse(RegexpTraverse *op) {
     }
     _populate_filter_matrix(op);
 
-    AlgebraicExpression *expr = AlgebraicExpression_NewOperand(op->ae_m, false, NULL, NULL, NULL, NULL, NULL);
+    AlgebraicExpression *expr = AlgebraicExpression_NewOperand(op->ae_m, false, NULL, NULL, NULL, NULL,
+															   AlgExpReference_NewEmpty());
     AlgebraicExpression_MultiplyToTheLeft(&expr, op->F);
     op->M = AlgebraicExpression_EvalArbitrary(expr);
     AlgebraicExpression_Free(expr);

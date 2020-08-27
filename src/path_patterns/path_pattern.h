@@ -4,7 +4,7 @@
 #include "../arithmetic/algebraic_expression.h"
 
 typedef struct {
-    const char *name;
+    AlgExpReference reference;
     EBNFBase *ebnf_root;
     AlgebraicExpression *ae;
 
@@ -13,7 +13,7 @@ typedef struct {
 } PathPattern;
 
 /* Create new PathPattern with NULL algebraic expression. */
-PathPattern *PathPattern_New(const char *name, EBNFBase *ebnf, size_t reqiured_mdim);
+PathPattern *PathPattern_New(const char *name, EBNFBase *ebnf, size_t reqiured_mdim, bool transpose);
 
 PathPattern *PathPattern_Clone(PathPattern *pathPattern);
 

@@ -42,7 +42,7 @@ EBNFBase *_BuildEBNFBase(const cypher_astnode_t *node, PathPatternCtx *ctx) {
 			EBNFBase_AddChild(alt, seq);
 			EBNFBase_AddChild(alt, EBNFNode_New(NULL));
 
-			PathPattern *anon_pattern = PathPattern_New(anon_name, alt, ctx->required_matrix_dim);
+			PathPattern *anon_pattern = PathPattern_New(anon_name, alt, ctx->required_matrix_dim, false);
 			PathPatternCtx_AddPathPattern(ctx, anon_pattern);
 
 			return EBNFReference_New(anon_name);

@@ -19,7 +19,7 @@ void PathPatternCtx_AddPathPattern(PathPatternCtx *ctx, PathPattern *pattern);
 
 const char *PathPatternCtx_GetNextAnonName(PathPatternCtx *ctx);
 
-PathPattern* PathPatternCtx_GetPathPattern(PathPatternCtx *ctx, const char* name);
+PathPattern* PathPatternCtx_GetPathPattern(PathPatternCtx *ctx, AlgExpReference name);
 
 /* Find all path pattern, that is reached from expr (may be recursively)*/
 PathPattern** PathPatternCtx_GetDependencies(PathPatternCtx *ctx, AlgebraicExpression *expr);
