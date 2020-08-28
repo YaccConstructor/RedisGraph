@@ -93,9 +93,9 @@ TEST_F(TraversalOrderingTest, TransposeFree) {
 	QueryGraph_ConnectNodes(qg, C, D, CD);
 
 	AlgebraicExpression *set[3];
-	AlgebraicExpression *ExpAB = AlgebraicExpression_NewOperand(GrB_NULL, false, "A", "B", NULL, NULL, NULL);
-	AlgebraicExpression *ExpBC = AlgebraicExpression_NewOperand(GrB_NULL, false, "B", "C", NULL, NULL, NULL);
-	AlgebraicExpression *ExpCD = AlgebraicExpression_NewOperand(GrB_NULL, false, "C", "D", NULL, NULL, NULL);
+	AlgebraicExpression *ExpAB = AlgebraicExpression_NewOperand(GrB_NULL, false, "A", "B", NULL, NULL, AlgExpReference_NewEmpty());
+	AlgebraicExpression *ExpBC = AlgebraicExpression_NewOperand(GrB_NULL, false, "B", "C", NULL, NULL, AlgExpReference_NewEmpty());
+	AlgebraicExpression *ExpCD = AlgebraicExpression_NewOperand(GrB_NULL, false, "C", "D", NULL, NULL, AlgExpReference_NewEmpty());
 
 	// { [CD], [BC], [AB] }
 	set[0] = ExpCD;
@@ -197,9 +197,9 @@ TEST_F(TraversalOrderingTest, FilterFirst) {
 	QueryGraph_ConnectNodes(qg, C, D, CD);
 
 	AlgebraicExpression *set[3];
-	AlgebraicExpression *ExpAB = AlgebraicExpression_NewOperand(GrB_NULL, false, "A", "B", NULL, NULL, NULL);
-	AlgebraicExpression *ExpBC = AlgebraicExpression_NewOperand(GrB_NULL, false, "B", "C", NULL, NULL, NULL);
-	AlgebraicExpression *ExpCD = AlgebraicExpression_NewOperand(GrB_NULL, false, "C", "D", NULL, NULL, NULL);
+	AlgebraicExpression *ExpAB = AlgebraicExpression_NewOperand(GrB_NULL, false, "A", "B", NULL, NULL, AlgExpReference_NewEmpty());
+	AlgebraicExpression *ExpBC = AlgebraicExpression_NewOperand(GrB_NULL, false, "B", "C", NULL, NULL, AlgExpReference_NewEmpty());
+	AlgebraicExpression *ExpCD = AlgebraicExpression_NewOperand(GrB_NULL, false, "C", "D", NULL, NULL, AlgExpReference_NewEmpty());
 
 	// { [AB], [BC], [CD] }
 	set[0] = ExpAB;

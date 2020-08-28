@@ -324,7 +324,7 @@ TEST_F(AlgebraicExpressionTest, AlgebraicExpression_New) {
 	const char *label = "label";
 
 	AlgebraicExpression *operand = AlgebraicExpression_NewOperand(matrix, diagonal, src, dest, edge,
-																  label, NULL);
+																  label, AlgExpReference_NewEmpty());
 	ASSERT_EQ(operand->type, AL_OPERAND);
 	ASSERT_EQ(operand->operand.matrix, matrix);
 	ASSERT_EQ(operand->operand.diagonal, diagonal);
@@ -871,7 +871,7 @@ TEST_F(AlgebraicExpressionTest, ExpTransform_AB_Times_C_Plus_D) {
 	GrB_Matrix_new(&D, GrB_BOOL, 2, 2);
 
 	// A*B*(C+D) -> A*B*C + A*B*D
-	AlgebraicExpression *exp = AlgebraicExpression_NewOperand(C, false, NULL, NULL, NULL, NULL, NULL);
+	AlgebraicExpression *exp = AlgebraicExpression_NewOperand(C, false, NULL, NULL, NULL, NULL, AlgExpReference_NewEmpty());
 
 	// A*B*(C+D)
 	AlgebraicExpression_AddToTheRight(&exp, D);
