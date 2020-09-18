@@ -55,6 +55,7 @@ static AlgebraicExpression *_AlgebraicExpression_CloneOperand
 ) {
 	AlgebraicExpression *clone = rm_malloc(sizeof(AlgebraicExpression));
 	memcpy(clone, exp, sizeof(AlgebraicExpression));
+	clone->operand.reference = AlgExpReference_Clone(&exp->operand.reference);
 	return clone;
 }
 
@@ -109,19 +110,12 @@ bool AlgebraicExpression_OperandIsReference(const AlgebraicExpression *root) {
 }
 
 AlgExpReference AlgExpReference_New(const char *name, bool transposed) {
-	size_t name_size = strlen(name);
-
-	AlgExpReference ref;
-	ref.name = rm_malloc(sizeof(char) * name_size);
-	strcpy(ref.name, name);
-	ref.transposed = transposed;
+	AlgExpReference ref = {.name = name, transposed = transposed};
 	return ref;
 }
 
-void AlgExpReference_Free(AlgExpReference *ref) {
-	if (ref->name) {
-		rm_free(ref->name);
-	}
+AlgExpReference AlgExpReference_Clone(const AlgExpReference *ref) {
+	return AlgExpReference_New(ref->name, ref->transposed);
 }
 
 // Clone algebraic expression node.

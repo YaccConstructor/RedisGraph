@@ -239,7 +239,7 @@ AlgebraicExpression *_AlgebraicExpression_OperandFromEbnf(const EBNFBase *root, 
 		}
 		case EBNF_REF: {
 			EBNFReference *ref = (EBNFReference *) root;
-			AlgExpReference algexp_ref = {.name = ref->name, .transposed = false};
+			AlgExpReference algexp_ref = AlgExpReference_New(ref->name, false);
 			alg_exp = AlgebraicExpression_NewOperand(NULL, false, src, dest, path_alias, NULL, algexp_ref);
 			break;
 		}
