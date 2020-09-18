@@ -54,7 +54,7 @@ typedef struct {
 
 typedef struct {
     EBNFBase base;
-    const char *name;
+    char *name;
 } EBNFReference;
 
 void EBNFBase_Init(EBNFBase *base, fpEBNFCopy fp, EBNFBase_Type type);

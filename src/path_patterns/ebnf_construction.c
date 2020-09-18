@@ -1,4 +1,5 @@
 #include "ebnf_construction.h"
+#include "../util/rmalloc.h"
 
 EBNFBase *_BuildEBNFBase(const cypher_astnode_t *node, PathPatternCtx *ctx) {
     if (cypher_astnode_instanceof(node, CYPHER_AST_PATH_PATTERN_EXPRESSION)) {
@@ -32,7 +33,7 @@ EBNFBase *_BuildEBNFBase(const cypher_astnode_t *node, PathPatternCtx *ctx) {
 			const cypher_astnode_t *end = cypher_ast_range_get_end(range);
 			assert(start == NULL && end == NULL);
 
-			const char *anon_name = PathPatternCtx_GetNextAnonName(ctx);
+			char *anon_name = PathPatternCtx_GetNextAnonName(ctx);
 
 			EBNFBase *seq = EBNFSequence_New();
 			EBNFBase_AddChild(seq, group);
@@ -45,7 +46,10 @@ EBNFBase *_BuildEBNFBase(const cypher_astnode_t *node, PathPatternCtx *ctx) {
 			PathPattern *anon_pattern = PathPattern_New(anon_name, alt, ctx->required_matrix_dim, false);
 			PathPatternCtx_AddPathPattern(ctx, anon_pattern);
 
-			return EBNFReference_New(anon_name);
+			EBNFBase *ref = EBNFReference_New(anon_name);
+
+			rm_free(anon_name);
+			return ref;
 		} else {
 			return group;
 		}

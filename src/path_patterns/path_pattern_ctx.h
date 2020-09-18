@@ -17,7 +17,7 @@ void PathPatternCtx_Free(PathPatternCtx *pathPatternCtx);
 
 void PathPatternCtx_AddPathPattern(PathPatternCtx *ctx, PathPattern *pattern);
 
-const char *PathPatternCtx_GetNextAnonName(PathPatternCtx *ctx);
+char *PathPatternCtx_GetNextAnonName(PathPatternCtx *ctx);
 
 PathPattern* PathPatternCtx_GetPathPattern(PathPatternCtx *ctx, AlgExpReference name);
 

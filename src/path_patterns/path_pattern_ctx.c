@@ -42,7 +42,7 @@ void PathPatternCtx_AddPathPattern(PathPatternCtx *ctx, PathPattern *pattern) {
     ctx->patterns = array_append(ctx->patterns, pattern);
 }
 
-const char *PathPatternCtx_GetNextAnonName(PathPatternCtx *ctx) {
+char *PathPatternCtx_GetNextAnonName(PathPatternCtx *ctx) {
 	char *name = rm_malloc(10 * sizeof(char));
 	sprintf(name, "anon_%d", ctx->anon_patterns_cnt++);
 	return name;

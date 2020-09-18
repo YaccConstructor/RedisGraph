@@ -109,10 +109,19 @@ bool AlgebraicExpression_OperandIsReference(const AlgebraicExpression *root) {
 }
 
 AlgExpReference AlgExpReference_New(const char *name, bool transposed) {
+	size_t name_size = strlen(name);
+
 	AlgExpReference ref;
-	ref.name = name;
+	ref.name = rm_malloc(sizeof(char) * name_size);
+	strcpy(ref.name, name);
 	ref.transposed = transposed;
 	return ref;
+}
+
+void AlgExpReference_Free(AlgExpReference *ref) {
+	if (ref->name) {
+		rm_free(ref->name);
+	}
 }
 
 // Clone algebraic expression node.

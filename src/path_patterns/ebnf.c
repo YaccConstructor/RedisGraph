@@ -15,6 +15,13 @@ void EBNFBase_Free(EBNFBase *node) {
         EBNFBase_Free(node->children[i]);
     }
     array_free(node->children);
+
+    if (node->type == EBNF_REF) {
+    	EBNFReference *ref = (EBNFReference *) node;
+    	if (ref->name) {
+    		rm_free(ref->name);
+    	}
+    }
     rm_free(node);
 }
 
@@ -73,7 +80,10 @@ EBNFBase *EBNFNode_New(const char *label) {
 EBNFBase *EBNFReference_New(const char *name) {
     EBNFReference *ref = rm_malloc(sizeof(EBNFReference));
     EBNFBase_Init(&ref->base, EBNFReference_Copy, EBNF_REF);
-    ref->name = name;
+
+	size_t name_size = strlen(name);
+    ref->name = rm_malloc(sizeof(char) * name_size);
+    strcpy(ref->name, name);
     return (EBNFBase *) ref;
 }
 

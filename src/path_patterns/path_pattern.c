@@ -46,13 +46,14 @@ void PathPattern_Free(PathPattern *pattern) {
     	GrB_Matrix_free(&pattern->src);
     	pattern->src = GrB_NULL;
     }
+    AlgExpReference_Free(&pattern->reference);
     rm_free(pattern);
 }
 
 PathPattern *PathPattern_Clone(PathPattern *other) {
 	PathPattern *clone = rm_malloc(sizeof(PathPattern));
 
-	clone->reference = other->reference;
+	clone->reference = AlgExpReference_New(other->reference.name, other->reference.transposed);
 	clone->ebnf_root = EBNFBase_Clone(other->ebnf_root);
 
 	GrB_Matrix_dup(&clone->m, other->m);
