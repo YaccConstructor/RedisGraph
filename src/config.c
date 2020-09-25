@@ -16,9 +16,11 @@
 #define OMP_THREAD_COUNT "OMP_THREAD_COUNT" // Config param, max number of OpenMP threads
 #define VKEY_MAX_ENTITY_COUNT "VKEY_MAX_ENTITY_COUNT" // Config param, max number of entities in each virtual key
 #define MAINTAIN_TRANSPOSED_MATRICES "MAINTAIN_TRANSPOSED_MATRICES" // Whether the module should maintain transposed relationship matrices
+#define CFPQ_TRAVERSE_BUF_SIZE "CFPQ_TRAVERSE_BUF_SIZE"
 
 #define CACHE_SIZE_DEFAULT 25
 #define VKEY_MAX_ENTITY_COUNT_DEFAULT 100000
+#define CFPQ_TRAVERSE_BUF_SIZE_DEFAULT 1000
 
 extern RG_Config config; // Global module configuration.
 
@@ -70,6 +72,25 @@ static int _Config_SetOMPThreadCount(RedisModuleCtx *ctx, RedisModuleString *cou
 
 	// Set the OpenMP thread count in the configuration.
 	config.omp_thread_count = omp_thread_count;
+
+	return REDISMODULE_OK;
+}
+
+//
+//
+static int _Config_SetCfpqTraverseBufSize(RedisModuleCtx *ctx, RedisModuleString *count_str) {
+	long long cfpq_traverse_buf_size;
+	long long res = _Config_ParsePositiveInteger(count_str, &cfpq_traverse_buf_size);
+	// Exit with error if integer parsing fails or OpenMP thread count is outside of the valid range 1-INT_MAX.
+	if(res != REDISMODULE_OK || cfpq_traverse_buf_size > INT_MAX) {
+		const char *invalid_arg = RedisModule_StringPtrLen(count_str, NULL);
+		RedisModule_Log(ctx, "warning", "Specified invalid maximum '%s' buffer size for cfpq traverse operation",
+						invalid_arg);
+		return REDISMODULE_ERR;
+	}
+
+	// Set the OpenMP thread count in the configuration.
+	config.cfpq_traverse_buf_size = cfpq_traverse_buf_size;
 
 	return REDISMODULE_OK;
 }
@@ -167,6 +188,7 @@ static void _Config_SetToDefaults(RedisModuleCtx *ctx) {
 	// Always build transposed matrices by default.
 	config.maintain_transposed_matrices = true;
 	config.cache_size = CACHE_SIZE_DEFAULT;
+	config.cfpq_traverse_buf_size = CFPQ_TRAVERSE_BUF_SIZE_DEFAULT;
 }
 
 int Config_Init(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -200,6 +222,8 @@ int Config_Init(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 			res = _Config_BuildTransposedMatrices(ctx, val);
 		} else if(!(strcasecmp(param, CACHE_SIZE))) {
 			res = _Config_SetCacheSize(ctx, val);
+		} else if(!(strcasecmp(param, CFPQ_TRAVERSE_BUF_SIZE))) {
+			res = _Config_SetCfpqTraverseBufSize(ctx, val);
 		} else {
 			RedisModule_Log(ctx, "warning", "Encountered unknown module argument '%s'", param);
 			return REDISMODULE_ERR;
@@ -234,4 +258,8 @@ uint64_t Config_GetCacheSize() {
 
 bool Config_GetAsyncDelete(void) {
 	return config.async_delete;
+}
+
+uint64_t Config_GetCfpqTraverseBufSize(void) {
+	return config.cfpq_traverse_buf_size;
 }

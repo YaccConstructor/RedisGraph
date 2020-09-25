@@ -17,6 +17,7 @@ typedef struct {
 	int omp_thread_count;              // Maximum number of OpenMP threads.
 	uint64_t vkey_entity_count;        // The limit of number of entities encoded at once for each RDB key.
 	bool maintain_transposed_matrices; // If true, maintain a transposed version of each relationship matrix.
+	uint64_t cfpq_traverse_buf_size;
 } RG_Config;
 
 // Set module-level configurations to defaults or to user arguments where provided.
@@ -40,3 +41,6 @@ uint64_t Config_GetCacheSize(void);
 
 // Return true if graph deletion is done asynchronously.
 bool Config_GetAsyncDelete(void);
+
+// Return true if graph deletion is done asynchronously.
+uint64_t Config_GetCfpqTraverseBufSize(void);

@@ -8,6 +8,7 @@
 #include "shared/print_functions.h"
 #include "../../query_ctx.h"
 #include "../../arithmetic/algebraic_expression/algebraic_expression_eval_dev.h"
+#include "../../config.h"
 //#define DPP
 
 /* Forward declarations. */
@@ -242,8 +243,7 @@ OpBase *NewCondTraverseDevOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpre
 
 static OpResult CondTraverseDevInit(OpBase *opBase) {
 	CondTraverseDev *op = (CondTraverseDev *)opBase;
-	AST *ast = ExecutionPlan_GetAST(opBase->plan);
-	op->recordsCap = TraverseRecordCap(ast);
+	op->recordsCap = Config_GetCfpqTraverseBufSize();
 	op->records = rm_calloc(op->recordsCap, sizeof(Record));
 	return OP_OK;
 }
