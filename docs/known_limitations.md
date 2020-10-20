@@ -69,3 +69,6 @@ $ redis-cli GRAPH.EXPLAIN social "MATCH (p:person) WHERE p.id < 5 RETURN p"
 3) "        Index Scan | (p:person)"
 ```
 
+## Path patterns limitations 
+
+Should be described here.
