@@ -1,6 +1,6 @@
 # Context-Free Path Querying (CFPQ)
 
-CFPQ is a way to use context-free grammars as paths constraints, by the same way as one can use regular expressions to specify sequences which can be formed by paths labels.
+CFPQ is a way to use context-free grammars as paths constraints by the same way as one can use regular expressions to specify sequences which can be formed by paths labels.
 
 One of the classical example of context-free query is a *same-generation query* which can be expressed in terms of context-free grammar as follows:
 ```
