@@ -1,7 +1,7 @@
 #include "path_pattern.h"
 #include "../util/rmalloc.h"
-#include "../util/arr.h"
-
+#include "../arithmetic/algebraic_expression.h"
+#include "../arithmetic/algebraic_expression/utils.h"
 
 PathPattern *PathPattern_New(const char *name, EBNFBase *ebnf, size_t reqiured_mdim, bool transpose) {
     PathPattern *pattern = rm_malloc(sizeof(PathPattern));

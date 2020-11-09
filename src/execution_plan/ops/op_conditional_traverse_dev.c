@@ -5,10 +5,10 @@
 */
 
 #include "op_conditional_traverse_dev.h"
-#include "shared/print_functions.h"
 #include "../../query_ctx.h"
-#include "../../arithmetic/algebraic_expression/algebraic_expression_eval_dev.h"
 #include "../../config.h"
+#include "../../arithmetic/algebraic_expression/utils.h"
+
 //#define DPP
 
 /* Forward declarations. */
@@ -71,7 +71,7 @@ static void _transitive_closure(PathPattern **deps, PathPatternCtx *pathPatternC
 
 		for (int i = 0; i < array_len(deps); ++i) {
 			PathPattern *pattern = deps[i];
-			AlgebraicExpression_Eval_Dev(pattern->ae, tmps[i], pathPatternCtx);
+			AlgebraicExpression_Eval(pattern->ae, tmps[i], pathPatternCtx);
 			GrB_eWiseAdd_Matrix_BinaryOp(pattern->m, NULL, NULL, GrB_LOR, pattern->m, tmps[i], NULL);
 		}
 
@@ -171,7 +171,7 @@ void _traverse_dev(CondTraverseDev *op) {
 	PathPatternCtx_ClearMatrices(op->pathPatternCtx);
 
 	// Evaluate expression for construct sources
-	AlgebraicExpression_Eval_Dev(op->ae, op->M, op->pathPatternCtx);
+	AlgebraicExpression_Eval(op->ae, op->M, op->pathPatternCtx);
 
 #ifdef DPP
 	printf("Result M before trans:\n");
@@ -182,7 +182,7 @@ void _traverse_dev(CondTraverseDev *op) {
 	_transitive_closure(op->deps, op->pathPatternCtx, op);
 
 	// Evaluate expression.
-	AlgebraicExpression_Eval_Dev(op->ae, op->M, op->pathPatternCtx);
+	AlgebraicExpression_Eval(op->ae, op->M, op->pathPatternCtx);
 
 #ifdef DPP
 	printf("Result M after trans:\n");

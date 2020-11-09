@@ -1,7 +1,7 @@
 #include "path_pattern_ctx_construction.h"
 #include "ebnf_construction.h"
 #include "../util/arr.h"
-#include "../arithmetic/algebraic_expression/algebraic_expression_eval_dev.h"
+#include "../arithmetic/algebraic_expression/utils.h"
 
 PathPatternCtx *PathPatternCtx_Build(AST *ast, size_t required_dim) {
 	PathPatternCtx *pathPatternCtx = PathPatternCtx_New(required_dim);

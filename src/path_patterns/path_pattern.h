@@ -1,7 +1,8 @@
 #pragma once
 
 #include "ebnf.h"
-#include "../arithmetic/algebraic_expression.h"
+#include "../arithmetic/algebraic_expression/algebraic_expression_structs.h"
+
 
 typedef struct {
     AlgExpReference reference;

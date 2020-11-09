@@ -289,3 +289,59 @@ void _AlgebraicExpression_PopulateOperands(AlgebraicExpression *root, const Grap
 	}
 }
 
+void AlgebraicExpression_PopulateReferences(AlgebraicExpression *exp, PathPatternCtx *pathPatternCtx) {
+	switch(exp->type) {
+		case AL_OPERATION: {
+			uint child_count = AlgebraicExpression_ChildCount(exp);
+			for (uint i = 0; i < child_count; i++) {
+				AlgebraicExpression_PopulateReferences(exp->operation.children[i], pathPatternCtx);
+			}
+			break;
+		}
+		case AL_OPERAND: {
+			if (AlgebraicExpression_OperandIsReference(exp)) {
+				PathPattern *pathPattern = PathPatternCtx_GetPathPattern(pathPatternCtx, exp->operand.reference);
+				exp->operand.matrix = pathPattern->m;
+			}
+			break;
+		}
+		default:
+			assert("Unknow algebraic expression node type" && false);
+			break;
+	}
+}
+
+void AlgebraicExpression_ReplaceTransposedReferences(AlgebraicExpression *ae) {
+	if (ae->type == AL_OPERATION) {
+		for (int i = 0; i < array_len(ae->operation.children); ++i) {
+			AlgebraicExpression *child = ae->operation.children[i];
+			if (child->type == AL_OPERATION) {
+				if (child->operation.op == AL_EXP_TRANSPOSE) {
+					AlgebraicExpression *grand_child = child->operation.children[0];
+					assert(grand_child->type == AL_OPERAND && "Transpose op must have operand child");
+
+					if (AlgebraicExpression_OperandIsReference(grand_child)) {
+						assert(grand_child->operand.matrix == NULL);
+
+						const char *src = grand_child->operand.dest;
+						const char *dest = grand_child->operand.src;
+						const char *label = grand_child->operand.label;
+						const char *edge = grand_child->operand.edge;
+
+						// Free transpose subtree
+						AlgebraicExpression_Free(child);
+
+						// Replace it by new reference
+						AlgExpReference algexp_ref = grand_child->operand.reference;
+						algexp_ref.transposed = true;
+						ae->operation.children[i] = AlgebraicExpression_NewOperand(
+								NULL, false, dest, src, edge, label, algexp_ref);
+					}
+				} else {
+					AlgebraicExpression_ReplaceTransposedReferences(ae->operation.children[i]);
+				}
+			}
+		}
+
+	}
+}

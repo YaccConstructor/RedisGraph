@@ -609,7 +609,7 @@ TEST_F(AlgebraicExpressionTest, Exp_OP_ADD) {
 	// Matrix used for intermidate computations of AlgebraicExpression_Eval
 	// but also contains the result of expression evaluation.
 	GrB_Matrix_new(&res, GrB_BOOL, 2, 2);
-	AlgebraicExpression_Eval(exp, res);
+	AlgebraicExpression_Eval(exp, res, NULL);
 
 	// Using the A matrix described above,
 	// A + B = C.
@@ -651,7 +651,7 @@ TEST_F(AlgebraicExpressionTest, Exp_OP_MUL) {
 	// Matrix used for intermidate computations of AlgebraicExpression_Eval
 	// but also contains the result of expression evaluation.
 	GrB_Matrix_new(&res, GrB_BOOL, 2, 2);
-	AlgebraicExpression_Eval(exp, res);
+	AlgebraicExpression_Eval(exp, res, NULL);
 
 	// Using the A matrix described above,
 	// A * I = A.
@@ -701,7 +701,7 @@ TEST_F(AlgebraicExpressionTest, Exp_OP_ADD_Transpose) {
 	// but also contains the result of expression evaluation.
 	GrB_Matrix_new(&res, GrB_BOOL, 4, 4);
 	AlgebraicExpression *exp = AlgebraicExpression_FromString("V+tV", _matrices);
-	AlgebraicExpression_Eval(exp, res);
+	AlgebraicExpression_Eval(exp, res, NULL);
 
 	// Using the A matrix described above,
 	// A + Transpose(A) = B.
@@ -751,7 +751,7 @@ TEST_F(AlgebraicExpressionTest, Exp_OP_MUL_Transpose) {
 
 	// Transpose(A) * A
 	AlgebraicExpression *exp = AlgebraicExpression_FromString("V*tV", _matrices);
-	AlgebraicExpression_Eval(exp, res);
+	AlgebraicExpression_Eval(exp, res, NULL);
 
 	// Using the A matrix described above,
 	// Transpose(A) * A = B.
@@ -798,7 +798,7 @@ TEST_F(AlgebraicExpressionTest, Exp_OP_A_MUL_B_Plus_C) {
 	raxInsert(matrices, (unsigned char *)"B", strlen("B"), B, NULL);
 	raxInsert(matrices, (unsigned char *)"C", strlen("C"), C, NULL);
 	AlgebraicExpression *exp = AlgebraicExpression_FromString("A*(B+C)", matrices);
-	AlgebraicExpression_Eval(exp, res);
+	AlgebraicExpression_Eval(exp, res, NULL);
 
 	ASSERT_TRUE(_compare_matrices(res, A));
 
@@ -1432,7 +1432,7 @@ TEST_F(AlgebraicExpressionTest, ExpressionExecute) {
 
 	GrB_Matrix res;
 	GrB_Matrix_new(&res, GrB_BOOL, Graph_RequiredMatrixDim(g), Graph_RequiredMatrixDim(g));
-	AlgebraicExpression_Eval(exp, res);
+	AlgebraicExpression_Eval(exp, res, NULL);
 
 	// Validate result matrix.
 	GrB_Index ncols, nrows;
