@@ -379,8 +379,112 @@ static AST_Validation _ValidateRelation(rax *projections, const cypher_astnode_t
 	return res;
 }
 
+static AST_Validation _ValidatePathPatternBase(const cypher_astnode_t *path_base) {
+    AST_Validation res = AST_VALID;
+    const cypher_astnode_t *range = cypher_ast_path_pattern_base_get_varlength(path_base);
+
+    if (range) {
+        // Only closure with no parameters is currently supported
+        if (cypher_astnode_instanceof(range, CYPHER_AST_RANGE)) {
+            const cypher_astnode_t *range_start = cypher_ast_range_get_start(range);
+            const cypher_astnode_t *range_end = cypher_ast_range_get_end(range);
+            if(range_start || range_end) {
+                QueryCtx_SetError("Can only use '*' with no borders.");
+				res = AST_INVALID;
+            }
+        }
+        /* Update libcypher submodule, there should be these types
+        else if (cypher_astnode_instanceof(range, CYPHER_AST_RANGE_PLUS)) {
+
+            QueryCtx_SetError("'+' is not supported.");
+            res = AST_INVALID;
+        }
+        
+        else if (cypher_astnode_instanceof(range, CYPHER_AST_RANGE_OPTIONAL)) {
+            QueryCtx_SetError("'?' is not supported.");
+            res = AST_INVALID;
+        }*/
+        else {
+            QueryCtx_SetError("'+' and '?' are not supported.");
+            res = AST_INVALID;
+        }
+    }
+
+    if (res != AST_VALID) return res;
+
+    const cypher_astnode_t *child = cypher_ast_path_pattern_base_get_child(path_base);
+
+    if(cypher_astnode_instanceof(child, CYPHER_AST_PATH_PATTERN_ANY)) {
+        QueryCtx_SetError("Path_pattern_any is not supported.");
+        res = AST_INVALID;
+    }
+    else if(cypher_astnode_instanceof(child, CYPHER_AST_NODE_PATTERN)) {
+        const cypher_astnode_t *props = cypher_ast_node_pattern_get_properties(child);
+        if(props) {
+            QueryCtx_SetError("Node properties are not supported within path patterns.");
+            res = AST_INVALID;
+        }
+
+        uint nlabels = cypher_ast_node_pattern_nlabels(child);
+        if(nlabels >= 2) {
+            QueryCtx_SetError("Only node patterns with 0 or 1 labels are supported within path patterns. %d labels.", nlabels);
+            res = AST_INVALID;
+        }
+    }
+    else if(cypher_astnode_instanceof(child, CYPHER_AST_PATH_PATTERN_EXPRESSION)) {
+        const cypher_astnode_t *groupProps = cypher_ast_path_pattern_get_properties(child);
+        if(groupProps) {
+            QueryCtx_SetError("Path pattern expression properties are not supported.");
+            res = AST_INVALID;
+        }
+    }
+
+    if (res != AST_VALID) return res;
+
+    return AST_VALID;
+}
+
+static AST_Validation _ValidatePathPatternAlternative(const cypher_astnode_t *path_alternative) {
+    AST_Validation res = AST_VALID;
+
+    uint path_alt_base_len = cypher_ast_path_pattern_alternative_get_nelements(path_alternative);
+
+    for(uint i = 0; i < path_alt_base_len; ++i) {
+        const cypher_astnode_t *base = cypher_ast_path_pattern_alternative_get_element(path_alternative, i);
+
+        res = _ValidatePathPatternBase(base);
+
+        if (res != AST_VALID) return res;
+    }
+
+    return AST_VALID;
+}
+
+static AST_Validation _ValidatePathPatternExpression(const cypher_astnode_t *path_expression) {
+    AST_Validation res = AST_VALID;
+
+    uint path_expr_alts_len = cypher_ast_path_pattern_expression_get_nelements(path_expression);
+
+    for(uint i = 0; i < path_expr_alts_len; ++i) {
+        const cypher_astnode_t *alt = cypher_ast_path_pattern_expression_get_element(path_expression, i);
+
+        res = _ValidatePathPatternAlternative(alt);
+
+        if (res != AST_VALID) return res;
+    }
+
+    return AST_VALID;
+}
+
 static AST_Validation _ValidatePathPattern(const cypher_astnode_t *path_pattern) {
     // TODO: (simpleton) validate path patterns
+    AST_Validation res = AST_VALID;
+
+    const cypher_astnode_t *expression = cypher_ast_path_pattern_get_expression(path_pattern);
+    res = _ValidatePathPatternExpression(expression);
+
+    if (res != AST_VALID) return res;
+
     return AST_VALID;
 }
 
