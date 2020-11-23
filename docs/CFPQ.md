@@ -13,7 +13,7 @@ Let, for example, consider the following database which represents inner structu
 
 ![Company hierarchy](/docs/images/cfpq_example.dot.svg "The hierarchy of the company")
 
-Suppose one want to find all employers who have the same position in the company, but have different salaries. To do it one can use the following Cypher query.
+Suppose one wants to find all employers who have the same position in the company but have different salaries. To do it one can use the following Cypher query.
 
 ```
 PATH PATTERN OnSamePosition  = ()-/ :boss> [~OnSamePosition | ()] <:boss /-()
@@ -22,8 +22,19 @@ WHERE a.salary <> b.salary
 RETURN a, b
 ```
 
-CFPQ can be use in different areas for graph-structured data analysis. Some examples of CFQP applications are listed below.
-- Static code analysis
+Here named path pattern ```OnSamePosition``` is used to specify connection between vertices are on the same level of hierarchy over ```boss``` relation, and it is a context-free pattern.
+
+To find who is in a position lower than Tim and has a salary higher than Tim one can use the following query.
+
+```
+PATH PATTERN OnSamePosition  = ()-/ :boss> [~OnSamePosition | ()] <:boss /-()
+MATCH (a:{name: 'Tim'})-/ ~OnSamePosition /-> () <-[boss*1..]- (b)
+WHERE a.salary < b.salary
+RETURN b
+```
+
+To summarize, CFPQ can be use in different areas for graph-structured data analysis. Some examples of CFQP applications are listed below.
+- Static code analysis. Thus, one can use graph database as a backend for static code analysis systems.
   - Taint analysis: [Scalable and Precise Taint Analysis for Android](http://huangw5.github.io/docs/issta15.pdf) 
   - Points-to analysis/alias analysis:
      - [An Incremental Points-to Analysis with CFL-Reachability](https://www.researchgate.net/publication/262173734_An_Incremental_Points-to_Analysis_with_CFL-Reachability)
@@ -31,5 +42,3 @@ CFPQ can be use in different areas for graph-structured data analysis. Some exam
   - Binding time analysis: [BTA Termination Using CFL-Reachability](https://www.researchgate.net/publication/2467654_BTA_Termination_Using_CFL-Reachability)
 - Graph segmentation: [Understanding Data Science Lifecycle Provenance via Graph Segmentation and Summarization](https://ieeexplore.ieee.org/abstract/document/8731467)
 - Biological data analysis: [Subgraph queries by context-free grammars](https://www.researchgate.net/publication/321662505_Subgraph_Queries_by_Context-free_Grammars)
-
-

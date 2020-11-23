@@ -1,19 +1,19 @@
 digraph cfpqExample
 {
 node [shape=record]
-director [label="{Role: director |{ Salary: $10, 000}}"];
-manager1 [label="{Role: manager |{ Salary: $4, 150}}"];
-manager2 [label="{Role: manager |{ Salary: $4, 450}}"];
+director [label="{Role: director | { Salary: $10, 000 } | { Name: Bill}}"];
+manager1 [label="{Role: manager | { Salary: $4, 150} | { Name: Jill}}"];
+manager2 [label="{Role: manager | { Salary: $4, 450} | { Name: Ann}}"];
 
-operator1 [label="{Role: operator |{ Salary: $2, 100}}"];
-operator2 [label="{Role: operator |{ Salary: $2, 100}}"];
-operator3 [label="{Role: operator |{ Salary: $2, 100}}"];
+operator1 [label="{Role: operator | { Salary: $2, 100} | { Name: Tim} }"];
+operator2 [label="{Role: operator | { Salary: $2, 100} | { Name: Roy}}"];
+operator3 [label="{Role: operator | { Salary: $2, 100} | { Name: Helen}}"];
 
-operator4 [label="{Role: operator |{ Salary: $2, 000}}"];
-operator5 [label="{Role: operator |{ Salary: $2, 150}}"];
+operator4 [label="{Role: operator | { Salary: $2, 000} | { Name: Evelyn}}"];
+operator5 [label="{Role: operator | { Salary: $2, 150} | { Name: Pol}}"];
 
-trainee1 [label="{Role: trainee |{ Salary: $1, 150}}"];
-trainee2 [label="{Role: trainee |{ Salary: $1, 000}}"];
+trainee1 [label="{Role: trainee | { Salary: $1, 150} | { Name: James}}"];
+trainee2 [label="{Role: trainee | { Salary: $1, 000} | { Name: Ella}}"];
 
 
 manager1 -> director [label="boss"]
