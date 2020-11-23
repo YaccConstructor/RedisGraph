@@ -11,7 +11,7 @@ Thus, CFPQ allows one to explore hierarchical patterns in graph-structured data.
 
 Let, for example, consider the following database which represents inner structure of some company.
 
-![Company hierarchy](/images/cfpq_example.dot.svg "The hierarchy of the company")
+![Company hierarchy](/docs/images/cfpq_example.dot.svg "The hierarchy of the company")
 
 Suppose one want to find all employers who have the same position in the company, but have different salaries. To do it one can use the following Cypher query.
 
