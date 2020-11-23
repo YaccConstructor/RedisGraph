@@ -9,6 +9,19 @@ s -> X X_R | X s X_R
 where ```X``` is a some relation and ```X_R``` is a reversed relation. 
 Thus, CFPQ allows one to explore hierarchical patterns in graph-structured data.
 
+Let, for example, consider the following database which represents inner structure of some company.
+
+![Company hierarchy](../images/cfpq_example.fot.svg "The hierarchy of the company")
+
+Suppose one want to find all employers who have the same position in the company, but have different salaries. To do it one can use the following Cypher query.
+
+```
+PATH PATTERN OnSamePosition  = ()-/ :boss> [~OnSamePosition | ()] <:boss /-()
+MATCH (a)-/ ~OnSamePosition /->(b)
+WHERE a.salary <> b.salary
+RETURN a, b
+```
+
 CFPQ can be use in different areas for graph-structured data analysis. Some examples of CFQP applications are listed below.
 - Static code analysis
   - Taint analysis: [Scalable and Precise Taint Analysis for Android](http://huangw5.github.io/docs/issta15.pdf) 

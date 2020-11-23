@@ -1,0 +1,31 @@
+digraph cfpqExample
+{
+node [shape=record]
+director [label="{Role: director |{ Salary: $10, 000}}"];
+manager1 [label="{Role: manager |{ Salary: $4, 150}}"];
+manager2 [label="{Role: manager |{ Salary: $4, 450}}"];
+
+operator1 [label="{Role: operator |{ Salary: $2, 100}}"];
+operator2 [label="{Role: operator |{ Salary: $2, 100}}"];
+operator3 [label="{Role: operator |{ Salary: $2, 100}}"];
+
+operator4 [label="{Role: operator |{ Salary: $2, 000}}"];
+operator5 [label="{Role: operator |{ Salary: $2, 150}}"];
+
+trainee1 [label="{Role: trainee |{ Salary: $1, 150}}"];
+trainee2 [label="{Role: trainee |{ Salary: $1, 000}}"];
+
+
+manager1 -> director [label="boss"]
+manager2 -> director [label="boss"]
+
+operator1 -> manager1[label="boss"]
+operator2 -> manager1[label="boss"]
+operator3 -> manager1[label="boss"]
+
+operator4 -> manager2[label="boss"]
+operator5 -> manager2[label="boss"]
+
+trainee1 -> operator4[label="boss"]
+trainee2 -> operator4[label="boss"]
+}
