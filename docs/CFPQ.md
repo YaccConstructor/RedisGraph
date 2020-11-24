@@ -16,7 +16,7 @@ Let, for example, consider the following database which represents inner structu
 Suppose one wants to find all employers who have the same position in the company but have different salaries. To do it one can use the following Cypher query.
 
 ```
-PATH PATTERN OnSamePosition  = ()-/ :boss> [~OnSamePosition | ()] <:boss /-()
+PATH PATTERN OnSamePosition  = ()-/ :boss> [~OnSamePosition | ()] <:boss /->()
 MATCH (a)-/ ~OnSamePosition /->(b)
 WHERE a.salary <> b.salary
 RETURN a, b
@@ -27,7 +27,7 @@ Here named path pattern ```OnSamePosition``` is used to specify connection betwe
 To find who is in a position lower than Tim and has a salary higher than Tim one can use the following query.
 
 ```
-PATH PATTERN OnSamePosition  = ()-/ :boss> [~OnSamePosition | ()] <:boss /-()
+PATH PATTERN OnSamePosition  = ()-/ :boss> [~OnSamePosition | ()] <:boss /->()
 MATCH (a:{name: 'Tim'})-/ ~OnSamePosition /-> () <-[boss*1..]- (b)
 WHERE a.salary < b.salary
 RETURN b
