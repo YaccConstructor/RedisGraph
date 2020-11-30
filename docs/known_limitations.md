@@ -71,4 +71,59 @@ $ redis-cli GRAPH.EXPLAIN social "MATCH (p:person) WHERE p.id < 5 RETURN p"
 
 ## Path patterns limitations 
 
-Should be described here.
+***NamedPathPredicate.***
+
+Named path patterns can consist of exactly one path pattern.
+
+Grammar:
+```
+NamedPathPredicate = 'PATH', 'PATTERN', NamedPathName, '=', NodePattern, {(EdgePattern | PathPattern), NodePattern}, [Where]
+```
+
+Supported: 
+```
+NamedPathPredicate = 'PATH', 'PATTERN', NamedPathName, '=', NodePattern, PathPattern, NodePattern
+```
+
+***PathRepetition.*** 
+
+Only ```*``` (zero or more repetition) is supported.
+
+Grammar: 
+```
+PathRepetition = PathDirection, [('*', [RangeDetail]) | '+' | '?']
+```
+Supported: 
+```
+PathRepetition = PathDirection ['*']
+```
+
+***PathAny.*** 
+
+???
+
+***PathNode.***
+
+Properties of nodes aren't supported.
+
+Grammar: 
+```
+PathNode = '(', [NodeLabels], [Properties], ')'
+```
+Supported: 
+```
+PathNode = '(', ':', LabelName, ')'
+```
+
+***PathGroup.***
+
+Restricted version of properties of several path patterns is supported.
+
+Grammar: 
+```
+PathGroup = '[', PathExpression, [Properties], ']'
+```
+Supported: 
+```
+PathGroup = '[', PathExpression, ']'
+```
