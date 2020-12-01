@@ -100,7 +100,7 @@ PathRepetition = PathDirection ['*']
 
 ***PathAny.*** 
 
-???
+Not supported.
 
 ***PathNode.***
 

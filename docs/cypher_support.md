@@ -11,15 +11,10 @@ Path patterns support is based on [this OpenCypher extension proposal](https://g
 Path patterns increase expressiveness of query language and allow one to express regular and context-free constraints on paths.
 
 Both, Regular Path Queries (RPQ) and Context-Free Path Querying (CFPQ) are supported.
-Here you can see a list of supported and unsupported Cypher features. Extended explanation of RPQ and more examples of queries you can find [here](RPQ.md). More information on CFPQ is available [here](CFPQ.md).
-
-+ Supported 1
-+ Supported 2
+More information on RPQ you can find [here](RPQ.md). More information on CFPQ is available [here](CFPQ.md).
 
 **Unsupported:**
-- !!!!
-
-More details on path patterns limitations see in [Known Limitations](known_limitations.md)
+- Only basic features of path patterns are supported. Detailed description of supported and unsupported features are provided [here](known_limitations.md).
 
 ## Types
 ### Structural types
