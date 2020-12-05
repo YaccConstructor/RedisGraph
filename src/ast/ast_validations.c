@@ -454,10 +454,10 @@ static AST_Validation _ValidatePathPatternAlternative(const cypher_astnode_t *pa
 
         res = _ValidatePathPatternBase(base);
 
-        if (res != AST_VALID) return res;
+        if (res != AST_VALID) break;
     }
 
-    return AST_VALID;
+    return res;
 }
 
 static AST_Validation _ValidatePathPatternExpression(const cypher_astnode_t *path_expression) {
@@ -470,10 +470,10 @@ static AST_Validation _ValidatePathPatternExpression(const cypher_astnode_t *pat
 
         res = _ValidatePathPatternAlternative(alt);
 
-        if (res != AST_VALID) return res;
+        if (res != AST_VALID) break;
     }
 
-    return AST_VALID;
+    return res;
 }
 
 static AST_Validation _ValidatePathPattern(const cypher_astnode_t *path_pattern) {
@@ -486,6 +486,56 @@ static AST_Validation _ValidatePathPattern(const cypher_astnode_t *path_pattern)
     if (res != AST_VALID) return res;
 
     return AST_VALID;
+}
+
+static AST_Validation _ValidatePathInNamedPathClause(const cypher_astnode_t *path) {
+	AST_Validation res = AST_VALID;
+	uint path_len = cypher_ast_pattern_path_nelements(path);
+
+    if (path_len != 3) {
+        QueryCtx_SetError("Patterns longer that 1 path pattern are not supported within named path predicates.");
+        return AST_INVALID;
+    }
+
+    const cypher_astnode_t *edge = cypher_ast_pattern_path_get_element(path, 1);
+    if (cypher_astnode_instanceof(edge, CYPHER_AST_REL_PATTERN)) {
+        QueryCtx_SetError("Relation patterns are not supported within named path predicates.");
+        res = AST_INVALID;
+    } else if (cypher_astnode_instanceof(edge, CYPHER_AST_PATH_PATTERN)){
+        res = _ValidatePathPattern(edge);
+    } else {
+        res = AST_INVALID;
+    }
+    if(res != AST_VALID) return res;
+
+	return res;
+}
+
+static AST_Validation _Validate_PATH_PATTERN_Clauses(const AST *ast) {
+    const cypher_astnode_t **named_path_clauses = AST_GetClauses(ast, CYPHER_AST_NAMED_PATH);
+    if(named_path_clauses == NULL) return AST_VALID;
+    AST_Validation res = AST_VALID;
+
+    uint named_path_count = array_len(named_path_clauses);
+
+    for(uint i = 0; i < named_path_count; ++i) {
+        if (_ValidatePathInNamedPathClause(named_path_clauses[i]) != AST_VALID) {
+            res = AST_INVALID;
+            goto cleanup;
+        }
+
+        const cypher_astnode_t *condition = cypher_ast_named_path_get_condition(named_path_clauses[i]);
+        if (condition) {
+            QueryCtx_SetError("Named path predicate conditions are not supported. Error in clause #%d", i);
+            res = AST_INVALID;
+            goto cleanup;
+        }
+
+    }
+
+cleanup:
+    array_free(named_path_clauses);
+    return res;
 }
 
 static AST_Validation _ValidatePath(const cypher_astnode_t *path, rax *projections,
@@ -1577,6 +1627,8 @@ static AST_Validation _ValidateClauses(const AST *ast) {
 	if(_Validate_SET_Clauses(ast) == AST_INVALID) return AST_INVALID;
 
 	if(_Validate_LIMIT_SKIP_Modifiers(ast) == AST_INVALID) return AST_INVALID;
+
+    if (_Validate_PATH_PATTERN_Clauses(ast) == AST_INVALID) return AST_INVALID;
 
 	if(_ValidateMaps(ast->root) == AST_INVALID) return AST_INVALID;
 
