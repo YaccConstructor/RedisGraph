@@ -12,6 +12,8 @@ void _InplaceRepurposeOperandToOperation
 	assert(operand && operand->type == AL_OPERAND);
 	AlgebraicExpression *operation = AlgebraicExpression_NewOperation(op);
 	// turn operand into an operation.
+
+	AlgExpReference_Free(operand->operand.reference);
 	memcpy(operand, operation, sizeof(AlgebraicExpression));
 
 	// Don't free op internals!
