@@ -304,6 +304,14 @@ void AlgebraicExpression_PopulateReferences(AlgebraicExpression *exp, PathPatter
 		case AL_OPERAND: {
 			if (AlgebraicExpression_OperandIsReference(exp)) {
 				PathPattern *pathPattern = PathPatternCtx_GetPathPattern(pathPatternCtx, exp->operand.reference);
+
+				if (pathPattern == NULL) {
+					fprintf(stderr, "Reference %s:%d is not found in path pattern context!",
+			 						exp->operand.reference.name,
+									exp->operand.reference.transposed);
+					assert(false);
+				}
+
 				exp->operand.matrix = pathPattern->m;
 			}
 			break;

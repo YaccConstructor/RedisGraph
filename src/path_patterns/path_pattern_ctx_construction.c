@@ -3,6 +3,23 @@
 #include "../util/arr.h"
 #include "../arithmetic/algebraic_expression/utils.h"
 
+// It builds path pattern and its transposed version and adds them into path pattern context.
+void PathPatternCtx_BuildAndAddPathPattern(
+		const char *name,
+		EBNFBase *root,
+		PathPatternCtx *ctx)
+{
+	PathPattern *path_pattern = PathPattern_New(name, root, ctx->required_matrix_dim, false);
+
+	EBNFBase *root_transposed = EBNFGroup_New(CYPHER_REL_INBOUND, EBNF_ONE);
+	EBNFBase_AddChild(root_transposed, EBNFBase_Clone(root));
+
+	PathPattern *path_pattern_transposed = PathPattern_New(name, root_transposed, ctx->required_matrix_dim, true);
+
+	PathPatternCtx_AddPathPattern(ctx, path_pattern);
+	PathPatternCtx_AddPathPattern(ctx, path_pattern_transposed);
+}
+
 PathPatternCtx *PathPatternCtx_Build(AST *ast, size_t required_dim) {
 	PathPatternCtx *pathPatternCtx = PathPatternCtx_New(required_dim);
 	// TODO: CYPHER_AST_NAMED_PATH -> CYPHER_AST_NAMED_PATH_PATTERN
@@ -18,22 +35,10 @@ PathPatternCtx *PathPatternCtx_Build(AST *ast, size_t required_dim) {
 			const char *name = cypher_ast_identifier_get_name(identifier);
 
 			EBNFBase *ebnf_root = EBNFBase_Build(path_pattern_node, pathPatternCtx);
-			PathPattern *path_pattern = PathPattern_New(name, ebnf_root, required_dim, false);
-
-			EBNFBase *ebnf_root_transposed = EBNFGroup_New(CYPHER_REL_INBOUND, EBNF_ONE);
-			EBNFBase_AddChild(ebnf_root_transposed, EBNFBase_Clone(ebnf_root));
-
-			PathPattern *path_pattern_transposed = PathPattern_New(name, ebnf_root_transposed, required_dim, true);
-
-			PathPatternCtx_AddPathPattern(pathPatternCtx, path_pattern);
-			PathPatternCtx_AddPathPattern(pathPatternCtx, path_pattern_transposed);
+			PathPatternCtx_BuildAndAddPathPattern(name, ebnf_root, pathPatternCtx);
 		}
 		array_free(named_path_clauses);
 	}
-	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
-		AlgebraicExpression_PopulateReferences(pathPatternCtx->patterns[i]->ae, pathPatternCtx);
-	}
-//
 //	printf("Build Path patterns:\n");
 //	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
 //		printf("%s:%d %s\n",
@@ -41,5 +46,12 @@ PathPatternCtx *PathPatternCtx_Build(AST *ast, size_t required_dim) {
 //		 pathPatternCtx->patterns[i]->reference.transposed,
 //		 AlgebraicExpression_ToStringDebug(pathPatternCtx->patterns[i]->ae));
 //	}
+//	fflush(stdout);
+
+	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
+		AlgebraicExpression_PopulateReferences(pathPatternCtx->patterns[i]->ae, pathPatternCtx);
+	}
+
+
 	return pathPatternCtx;
 }
