@@ -71,13 +71,17 @@ void PathPatternCtx_Free(PathPatternCtx *pathPatternCtx) {
 void PathPatternCtx_Show(PathPatternCtx *pathPatternCtx) {
 	printf("PathPatternCtx: [%d]\n", array_len(pathPatternCtx->patterns));
 	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
-		printf("PATH PATTERN %s, %s, %s\n", pathPatternCtx->patterns[i]->reference.name,
-				EBNFBase_ToStr(pathPatternCtx->patterns[i]->ebnf_root),
-				AlgebraicExpression_ToStringDebug(pathPatternCtx->patterns[i]->ae));
-		printf("Src: (%p)\n", pathPatternCtx->patterns[i]->src);
-		GxB_print(pathPatternCtx->patterns[i]->src, GxB_COMPLETE);
-		printf("M (%p):\n", pathPatternCtx->patterns[i]->m);
-		GxB_print(pathPatternCtx->patterns[i]->m, GxB_COMPLETE);
+		printf("PATH PATTERN %s:%d, AlgExp: %s, EBNF: %s\n",
+		 	pathPatternCtx->patterns[i]->reference.name,
+		 	pathPatternCtx->patterns[i]->reference.transposed,
+			AlgebraicExpression_ToStringDebug(pathPatternCtx->patterns[i]->ae),
+			EBNFBase_ToStr(pathPatternCtx->patterns[i]->ebnf_root));
+
+//		EBNFBase_ToStr(pathPatternCtx->patterns[i]->ebnf_root),
+// 		printf("Src: (%p)\n", pathPatternCtx->patterns[i]->src);
+//		GxB_print(pathPatternCtx->patterns[i]->src, GxB_COMPLETE);
+//		printf("M (%p):\n", pathPatternCtx->patterns[i]->m);
+//		GxB_print(pathPatternCtx->patterns[i]->m, GxB_COMPLETE);
 	}
 }
 

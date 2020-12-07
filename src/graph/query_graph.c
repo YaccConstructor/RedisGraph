@@ -96,7 +96,10 @@ static void _BuildQueryGraphAddEdgeRelationPattern(QueryGraph *qg, const cypher_
 
 static void _BuildQueryGraphAddEdgePathPattern(QueryGraph *qg,
         const cypher_astnode_t *ast_entity, QGNode *src, QGNode *dest) {
-	QGEdge *pattern = QGEdge_NewPathPattern(NULL, NULL, EBNFBase_Build(ast_entity, QueryCtx_GetPathPatternCtx()));
+	EBNFBase *root = EBNFBase_Build(ast_entity, QueryCtx_GetPathPatternCtx());
+	QGEdge *pattern = QGEdge_NewPathPattern(NULL, NULL, root);
+
+//	printf("EBNF constructed: %s\n", EBNFBase_ToStr(root));
 
 	enum cypher_rel_direction direction = cypher_ast_path_pattern_get_direction(ast_entity);
     if (direction == CYPHER_REL_INBOUND) {

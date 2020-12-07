@@ -33,5 +33,13 @@ PathPatternCtx *PathPatternCtx_Build(AST *ast, size_t required_dim) {
 	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
 		AlgebraicExpression_PopulateReferences(pathPatternCtx->patterns[i]->ae, pathPatternCtx);
 	}
+//
+//	printf("Build Path patterns:\n");
+//	for (int i = 0; i < array_len(pathPatternCtx->patterns); ++i) {
+//		printf("%s:%d %s\n",
+//		 pathPatternCtx->patterns[i]->reference.name,
+//		 pathPatternCtx->patterns[i]->reference.transposed,
+//		 AlgebraicExpression_ToStringDebug(pathPatternCtx->patterns[i]->ae));
+//	}
 	return pathPatternCtx;
 }

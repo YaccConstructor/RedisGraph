@@ -165,6 +165,7 @@ void _AlgebraicExpression_FreeOperand
 ) {
 	assert(node && node->type == AL_OPERAND);
 	if(node->operand.bfree) GrB_Matrix_free(&node->operand.matrix);
+	AlgExpReference_Free(node->operand.reference);
 }
 
 // Locate operand at position `operand_idx` counting from left to right.

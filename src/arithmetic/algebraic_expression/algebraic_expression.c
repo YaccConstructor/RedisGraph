@@ -99,9 +99,16 @@ AlgebraicExpression *AlgebraicExpression_NewOperand
 	return node;
 }
 
+//------------------------------------------------------------------------------
+// Algebraic expression reference creation functions.
+//------------------------------------------------------------------------------
 AlgExpReference AlgExpReference_NewEmpty() {
 	AlgExpReference ref = {.name = NULL, .transposed = false};
 	return ref;
+}
+
+bool AlgExpReference_IsEmpty(const AlgExpReference *ref) {
+	return ref->name == NULL;
 }
 
 bool AlgebraicExpression_OperandIsReference(const AlgebraicExpression *root) {
@@ -110,11 +117,26 @@ bool AlgebraicExpression_OperandIsReference(const AlgebraicExpression *root) {
 }
 
 AlgExpReference AlgExpReference_New(const char *name, bool transposed) {
-	AlgExpReference ref = {.name = name, transposed = transposed};
+	size_t len = strlen(name);
+
+	AlgExpReference ref = AlgExpReference_NewEmpty();
+	ref.name = rm_malloc(sizeof(char) * (len + 1));
+	strcpy(ref.name, name);
+	ref.transposed = transposed;
+
 	return ref;
 }
 
+void AlgExpReference_Free(AlgExpReference ref) {
+	if (ref.name != NULL) {
+		rm_free(ref.name);
+	}
+}
+
 AlgExpReference AlgExpReference_Clone(const AlgExpReference *ref) {
+	if (AlgExpReference_IsEmpty(ref)) {
+		return AlgExpReference_NewEmpty();
+	}
 	return AlgExpReference_New(ref->name, ref->transposed);
 }
 

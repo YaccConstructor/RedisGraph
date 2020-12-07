@@ -116,12 +116,17 @@ bool AlgebraicExpression_DiagonalOperand
 	uint operand_idx                    // Operand position (LTR, zero based).
 );
 
+//------------------------------------------------------------------------------
+// Algebraic expression reference creation functions.
+//------------------------------------------------------------------------------
 AlgExpReference AlgExpReference_NewEmpty();
 
 AlgExpReference AlgExpReference_New(
 	const char *name,
 	bool transposed
 );
+
+void AlgExpReference_Free(AlgExpReference ref);
 
 AlgExpReference AlgExpReference_Clone(const AlgExpReference *ref);
 

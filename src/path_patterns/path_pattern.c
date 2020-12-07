@@ -46,6 +46,7 @@ void PathPattern_Free(PathPattern *pattern) {
     	GrB_Matrix_free(&pattern->src);
     	pattern->src = GrB_NULL;
     }
+    AlgExpReference_Free(pattern->reference);
     rm_free(pattern);
 }
 

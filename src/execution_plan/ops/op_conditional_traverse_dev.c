@@ -197,13 +197,12 @@ void _traverse_dev(CondTraverseDev *op) {
 }
 
 OpBase *NewCondTraverseDevOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpression *ae) {
-#ifdef DPP
-	printf("---------------------\n");
-	printf("NewCondTraverseDevOp:\n");
-	printf("AlgExp: %s\n", AlgebraicExpression_ToStringDebug(ae));
-	PathPatternCtx_Show(plan->path_pattern_ctx);
-	printf("---------------------\n");
-#endif
+//	printf("---------------------\n");
+//	printf("NewCondTraverseDevOp:\n");
+//	printf("AlgExp: %s\n",
+//		AlgebraicExpression_ToStringDebug(ae));
+//	PathPatternCtx_Show(plan->path_pattern_ctx);
+//	printf("---------------------\n");
 
 	CondTraverseDev *op = rm_malloc(sizeof(CondTraverseDev));
 	op->graph = g;

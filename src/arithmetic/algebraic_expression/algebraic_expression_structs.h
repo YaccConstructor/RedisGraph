@@ -21,7 +21,7 @@ typedef enum {
 } AlgebraicExpressionType;
 
 typedef struct {
-	const char *name;
+	char *name;
 	bool transposed;
 } AlgExpReference;
 

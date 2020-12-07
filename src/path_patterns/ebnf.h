@@ -19,10 +19,12 @@ typedef enum {
 
 typedef struct EBNFBase EBNFBase;
 typedef EBNFBase*(*fpEBNFCopy)(EBNFBase *from);
+typedef void(*fpEBNFFree)(EBNFBase *ebnf);
 
 struct EBNFBase {
     EBNFBase_Type type;
     fpEBNFCopy copy;
+    fpEBNFFree custom_free;
     EBNFBase** children;
 };
 
@@ -54,10 +56,10 @@ typedef struct {
 
 typedef struct {
     EBNFBase base;
-    const char *name;
+    char *name;
 } EBNFReference;
 
-void EBNFBase_Init(EBNFBase *base, fpEBNFCopy fp, EBNFBase_Type type);
+void EBNFBase_Init(EBNFBase *base, fpEBNFCopy fp, EBNFBase_Type type, fpEBNFFree free);
 void EBNFBase_Free(EBNFBase *base);
 void EBNFBase_AddChild(EBNFBase *root, EBNFBase *child);
 EBNFBase *EBNFBase_Clone(EBNFBase *base);

@@ -4,9 +4,10 @@
 #include "../graph/graphcontext.h"
 #include "../query_ctx.h"
 
-void EBNFBase_Init(EBNFBase *base, fpEBNFCopy fp, EBNFBase_Type type) {
+void EBNFBase_Init(EBNFBase *base, fpEBNFCopy fp, EBNFBase_Type type, fpEBNFFree free) {
     base->type = type;
     base->copy = fp;
+    base->custom_free = free;
     base->children = array_new(EBNFBase*, 1);
 }
 
@@ -15,7 +16,12 @@ void EBNFBase_Free(EBNFBase *node) {
         EBNFBase_Free(node->children[i]);
     }
     array_free(node->children);
+    node->custom_free(node);
     rm_free(node);
+}
+
+void EBNFBase_CustomFreeDefault(EBNFBase *node) {
+
 }
 
 void EBNFBase_AddChild(EBNFBase *root, EBNFBase *child) {
@@ -24,21 +30,21 @@ void EBNFBase_AddChild(EBNFBase *root, EBNFBase *child) {
 
 EBNFBase *EBNFAlternative_New() {
     EBNFAlternative *alt = rm_malloc(sizeof(EBNFAlternative));
-    EBNFBase_Init(&alt->base, EBNFAlternative_Copy, EBNF_ALT);
+    EBNFBase_Init(&alt->base, EBNFAlternative_Copy, EBNF_ALT, EBNFBase_CustomFreeDefault);
 
     return (EBNFBase*) alt;
 }
 
 EBNFBase *EBNFSequence_New() {
     EBNFSequence *seq = rm_malloc(sizeof(EBNFSequence));
-    EBNFBase_Init(&seq->base, EBNFSequence_Copy, EBNF_SEQ);
+    EBNFBase_Init(&seq->base, EBNFSequence_Copy, EBNF_SEQ, EBNFBase_CustomFreeDefault);
 
     return (EBNFBase*) seq;
 }
 
 EBNFBase *EBNFGroup_New(enum cypher_rel_direction direction, EBNFNode_Repetition repetition) {
     EBNFGroup *params = rm_malloc(sizeof(EBNFGroup));
-    EBNFBase_Init(&params->base, EBNFGroup_Copy, EBNF_GROUP);
+    EBNFBase_Init(&params->base, EBNFGroup_Copy, EBNF_GROUP, EBNFBase_CustomFreeDefault);
 
     params->direction = direction;
     params->repetition = repetition;
@@ -47,7 +53,7 @@ EBNFBase *EBNFGroup_New(enum cypher_rel_direction direction, EBNFNode_Repetition
 
 EBNFBase *EBNFEdge_New(const char *label) {
     EBNFEdge *edge = rm_malloc(sizeof(EBNFEdge));
-    EBNFBase_Init(&edge->base, EBNFEdge_Copy, EBNF_EDGE);
+    EBNFBase_Init(&edge->base, EBNFEdge_Copy, EBNF_EDGE, EBNFBase_CustomFreeDefault);
 
     edge->reltype = label;
 
@@ -64,18 +70,24 @@ EBNFBase *EBNFEdge_New(const char *label) {
 
 EBNFBase *EBNFNode_New(const char *label) {
     EBNFNode *node = rm_malloc(sizeof(EBNFNode));
-    EBNFBase_Init(&node->base, EBNFNode_Copy, EBNF_NODE);
+    EBNFBase_Init(&node->base, EBNFNode_Copy, EBNF_NODE, EBNFBase_CustomFreeDefault);
 
     node->label = label;
     return (EBNFBase*) node;
 }
 
+void EBNFReference_Free(EBNFBase *base) {
+	EBNFReference *ref = (EBNFReference *) base;
+	rm_free(ref->name);
+}
+
 EBNFBase *EBNFReference_New(const char *name) {
     EBNFReference *ref = rm_malloc(sizeof(EBNFReference));
-    EBNFBase_Init(&ref->base, EBNFReference_Copy, EBNF_REF);
+    EBNFBase_Init(&ref->base, EBNFReference_Copy, EBNF_REF, EBNFReference_Free);
 
-	size_t name_size = strlen(name);
-    ref->name = name;
+    size_t len = strlen(name);
+	ref->name = rm_malloc(sizeof(char) * (len + 1));
+	strcpy(ref->name, name);
     return (EBNFBase *) ref;
 }
 
@@ -117,7 +129,6 @@ EBNFBase *EBNFBase_Clone(EBNFBase *base) {
 }
 
 void _EBNFBase_ToStr(EBNFBase *base, char *buf) {
-
     switch (base->type) {
         case EBNF_SEQ: {
             if (array_len(base->children)) {
