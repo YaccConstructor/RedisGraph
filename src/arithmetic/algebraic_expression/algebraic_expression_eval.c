@@ -157,7 +157,6 @@ static GrB_Matrix _Eval_Add(const AlgebraicExpression *exp, GrB_Matrix res, Path
 					info = GrB_Matrix_new(&inter, GrB_BOOL, nrows, ncols);
 					ASSERT(info == GrB_SUCCESS);
 				}
-				b = _AlgebraicExpression_Eval(right, inter);
 			}
 			b = _AlgebraicExpression_Eval(right, inter, pathCtx);
 		}
@@ -185,7 +184,6 @@ static GrB_Matrix _Eval_Mul(const AlgebraicExpression *exp, GrB_Matrix res, Path
 	GrB_Matrix B;
 	bool B_trans = false;
 
-	GrB_Info info;
 	GrB_Index nvals;
 	GrB_Descriptor desc = GrB_NULL;
 	AlgebraicExpression *left = CHILD_AT(exp, 0);

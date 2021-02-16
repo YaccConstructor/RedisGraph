@@ -16,8 +16,10 @@ static GrB_Matrix _Eval_Operand( const AlgebraicExpression *exp) {
     assert(exp);
     GrB_Matrix res = GrB_NULL;
     if (GrB_Matrix_dup(&res, exp->operand.matrix) != GrB_SUCCESS) {
-        printf("Failed duplicate operation, error:%s\n", GrB_error());
-        assert(false);
+        const char *error_msg = NULL;
+		GrB_error(&error_msg, res);
+		fprintf(stderr, "%s", error_msg);
+		ASSERT(false);
     }
     return res;
 }
@@ -41,13 +43,17 @@ static GrB_Matrix _Eval_TransposeArbitrary( const AlgebraicExpression *exp) {
         GrB_Matrix_ncols(&ncols, child->operand.matrix);
         info = GrB_Matrix_new(&res, GrB_BOOL, nrows, ncols);
         if(info != GrB_SUCCESS) {
-            fprintf(stderr, "%s", GrB_error());
-            assert(false);
+            const char *error_msg = NULL;
+		    GrB_error(&error_msg, res);
+		    fprintf(stderr, "%s", error_msg);
+		    ASSERT(false);
         }
 
         if (GrB_transpose(res, GrB_NULL, GrB_NULL, child->operand.matrix, GrB_NULL) != GrB_SUCCESS) {
-            printf("Failed transpose operation, error:%s\n", GrB_error());
-            assert(false);
+            const char *error_msg = NULL;
+		    GrB_error(&error_msg, res);
+		    fprintf(stderr, "%s", error_msg);
+		    ASSERT(false);
         }
     } else {
         res = _AlgebraicExpression_EvalArbitrary(child);
@@ -125,15 +131,19 @@ static GrB_Matrix _Eval_AddArbitrary(const AlgebraicExpression *exp) {
     GrB_Matrix_ncols(&ncols, A);
     info = GrB_Matrix_new(&res, GrB_BOOL, nrows, ncols);
     if(info != GrB_SUCCESS) {
-        fprintf(stderr, "%s", GrB_error());
-        assert(false);
+        const char *error_msg = NULL;
+		GrB_error(&error_msg, res);
+		fprintf(stderr, "%s", error_msg);
+		ASSERT(false);
     }
 
     // Perform addition.
     if(GrB_eWiseAdd_Matrix_Semiring(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, A, B,
                                     desc) != GrB_SUCCESS) {
-        printf("Failed adding operands, error:%s\n", GrB_error());
-        assert(false);
+        const char *error_msg = NULL;
+		GrB_error(&error_msg, res);
+		fprintf(stderr, "%s", error_msg);
+		ASSERT(false);
     }
 
     // Reset descriptor and free matrices
@@ -178,8 +188,10 @@ static GrB_Matrix _Eval_AddArbitrary(const AlgebraicExpression *exp) {
         // Perform addition.
         if(GrB_eWiseAdd_Matrix_Semiring(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, res, B,
                                         desc) != GrB_SUCCESS) {
-            printf("Failed adding operands, error:%s\n", GrB_error());
-            assert(false);
+            const char *error_msg = NULL;
+		    GrB_error(&error_msg, res);
+		    fprintf(stderr, "%s", error_msg);
+		    ASSERT(false);
         }
 
         if (need_free_B) {
@@ -263,14 +275,18 @@ static GrB_Matrix _Eval_MulArbitrary(const AlgebraicExpression *exp) {
     GrB_Matrix_ncols(&ncols, A);
     info = GrB_Matrix_new(&res, GrB_BOOL, nrows, ncols);
     if(info != GrB_SUCCESS) {
-        fprintf(stderr, "%s", GrB_error());
-        assert(false);
+        const char *error_msg = NULL;
+		GrB_error(&error_msg, res);
+		fprintf(stderr, "%s", error_msg);
+		ASSERT(false);
     }
 
     // Perform addition.
     if (GrB_mxm(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, A, B, desc) != GrB_SUCCESS) {
-        printf("Failed multiply operands, error:%s\n", GrB_error());
-        assert(false);
+        const char *error_msg = NULL;
+        GrB_error(&error_msg, res);
+		fprintf(stderr, "%s", error_msg);
+		ASSERT(false);
     }
 
     // Reset descriptor and free matrices
@@ -314,8 +330,10 @@ static GrB_Matrix _Eval_MulArbitrary(const AlgebraicExpression *exp) {
 
         // Perform addition.
         if (GrB_mxm(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, res, B, desc) != GrB_SUCCESS) {
-            printf("Failed multiply operands, error:%s\n", GrB_error());
-            assert(false);
+            const char *error_msg = NULL;
+		    GrB_error(&error_msg, res);
+		    fprintf(stderr, "%s", error_msg);
+		    ASSERT(false);
         }
 
         if (need_free_B) {

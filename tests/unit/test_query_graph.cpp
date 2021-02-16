@@ -359,9 +359,9 @@ TEST_F(QueryGraphTest, QueryGraphExtractSubGraph) {
 	QGNode *C = QGNode_New("C");
 	QGNode *D = QGNode_New("D");
 
-	QGEdge *AB = QGEdge_New(A, B, relation, "AB");
-	QGEdge *BC = QGEdge_New(B, C, relation, "BC");
-	QGEdge *CD = QGEdge_New(C, D, relation, "CD");
+	QGEdge *AB = QGEdge_NewRelationPattern(A, B, relation, "AB");
+	QGEdge *BC = QGEdge_NewRelationPattern(B, C, relation, "BC");
+	QGEdge *CD = QGEdge_NewRelationPattern(C, D, relation, "CD");
 
 	uint node_cap = 4;
 	uint edge_cap = 3;

@@ -11,7 +11,7 @@
 #include "../graph/graph.h"
 #include "algebraic_expression/algebraic_expression_structs.h"
 
-static GrB_Matrix IDENTITY_MATRIX = (GrB_Matrix)0x31032017;  // Identity matrix.
+/*static GrB_Matrix IDENTITY_MATRIX = (GrB_Matrix)0x31032017;  // Identity matrix.
 
 // Matrix, vector operations.
 typedef enum {
@@ -29,7 +29,13 @@ typedef enum {
 	AL_OPERATION  = (1 << 1),
 } AlgebraicExpressionType;
 
+typedef struct {
+	char *name;
+	bool transposed;
+} AlgExpReference;
+*/
 /* Forward declarations. */
+/*
 typedef struct AlgebraicExpression AlgebraicExpression;
 
 struct AlgebraicExpression {
@@ -43,6 +49,7 @@ struct AlgebraicExpression {
 			const char *dest;       // Alias given to operand's columns (destination node).
 			const char *edge;       // Alias given to operand (edge).
 			const char *label;      // Label attached to matrix.
+            AlgExpReference reference;
 		} operand;
 		struct {
 			AL_EXP_OP op;                   // Operation: `*`,`+`,`transpose`
@@ -50,7 +57,7 @@ struct AlgebraicExpression {
 		} operation;
 	};
 };
-
+*/
 //------------------------------------------------------------------------------
 // AlgebraicExpression construction.
 //------------------------------------------------------------------------------

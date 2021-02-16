@@ -1674,8 +1674,8 @@ TEST_F(AlgebraicExpressionTest, LocateOperand) {
 	AlgebraicExpression  *p       =  NULL;
 
 	// ( T(A) * B )
-	A = AlgebraicExpression_NewOperand(mat, false, "a", "b", "e0", "E");
-	B = AlgebraicExpression_NewOperand(mat, false, "b", "c", "e1", "E");
+	A = AlgebraicExpression_NewOperand(mat, false, "a", "b", "e0", "E", AlgExpReference_NewEmpty());
+	B = AlgebraicExpression_NewOperand(mat, false, "b", "c", "e1", "E", AlgExpReference_NewEmpty());
 	AlgebraicExpression_Transpose(&A);
 	r = AlgebraicExpression_NewOperation(AL_EXP_MUL);
 	AlgebraicExpression_AddChild(r, A);

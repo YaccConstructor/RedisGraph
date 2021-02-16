@@ -185,7 +185,7 @@ static void _QueryGraph_ExtractPathPattern(const QueryGraph *qg, QueryGraph *gra
     const char *alias = AST_GetEntityName(ast, ast_path_pattern);
 
 	ASSERT(left != NULL && right != NULL);
-	_QueryGraphAddPathPattern(graph, ast_edge, left, right);
+	_QueryGraphAddPathPattern(graph, ast_path_pattern, left, right);
 }
 
 // Clones path from 'qg' into 'graph'.

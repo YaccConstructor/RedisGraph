@@ -688,9 +688,6 @@ AlgebraicExpression **AlgebraicExpression_FromQueryGraph
 	return exps;
 }
 
-<<<<<<< HEAD
 AlgebraicExpression *AlgebraicExpression_FromEbnf(const EBNFBase *ebnf) {
     return _AlgebraicExpression_OperandFromEbnf(ebnf, NULL, NULL, NULL);
 }
-=======
->>>>>>> 01b22e1cce28f0860b6660f2eedcf361590fc3c4
