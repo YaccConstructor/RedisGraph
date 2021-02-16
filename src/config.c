@@ -568,7 +568,7 @@ bool Config_Option_get(Config_Option_Field field, ...) {
         case Config_CFPQ_TRAVERSE_BUF_SIZE:
             {
                 va_start(ap, field);
-                uint *CFPQ_traverse_buf_size = va_arg(ap, uint);
+                uint64_t *CFPQ_traverse_buf_size = va_arg(ap, uint64_t*);
                 va_end(ap);
 
                 ASSERT(CFPQ_traverse_buf_size != NULL);
