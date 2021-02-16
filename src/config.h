@@ -20,7 +20,8 @@ typedef enum {
 	Config_RESULTSET_MAX_SIZE       = 4,  // max number of records in result-set
 	Config_MAINTAIN_TRANSPOSE       = 5,  // maintain transpose matrices
 	Config_VKEY_MAX_ENTITY_COUNT    = 6,  // max number of elements in vkey
-	Config_END_MARKER               = 7
+    Config_CFPQ_TRAVERSE_BUF_SIZE   = 7,  // 
+	Config_END_MARKER               = 8
 } Config_Option_Field;
 
 // configuration object

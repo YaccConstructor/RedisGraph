@@ -98,25 +98,20 @@ void Config_OMP_thread_count_set(uint nthreads) {
 	config.omp_thread_count = nthreads;
 }
 
-static int _Config_SetCfpqTraverseBufSize(RedisModuleCtx *ctx, RedisModuleString *count_str) {
-	long long cfpq_traverse_buf_size;
-	long long res = _Config_ParsePositiveInteger(count_str, &cfpq_traverse_buf_size);
-	// Exit with error if integer parsing fails or OpenMP thread count is outside of the valid range 1-INT_MAX.
-	if(res != REDISMODULE_OK || cfpq_traverse_buf_size > INT_MAX) {
-		const char *invalid_arg = RedisModule_StringPtrLen(count_str, NULL);
-		RedisModule_Log(ctx, "warning", "Specified invalid maximum '%s' buffer size for cfpq traverse operation",
-						invalid_arg);
-		return REDISMODULE_ERR;
-	}
-
-	// Set the OpenMP thread count in the configuration.
-	config.cfpq_traverse_buf_size = cfpq_traverse_buf_size;
-
-	return REDISMODULE_OK;
-}
-
 uint Config_OMP_thread_count_get(void) {
 	return config.omp_thread_count;
+}
+
+//------------------------------------------------------------------------------
+// CFPQ traverse buf size
+//------------------------------------------------------------------------------
+
+void CFPQ_traverse_buf_size_set(uint cfpq_traverse_buf_size) {
+	config.cfpq_traverse_buf_size = cfpq_traverse_buf_size;
+}
+
+uint64_t CFPQ_traverse_buf_size_get(void) {
+	return config.thread_pool_size;
 }
 
 //------------------------------------------------------------------------------
@@ -197,7 +192,9 @@ bool Config_Contains_field(const char *field_str, Config_Option_Field *field) {
 		f = Config_CACHE_SIZE;
 	} else if(!(strcasecmp(field_str, RESULTSET_SIZE))) {
 		f = Config_RESULTSET_MAX_SIZE;
-	} else {
+	} else if(!(strcasecmp(field_str, CFPQ_TRAVERSE_BUF_SIZE))) {
+		f = Config_CFPQ_TRAVERSE_BUF_SIZE;
+    } else {
 		return false;
 	}
 
@@ -237,6 +234,9 @@ const char *Config_Field_name(Config_Option_Field field) {
 			name = ASYNC_DELETE;
 			break;
 
+        case Config_CFPQ_TRAVERSE_BUF_SIZE:
+			name = CFPQ_TRAVERSE_BUF_SIZE;
+			break;
         //----------------------------------------------------------------------
         // invalid option
         //----------------------------------------------------------------------
@@ -285,7 +285,7 @@ void _Config_SetToDefaults(RedisModuleCtx *ctx) {
 	
     // No limit on result-set size
 	config.resultset_size = RESULTSET_SIZE_UNLIMITED;
-
+}
 
 int Config_Init(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 	// Initialize the configuration to its default values.
@@ -299,32 +299,8 @@ int Config_Init(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 		return REDISMODULE_ERR;
 	}
 
-	int res = REDISMODULE_OK;
-	for(int cur = 0; cur < argc; cur += 2) {
-		// Each configuration is a key-value pair.
-		const char *param = RedisModule_StringPtrLen(argv[cur], NULL);
-		RedisModuleString *val = argv[cur + 1];
-
-		if(!strcasecmp(param, THREAD_COUNT)) {
-			// User defined size of thread pool.
-			res = _Config_SetThreadCount(ctx, val);
-		} else if(!strcasecmp(param, OMP_THREAD_COUNT)) {
-			// User defined maximum number of OpenMP threads.
-			res = _Config_SetOMPThreadCount(ctx, val);
-		} else if(!strcasecmp(param, VKEY_MAX_ENTITY_COUNT)) {
-			// User defined maximum number of entities per virtual key.
-			res = _Config_SetVirtualKeyEntitiesThreshold(ctx, val);
-		} else if(!strcasecmp(param, MAINTAIN_TRANSPOSED_MATRICES)) {
-			// User specified whether or not to maintain transposed matrices.
-			res = _Config_BuildTransposedMatrices(ctx, val);
-		} else if(!(strcasecmp(param, CACHE_SIZE))) {
-			res = _Config_SetCacheSize(ctx, val);
-		} else if(!(strcasecmp(param, CFPQ_TRAVERSE_BUF_SIZE))) {
-			res = _Config_SetCfpqTraverseBufSize(ctx, val);
-		} else {
-			RedisModule_Log(ctx, "warning", "Encountered unknown module argument '%s'", param);
-			return REDISMODULE_ERR;
-		}
+	for(int i = 0; i < argc; i += 2) {
+		// Each configuration is a key-value pair. (K, V)
 
 		//----------------------------------------------------------------------
 		// get field
@@ -448,6 +424,17 @@ bool Config_Option_set(Config_Option_Field field, RedisModuleString *val) {
 				Config_async_delete_set(async_delete);
 			}
 			break;
+
+        //----------------------------------------------------------------------
+        // CFPQ traverse buf size
+        //----------------------------------------------------------------------
+        case Config_CFPQ_TRAVERSE_BUF_SIZE:
+            {
+                long long CFPQ_traverse_buf_size;
+                if(!_Config_ParsePositiveInteger(val, &CFPQ_traverse_buf_size)) return false;
+                CFPQ_traverse_buf_size_set(CFPQ_traverse_buf_size);
+            }
+            break;
 
 	    //----------------------------------------------------------------------
 	    // invalid option
@@ -576,6 +563,20 @@ bool Config_Option_get(Config_Option_Field field, ...) {
 			break;
 
         //----------------------------------------------------------------------
+        // CFPQ traverse buf size
+        //----------------------------------------------------------------------
+        case Config_CFPQ_TRAVERSE_BUF_SIZE:
+            {
+                va_start(ap, field);
+                uint *CFPQ_traverse_buf_size = va_arg(ap, uint);
+                va_end(ap);
+
+                ASSERT(CFPQ_traverse_buf_size != NULL);
+                (*CFPQ_traverse_buf_size) = CFPQ_traverse_buf_size_get();
+            }
+            break;
+
+        //----------------------------------------------------------------------
         // invalid option
         //----------------------------------------------------------------------
 
@@ -585,8 +586,4 @@ bool Config_Option_get(Config_Option_Field field, ...) {
     }
 
 	return true;
-}
-
-uint64_t Config_GetCfpqTraverseBufSize(void) {
-	return config.cfpq_traverse_buf_size;
 }
