@@ -72,7 +72,7 @@ static void _transitive_closure(PathPattern **deps, PathPatternCtx *pathPatternC
 		for (int i = 0; i < array_len(deps); ++i) {
 			PathPattern *pattern = deps[i];
 			AlgebraicExpression_Eval(pattern->ae, tmps[i], pathPatternCtx);
-			GrB_eWiseAdd_Matrix_BinaryOp(pattern->m, NULL, NULL, GrB_LOR, pattern->m, tmps[i], NULL);
+			GrB_Matrix_eWiseAdd_BinaryOp(pattern->m, NULL, NULL, GrB_LOR, pattern->m, tmps[i], NULL);
 		}
 
 #ifdef DPP
@@ -242,7 +242,7 @@ OpBase *NewCondTraverseDevOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpre
 
 static OpResult CondTraverseDevInit(OpBase *opBase) {
 	CondTraverseDev *op = (CondTraverseDev *)opBase;
-	op->recordsCap = Config_GetCfpqTraverseBufSize();
+	op->recordsCap = Config_Option_get(Config_CFPQ_TRAVERSE_BUF_SIZE);
 	op->records = rm_calloc(op->recordsCap, sizeof(Record));
 	return OP_OK;
 }

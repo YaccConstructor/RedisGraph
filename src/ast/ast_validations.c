@@ -423,23 +423,23 @@ static AST_Validation _ValidatePathPatternBase(const cypher_astnode_t *path_base
             const cypher_astnode_t *range_start = cypher_ast_range_get_start(range);
             const cypher_astnode_t *range_end = cypher_ast_range_get_end(range);
             if(range_start || range_end) {
-                QueryCtx_SetError("Can only use '*' with no borders.");
+                ErrorCtx_SetError("Can only use '*' with no borders.");
 				res = AST_INVALID;
             }
         }
         /* Update libcypher submodule, there should be these types
         else if (cypher_astnode_instanceof(range, CYPHER_AST_RANGE_PLUS)) {
 
-            QueryCtx_SetError("'+' is not supported.");
+            ErrorCtx_SetError("'+' is not supported.");
             res = AST_INVALID;
         }
         
         else if (cypher_astnode_instanceof(range, CYPHER_AST_RANGE_OPTIONAL)) {
-            QueryCtx_SetError("'?' is not supported.");
+            ErrorCtx_SetError("'?' is not supported.");
             res = AST_INVALID;
         }*/
         else {
-            QueryCtx_SetError("'+' and '?' are not supported.");
+            ErrorCtx_SetError("'+' and '?' are not supported.");
             res = AST_INVALID;
         }
     }
@@ -449,26 +449,26 @@ static AST_Validation _ValidatePathPatternBase(const cypher_astnode_t *path_base
     const cypher_astnode_t *child = cypher_ast_path_pattern_base_get_child(path_base);
 
     if(cypher_astnode_instanceof(child, CYPHER_AST_PATH_PATTERN_ANY)) {
-        QueryCtx_SetError("Path_pattern_any is not supported.");
+        ErrorCtx_SetError("Path_pattern_any is not supported.");
         res = AST_INVALID;
     }
     else if(cypher_astnode_instanceof(child, CYPHER_AST_NODE_PATTERN)) {
         const cypher_astnode_t *props = cypher_ast_node_pattern_get_properties(child);
         if(props) {
-            QueryCtx_SetError("Node properties are not supported within path patterns.");
+            ErrorCtx_SetError("Node properties are not supported within path patterns.");
             res = AST_INVALID;
         }
 
         uint nlabels = cypher_ast_node_pattern_nlabels(child);
         if(nlabels >= 2) {
-            QueryCtx_SetError("Only node patterns with 0 or 1 labels are supported within path patterns. %d labels.", nlabels);
+            ErrorCtx_SetError("Only node patterns with 0 or 1 labels are supported within path patterns. %d labels.", nlabels);
             res = AST_INVALID;
         }
     }
     else if(cypher_astnode_instanceof(child, CYPHER_AST_PATH_PATTERN_EXPRESSION)) {
         const cypher_astnode_t *groupProps = cypher_ast_path_pattern_get_properties(child);
         if(groupProps) {
-            QueryCtx_SetError("Path pattern expression properties are not supported.");
+            ErrorCtx_SetError("Path pattern expression properties are not supported.");
             res = AST_INVALID;
         }
     }
@@ -527,13 +527,13 @@ static AST_Validation _ValidatePathInNamedPathClause(const cypher_astnode_t *pat
 	uint path_len = cypher_ast_pattern_path_nelements(path);
 
     if (path_len != 3) {
-        QueryCtx_SetError("Patterns longer that 1 path pattern are not supported within named path predicates.");
+        ErrorCtx_SetError("Patterns longer that 1 path pattern are not supported within named path predicates.");
         return AST_INVALID;
     }
 
     const cypher_astnode_t *edge = cypher_ast_pattern_path_get_element(path, 1);
     if (cypher_astnode_instanceof(edge, CYPHER_AST_REL_PATTERN)) {
-        QueryCtx_SetError("Relation patterns are not supported within named path predicates.");
+        ErrorCtx_SetError("Relation patterns are not supported within named path predicates.");
         res = AST_INVALID;
     } else if (cypher_astnode_instanceof(edge, CYPHER_AST_PATH_PATTERN)){
         res = _ValidatePathPattern(edge);
@@ -560,7 +560,7 @@ static AST_Validation _Validate_PATH_PATTERN_Clauses(const AST *ast) {
 
         const cypher_astnode_t *condition = cypher_ast_named_path_get_condition(named_path_clauses[i]);
         if (condition) {
-            QueryCtx_SetError("Named path predicate conditions are not supported. Error in clause #%d", i);
+            ErrorCtx_SetError("Named path predicate conditions are not supported. Error in clause #%d", i);
             res = AST_INVALID;
             goto cleanup;
         }
@@ -926,7 +926,7 @@ static AST_Validation _Validate_MERGE_Clauses(const AST *ast) {
 			    if (cypher_astnode_instanceof(entity, CYPHER_AST_REL_PATTERN)) {
                     res = _ValidateMergeRelation(entity, defined_aliases);
                 } else {
-                    QueryCtx_SetError("Path patterns not allowed in MERGE clause");
+                    ErrorCtx_SetError("Path patterns not allowed in MERGE clause");
                     res = AST_INVALID;
 			    }
 			} else {
@@ -991,7 +991,7 @@ static AST_Validation _Validate_CREATE_Entities(const cypher_astnode_t *clause,
                     return AST_INVALID;
                 }
             } else if(cypher_astnode_instanceof(rel, CYPHER_AST_PATH_PATTERN)) {
-                QueryCtx_SetError("Path patterns not allowed in CREATE");
+                ErrorCtx_SetError("Path patterns not allowed in CREATE");
                 return AST_INVALID;
             }
 		}
@@ -1445,7 +1445,7 @@ static AST_Validation _Validate_Aliases_DefinedInClause(const cypher_astnode_t *
         int len = it_reference.key_len;
         unsigned char *reference = it_reference.key;
         if(raxFind(defined_path_patterns, reference, len) == raxNotFound) {
-            QueryCtx_SetError("Reference %.*s not defined", len, reference);
+            ErrorCtx_SetError("Reference %.*s not defined", len, reference);
             res = AST_INVALID;
             break;
         }
@@ -1652,7 +1652,7 @@ static AST_Validation _ValidateClauses(const AST *ast) {
 
     if(_Validate_PATH_PATTERN_Clauses(ast) == AST_INVALID) return AST_INVALID;
 
-	if(_ValidateMaps(ast->root) == AST_INVALID) return AST_INVALID;
+	//if(_ValidateMaps(ast->root) == AST_INVALID) return AST_INVALID;
 
 	return AST_VALID;
 }

@@ -138,7 +138,7 @@ static GrB_Matrix _Eval_AddArbitrary(const AlgebraicExpression *exp) {
     }
 
     // Perform addition.
-    if(GrB_eWiseAdd_Matrix_Semiring(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, A, B,
+    if(GrB_Matrix_eWiseAdd_Semiring(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, A, B,
                                     desc) != GrB_SUCCESS) {
         const char *error_msg = NULL;
 		GrB_error(&error_msg, res);
@@ -186,7 +186,7 @@ static GrB_Matrix _Eval_AddArbitrary(const AlgebraicExpression *exp) {
         }
 
         // Perform addition.
-        if(GrB_eWiseAdd_Matrix_Semiring(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, res, B,
+        if(GrB_Matrix_eWiseAdd_Semiring(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, res, B,
                                         desc) != GrB_SUCCESS) {
             const char *error_msg = NULL;
 		    GrB_error(&error_msg, res);
