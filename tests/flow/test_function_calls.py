@@ -12,7 +12,7 @@ people = ["Roi", "Alon", "Ailon", "Boaz"]
 
 class testFunctionCallsFlow(FlowTestsBase):
     def __init__(self):
-        self.env = Env()
+        self.env = Env(decodeResponses=True)
         global graph
         global redis_con
         redis_con = self.env.getConnection()
@@ -51,15 +51,15 @@ class testFunctionCallsFlow(FlowTestsBase):
             assert(False)
         except redis.exceptions.ResponseError as e:
             # Expecting a type error.
-            self.env.assertIn("Type mismatch", e.message)
-    
+            self.env.assertIn("Type mismatch", str(e))
+
     def expect_error(self, query, expected_err_msg):
         try:
             graph.query(query)
             assert(False)
         except redis.exceptions.ResponseError as e:
             # Expecting a type error.
-            self.env.assertIn(expected_err_msg, e.message)
+            self.env.assertIn(expected_err_msg, str(e))
 
     # Validate capturing of errors prior to query execution.
     def test01_compile_time_errors(self):
@@ -252,3 +252,86 @@ class testFunctionCallsFlow(FlowTestsBase):
                            ['Boaz'],
                            ['Roi']]
         self.env.assertEquals(actual_result.result_set, expected_result)
+
+    # CASE...WHEN statements should properly handle NULL, false, and true evaluations.
+    def test13_case_when_inputs(self):
+        # Simple case form: single value evaluation.
+        query = """UNWIND [NULL, true, false] AS v RETURN v, CASE v WHEN true THEN v END"""
+        actual_result = graph.query(query)
+        expected_result = [[None, None],
+                           [True, True],
+                           [False, None]]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+
+        query = """UNWIND [NULL, true, false] AS v RETURN v, CASE v WHEN true THEN v WHEN false THEN v END"""
+        actual_result = graph.query(query)
+        expected_result = [[None, None],
+                           [True, True],
+                           [False, False]]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+
+        # Generic case form: evaluation for each case.
+        query = """UNWIND [NULL, true, false] AS v RETURN v, CASE WHEN v THEN v END"""
+        actual_result = graph.query(query)
+        # Only the true value should return non-NULL.
+        expected_result = [[None, None],
+                           [True, True],
+                           [False, None]]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+
+        query = """UNWIND [NULL, true, false] AS v RETURN v, CASE WHEN v IS NOT NULL THEN v END"""
+        actual_result = graph.query(query)
+        # The true and false values should both return non-NULL.
+        expected_result = [[None, None],
+                           [True, True],
+                           [False, False]]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+
+    # CASE...WHEN statements should manage allocated values properly.
+    def test14_case_when_memory_management(self):
+        # Simple case form: single value evaluation.
+        query = """WITH 'A' AS a WITH CASE a WHEN 'A' THEN toString(a) END AS key RETURN toLower(key)"""
+        actual_result = graph.query(query)
+        expected_result = [['a']]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+        # Generic case form: evaluation for each case.
+        query = """WITH 'A' AS a WITH CASE WHEN true THEN toString(a) END AS key RETURN toLower(key)"""
+        actual_result = graph.query(query)
+        expected_result = [['a']]
+        self.env.assertEquals(actual_result.result_set, expected_result)
+
+    def test15_aggregate_error_handling(self):
+        functions = ["avg",
+                     "collect",
+                     "count",
+                     "max",
+                     "min",
+                     "sum",
+                     "percentileDisc",
+                     "percentileCont",
+                     "stDev"]
+        # Test all functions for invalid argument counts.
+        for function in functions:
+            query = """UNWIND range(0, 10) AS val RETURN %s(val, val, val)""" % (function)
+            self.expect_error(query, "Received 3 arguments")
+
+        # Test numeric functions for invalid input types.
+        numeric_functions = ["avg",
+                             "sum",
+                             "stDev"]
+        for function in numeric_functions:
+            query = """UNWIND ['a', 'b', 'c'] AS val RETURN %s(val)""" % (function)
+            self.expect_type_error(query)
+
+        # Test invalid numeric input for percentile function.
+        query = """UNWIND range(0, 10) AS val RETURN percentileDisc(val, -1)"""
+        self.expect_error(query, "must be a number in the range 0.0 to 1.0")
+
+    # startNode and endNode calls should return the appropriate nodes.
+    def test16_edge_endpoints(self):
+        query = """MATCH (a)-[e]->(b) RETURN a.name, startNode(e).name, b.name, endNode(e).name"""
+        actual_result = graph.query(query)
+        for row in actual_result.result_set:
+            self.env.assertEquals(row[0], row[1])
+            self.env.assertEquals(row[2], row[3])
+

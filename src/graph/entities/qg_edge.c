@@ -8,7 +8,6 @@
 #include "qg_node.h"
 #include "../graph.h"
 #include "../../util/arr.h"
-#include <assert.h>
 
 QGEdge *QGEdge_NewRelationPattern(QGNode *src, QGNode *dest, const char *relationship, const char *alias) {
 	QGEdge *e = rm_malloc(sizeof(QGEdge));
@@ -77,7 +76,7 @@ void QGEdge_Reverse(QGEdge *e) {
 }
 
 int QGEdge_ToString(const QGEdge *e, char *buff, int buff_len) {
-	assert(e && buff);
+	ASSERT(e && buff);
 
 	int offset = 0;
     switch (e->type) {
@@ -123,3 +122,4 @@ void QGEdge_Free(QGEdge *e) {
     }
     rm_free(e);
 }
+

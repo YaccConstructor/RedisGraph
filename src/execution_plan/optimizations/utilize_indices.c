@@ -4,6 +4,7 @@
 #include "../../util/arr.h"
 #include "../../query_ctx.h"
 #include "../ops/op_index_scan.h"
+#include "../execution_plan_build/execution_plan_modify.h"
 #include "../../ast/ast_shared.h"
 #include "../../util/range/string_range.h"
 #include "../../util/range/numeric_range.h"
@@ -14,19 +15,6 @@
 // Filter normalization
 //------------------------------------------------------------------------------
 
-void _normalize_in_filter(FT_FilterNode *filter_tree) {
-	// Left child should be variadic, while the right child should be constant
-	AR_ExpNode *left_child = filter_tree->exp.exp->op.children[0];
-	AR_ExpNode *right_child = filter_tree->exp.exp->op.children[1];
-
-	if(left_child->operand.type == AR_EXP_CONSTANT) {
-		// Swap!
-		AR_ExpNode *temp = left_child;
-		left_child = right_child;
-		right_child = temp;
-	}
-}
-
 /* Modifies filter tree such that the left-hand side
  * is of type variadic and the right-hand side is constant. */
 void _normalize_filter(FT_FilterNode **filter) {
@@ -34,7 +22,7 @@ void _normalize_filter(FT_FilterNode **filter) {
 	// Normalize, left hand side should be variadic, right hand side const.
 	switch(filter_tree->t) {
 	case FT_N_PRED:
-		if(filter_tree->pred.rhs->operand.type == AR_EXP_VARIADIC) {
+		if(filter_tree->pred.lhs->operand.type == AR_EXP_CONSTANT) {
 			// Swap.
 			AR_ExpNode *tmp = filter_tree->pred.rhs;
 			filter_tree->pred.rhs = filter_tree->pred.lhs;
@@ -50,7 +38,8 @@ void _normalize_filter(FT_FilterNode **filter) {
 		// NOP, expression already normalized
 		break;
 	default:
-		assert(false);
+		ASSERT(false);
+		break;
 	}
 }
 
@@ -65,7 +54,7 @@ static inline bool _isInFilter(const FT_FilterNode *filter) {
 }
 
 static bool _validateInExpression(AR_ExpNode *exp) {
-	assert(exp->op.child_count == 2);
+	ASSERT(exp->op.child_count == 2);
 
 	AR_ExpNode *list = exp->op.children[1];
 	SIValue listValue = SI_NullVal();
@@ -87,34 +76,42 @@ static bool _validateInExpression(AR_ExpNode *exp) {
 bool _simple_predicates(FT_FilterNode *filter) {
 	bool res = false;
 
+	SIValue v;
+	AR_ExpNode *exp = NULL;
+	AR_ExpNode *lhs_exp = NULL;
+	AR_ExpNode *rhs_exp = NULL;
+
 	switch(filter->t) {
 	case FT_N_PRED:
-		if(filter->pred.rhs->type == AR_EXP_OPERAND &&
-		   filter->pred.lhs->type == AR_EXP_OPERAND) {
-			SIValue v_lhs = SI_NullVal();
-			SIValue v_rhs = SI_NullVal();
-			bool lhs_scalar = AR_EXP_ReduceToScalar(filter->pred.lhs, true, &v_lhs);
-			bool rhs_scalar = AR_EXP_ReduceToScalar(filter->pred.rhs, true, &v_rhs);
-			// Predicate should be in the form of variable=scalar or scalar=variadic
-			if((lhs_scalar && !rhs_scalar) || (!lhs_scalar && rhs_scalar)) {
-				// Validate constant type.
-				SIValue c = lhs_scalar ? v_lhs : v_rhs;
-				SIType t = SI_TYPE(c);
-				res = (t & (SI_NUMERIC | T_STRING | T_BOOL));
-			}
-		}
+		lhs_exp = filter->pred.lhs;
+		rhs_exp = filter->pred.rhs;
+		// filter should be in the form of variable=scalar or scalar=variable
+		// find out which part of the filter performs entity attribute access
+
+		// n.v = exp
+		if(AR_EXP_IsAttribute(lhs_exp, NULL)) exp = rhs_exp;
+		// exp = n.v
+		if(AR_EXP_IsAttribute(rhs_exp, NULL)) exp = lhs_exp;
+		// filter is not of the form n.v = exp or exp = n.v
+		if(exp == NULL) break;
+
+		// make sure 'exp' represents a scalar
+		bool scalar = AR_EXP_ReduceToScalar(exp, true, &v);
+		if(scalar == false) break;
+
+		// validate constant type
+		SIType t = SI_TYPE(v);
+		res = (t & (SI_NUMERIC | T_STRING | T_BOOL));
 		break;
 	case FT_N_EXP:
-		if(_isInFilter(filter)) {
-			_normalize_in_filter(filter);
-			res = _validateInExpression(filter->exp.exp);
-		}
+		res = (_isInFilter(filter) && _validateInExpression(filter->exp.exp));
 		break;
 	case FT_N_COND:
 		res = (_simple_predicates(filter->cond.left) && _simple_predicates(filter->cond.right));
 		break;
 	default:
-		assert(false);
+		ASSERT(false);
+		break;
 	}
 
 	return res;
@@ -153,7 +150,11 @@ RSQNode *_filterTreeToInQueryNode(FT_FilterNode *filter, RSIndex *sp) {
 
 	// extract both field name and list from expression
 	AR_ExpNode *inOp = filter->exp.exp;
-	const char *field = inOp->op.children[0]->operand.variadic.entity_prop;
+
+	char *field;
+	bool attribute = AR_EXP_IsAttribute(inOp->op.children[0], &field);
+	ASSERT(attribute == true);
+
 	SIValue list = inOp->op.children[1]->operand.constant;
 	uint list_len = SIArray_Length(list);
 
@@ -183,7 +184,7 @@ RSQNode *_filterTreeToInQueryNode(FT_FilterNode *filter, RSIndex *sp) {
 			node = RediSearch_CreateNumericNode(sp, field, d, d, true, true);
 			break;
 		default:
-			assert(false && "unexpected conditional operation");
+			ASSERT(false && "unexpected conditional operation");
 			break;
 		}
 		RediSearch_QueryNodeAddChild(U, node);
@@ -217,13 +218,17 @@ RSQNode *_filterTreeToQueryNode(FT_FilterNode *filter, RSIndex *sp) {
 			RediSearch_QueryNodeAddChild(node, right);
 			break;
 		default:
-			assert(false && "unexpected conditional operation");
+			ASSERT(false && "unexpected conditional operation");
+			break;
 		}
 		break;
 	}
 	case FT_N_PRED: {
 		double d;
-		const char *field = filter->pred.lhs->operand.variadic.entity_prop;
+		char *field;
+		bool attribute = AR_EXP_IsAttribute(filter->pred.lhs, &field);
+		ASSERT(attribute == true);
+
 		SIValue v = filter->pred.rhs->operand.constant;
 		switch(SI_TYPE(v)) {
 		case T_STRING:
@@ -245,10 +250,11 @@ RSQNode *_filterTreeToQueryNode(FT_FilterNode *filter, RSIndex *sp) {
 				node = RediSearch_CreateTokenNode(sp, field, v.stringval);
 				break;
 			case OP_NEQUAL: // !=
-				assert(false && "Index can't utilize the 'not equals' operation.");
+				ASSERT(false && "Index can't utilize the 'not equals' operation.");
 				break;
 			default:
-				assert(false && "unexpected operation");
+				ASSERT(false && "unexpected operation");
+				break;
 			}
 
 			RediSearch_QueryNodeAddChild(parent, node);
@@ -276,14 +282,16 @@ RSQNode *_filterTreeToQueryNode(FT_FilterNode *filter, RSIndex *sp) {
 				node = RediSearch_CreateNumericNode(sp, field, d, d, true, true);
 				break;
 			case OP_NEQUAL: // !=
-				assert(false && "Index can't utilize the 'not equals' operation.");
+				ASSERT(false && "Index can't utilize the 'not equals' operation.");
 				break;
 			default:
-				assert(false && "unexpected operation");
+				ASSERT(false && "unexpected operation");
+				break;
 			}
 			break;
 		default:
-			assert(false && "unexpected value type");
+			ASSERT(false && "unexpected value type");
+			break;
 		}
 
 		break;
@@ -293,7 +301,8 @@ RSQNode *_filterTreeToQueryNode(FT_FilterNode *filter, RSIndex *sp) {
 		break;
 	}
 	default: {
-		assert("unknown filter tree node type");
+		ASSERT("unknown filter tree node type");
+		break;
 	}
 	}
 	return node;
@@ -340,6 +349,7 @@ bool _applicableFilter(Index *idx, FT_FilterNode **filter) {
 			if(filter_attribute_count == 0) break;
 		}
 	}
+
 	if(filter_attribute_count != 0) {
 		res = false;
 		goto cleanup;
@@ -380,12 +390,15 @@ OpFilter **_applicableFilters(NodeByLabelScan *scanOp, Index *idx) {
  * Return true if filter was reduce, false otherwise. */
 void _predicateTreeToRange(const FT_FilterNode *tree, rax *string_ranges, rax *numeric_ranges) {
 	// Simple predicate trees are used to build up a range object.
-	assert(tree->pred.lhs->operand.type == AR_EXP_VARIADIC &&
-		   tree->pred.rhs->operand.type == AR_EXP_CONSTANT);
+	ASSERT(AR_EXP_IsConstant(tree->pred.rhs));
+
+	char *prop;
+	bool attribute = AR_EXP_IsAttribute(tree->pred.lhs, &prop);
+	ASSERT(attribute == true);
 
 	int op = tree->pred.op;
 	SIValue c = tree->pred.rhs->operand.constant;
-	const char *prop = tree->pred.lhs->operand.variadic.entity_prop;
+
 	StringRange *sr = raxFind(string_ranges, (unsigned char *)prop, strlen(prop));
 	NumericRange *nr = raxFind(numeric_ranges, (unsigned char *)prop, strlen(prop));
 
@@ -405,7 +418,7 @@ void _predicateTreeToRange(const FT_FilterNode *tree, rax *string_ranges, rax *n
 		}
 		StringRange_TightenRange(sr, op, c.stringval);
 	} else {
-		assert(false);
+		ASSERT(false);
 	}
 }
 
@@ -419,7 +432,7 @@ void reduce_scan_op(ExecutionPlan *plan, NodeByLabelScan *scan) {
 	rax *numeric_ranges = NULL;
 
 	// Make sure there's an index for scanned label.
-	const char *label = scan->n->label;
+	const char *label = scan->n.label;
 	GraphContext *gc = QueryCtx_GetGraphCtx();
 	Index *idx = GraphContext_GetIndex(gc, label, NULL, IDX_EXACT_MATCH);
 	if(idx == NULL) return;

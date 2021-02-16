@@ -63,22 +63,26 @@ typedef struct {
 
 /* Adds property to entity
  * returns - reference to newly added property. */
-SIValue *GraphEntity_AddProperty(GraphEntity *e, Attribute_ID attr_id, SIValue value);
+bool GraphEntity_AddProperty(GraphEntity *e, Attribute_ID attr_id, SIValue value);
 
 /* Retrieves entity's property
  * NOTE: If the key does not exist, we return the special
  * constant value PROPERTY_NOTFOUND. */
 SIValue *GraphEntity_GetProperty(const GraphEntity *e, Attribute_ID attr_id);
 
-/* Updates existing attribute value. */
-void GraphEntity_SetProperty(const GraphEntity *e, Attribute_ID attr_id, SIValue value);
+/* Updates existing attribute value, return true if property been updated. */
+bool GraphEntity_SetProperty(const GraphEntity *e, Attribute_ID attr_id, SIValue value);
 
 /* Prints the graph entity into a buffer, returns what is the string length, buffer can be re-allocated at need. */
 void GraphEntity_ToString(const GraphEntity *e, char **buffer, size_t *bufferLen,
 						  size_t *bytesWritten,
 						  GraphEntityStringFromat format, GraphEntityType entityType);
 
+// Returns true if the given graph entity has been deleted.
+bool GraphEntity_IsDeleted(const GraphEntity *e);
+
 /* Release all memory allocated by entity */
 void FreeEntity(Entity *e);
 
 #endif
+

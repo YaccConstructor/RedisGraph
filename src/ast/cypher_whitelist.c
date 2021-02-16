@@ -7,7 +7,7 @@
 #include "cypher_whitelist.h"
 #include "../../deps/libcypher-parser/lib/src/operators.h" // TODO safe?
 #include "rax.h"
-#include <assert.h>
+#include "../errors.h"
 #include "../query_ctx.h"
 
 /* Whitelist of all accepted cypher_astnode types:
@@ -136,15 +136,15 @@ static void _buildTypesWhitelist(void) {
         CYPHER_AST_PATH_PATTERN_REFERENCE,
         CYPHER_AST_RANGE,
 		// CYPHER_AST_COMMAND,
-		// CYPHER_AST_COMMENT,
-		// CYPHER_AST_LINE_COMMENT,
-		// CYPHER_AST_BLOCK_COMMENT,
+		CYPHER_AST_COMMENT,
+		CYPHER_AST_LINE_COMMENT,
+		CYPHER_AST_BLOCK_COMMENT,
 		CYPHER_AST_ERROR,
-		// CYPHER_AST_MAP_PROJECTION,
-		// CYPHER_AST_MAP_PROJECTION_SELECTOR,
-		// CYPHER_AST_MAP_PROJECTION_LITERAL,
-		// CYPHER_AST_MAP_PROJECTION_PROPERTY,
-		// CYPHER_AST_MAP_PROJECTION_IDENTIFIER,
+		CYPHER_AST_MAP_PROJECTION,
+		CYPHER_AST_MAP_PROJECTION_SELECTOR,
+		CYPHER_AST_MAP_PROJECTION_LITERAL,
+		CYPHER_AST_MAP_PROJECTION_PROPERTY,
+		CYPHER_AST_MAP_PROJECTION_IDENTIFIER,
 		// CYPHER_AST_MAP_PROJECTION_ALL_PROPERTIES,
 		end_of_list
 	};
@@ -211,7 +211,7 @@ static AST_Validation _CypherWhitelist_ValidateQuery(const cypher_astnode_t *ele
 	cypher_astnode_type_t type = cypher_astnode_type(elem);
 	// Validate the type of the AST node
 	if(raxFind(_astnode_type_whitelist, (unsigned char *)&type, sizeof(type)) == raxNotFound) {
-		QueryCtx_SetError("RedisGraph does not currently support %s", cypher_astnode_typestr(type));
+		Error_UnsupportedASTNodeType(elem);
 		return AST_INVALID;
 	}
 
@@ -227,7 +227,7 @@ static AST_Validation _CypherWhitelist_ValidateQuery(const cypher_astnode_t *ele
 	}
 	if(operator) {
 		if(raxFind(_operator_whitelist, (unsigned char *)operator, sizeof(*operator)) == raxNotFound) {
-			QueryCtx_SetError("RedisGraph does not currently support %s", operator->str);
+			Error_UnsupportedASTOperator(operator);
 			return AST_INVALID;
 		}
 	}
@@ -248,8 +248,8 @@ AST_Validation CypherWhitelist_ValidateQuery(const cypher_astnode_t *root) {
 }
 
 void CypherWhitelist_Build() {
-	assert(_astnode_type_whitelist == NULL && _operator_whitelist == NULL &&
-		   "Attempted to build query whitelist twice - was the module correctly?");
+	ASSERT(_astnode_type_whitelist == NULL && _operator_whitelist == NULL &&
+		   "Attempted to build query whitelist twice - was the module correctly loaded?");
 
 	_buildTypesWhitelist();
 	_buildOperatorsWhitelist();

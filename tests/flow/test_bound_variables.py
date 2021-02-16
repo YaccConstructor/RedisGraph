@@ -11,7 +11,7 @@ redis_graph = None
 
 class testBoundVariables(FlowTestsBase):
     def __init__(self):
-        self.env = Env()
+        self.env = Env(decodeResponses=True)
         global redis_graph
         redis_con = self.env.getConnection()
         redis_graph = Graph("G", redis_con)
@@ -65,8 +65,7 @@ class testBoundVariables(FlowTestsBase):
         redis_graph.call_procedure("db.idx.fulltext.createNodeIndex", 'L', 'val')
 
         # Project the result of scanning this index into a MATCH pattern.
-        query = """CALL db.idx.fulltext.queryNodes('L', 'v1') YIELD node MATCH (node)-[]->(b) RETURN b.val
-"""
+        query = """CALL db.idx.fulltext.queryNodes('L', 'v1') YIELD node MATCH (node)-[]->(b) RETURN b.val"""
         # Verify that execution begins at the procedure call and proceeds into the traversals.
         execution_plan = redis_graph.execution_plan(query)
         # For the moment, we'll just verify that ProcedureCall appears later in the plan than

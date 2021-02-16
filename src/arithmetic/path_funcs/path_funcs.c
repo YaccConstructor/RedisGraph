@@ -10,7 +10,6 @@
 #include "../../ast/ast.h"
 #include "../../util/rmalloc.h"
 #include "../../util/arr.h"
-#include "assert.h"
 
 /* Creates a path from a given sequence of graph entities.
  * The first argument is the ast node represents the path.
@@ -22,7 +21,7 @@
 SIValue AR_TOPATH(SIValue *argv, int argc) {
 	const cypher_astnode_t *ast_path = argv[0].ptrval;
 	uint nelements = cypher_ast_pattern_path_nelements(ast_path);
-	assert(argc == (nelements + 1));
+	ASSERT(argc == (nelements + 1));
 
 	SIValue path = SIPathBuilder_New(nelements);
 	for(uint i = 0; i < nelements; i++) {
@@ -84,22 +83,22 @@ void Register_PathFuncs() {
 	types = array_new(SIType, 2);
 	types = array_append(types, T_PTR);
 	types = array_append(types, T_NULL | T_NODE | T_EDGE | T_PATH);
-	func_desc = AR_FuncDescNew("topath", AR_TOPATH, 1, VAR_ARG_LEN, types, false);
+	func_desc = AR_FuncDescNew("topath", AR_TOPATH, 1, VAR_ARG_LEN, types, false, false);
 	AR_RegFunc(func_desc);
 
 	types = array_new(SIType, 1);
 	types = array_append(types, T_NULL | T_PATH);
-	func_desc = AR_FuncDescNew("nodes", AR_PATH_NODES, 1, 1, types, false);
+	func_desc = AR_FuncDescNew("nodes", AR_PATH_NODES, 1, 1, types, false, false);
 	AR_RegFunc(func_desc);
 
 	types = array_new(SIType, 1);
 	types = array_append(types, T_NULL | T_PATH);
-	func_desc = AR_FuncDescNew("relationships", AR_PATH_RELATIONSHIPS, 1, 1, types, false);
+	func_desc = AR_FuncDescNew("relationships", AR_PATH_RELATIONSHIPS, 1, 1, types, false, false);
 	AR_RegFunc(func_desc);
 
 	types = array_new(SIType, 1);
 	types = array_append(types, T_NULL | T_PATH);
-	func_desc = AR_FuncDescNew("length", AR_PATH_LENGTH, 1, 1, types, false);
+	func_desc = AR_FuncDescNew("length", AR_PATH_LENGTH, 1, 1, types, false, false);
 	AR_RegFunc(func_desc);
 }
 

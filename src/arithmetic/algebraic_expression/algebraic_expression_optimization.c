@@ -42,12 +42,12 @@ static void _AlgebraicExpression_CollectOperands(AlgebraicExpression *root,
 			}
 			break;
 		default:
-			assert("Unknown algebraic expression operation type" && false);
+			ASSERT("Unknown algebraic expression operation type" && false);
 			break;
 		}
 		break;
 	default:
-		assert("Unknown algebraic expression node type" && false);
+		ASSERT("Unknown algebraic expression node type" && false);
 		break;
 	}
 }
@@ -68,13 +68,13 @@ static bool __AlgebraicExpression_MulOverAdd(AlgebraicExpression **root) {
 			AlgebraicExpression **right_ops = array_new(AlgebraicExpression *, right_op_count);
 
 			for(uint i = 0; i < left_op_count; i++) {
-				left_ops = array_append(left_ops, _AlgebraicExpression_OperationRemoveLeftmostChild(l));
+				left_ops = array_append(left_ops, _AlgebraicExpression_OperationRemoveSource(l));
 			}
 			for(uint i = 0; i < right_op_count; i++) {
-				right_ops = array_append(right_ops, _AlgebraicExpression_OperationRemoveLeftmostChild(r));
+				right_ops = array_append(right_ops, _AlgebraicExpression_OperationRemoveSource(r));
 			}
 
-			assert(AlgebraicExpression_ChildCount(l) == 0 && AlgebraicExpression_ChildCount(r) == 0);
+			ASSERT(AlgebraicExpression_ChildCount(l) == 0 && AlgebraicExpression_ChildCount(r) == 0);
 
 			// Multiply each left op by right op: (A*C), (A*D), (B*C), (B*D).
 			AlgebraicExpression **multiplications = array_new(AlgebraicExpression *,
@@ -113,9 +113,9 @@ static bool __AlgebraicExpression_MulOverAdd(AlgebraicExpression **root) {
 				(_AlgebraicExpression_IsAdditionNode(r) && !_AlgebraicExpression_IsAdditionNode(l))) {
 
 			// Disconnect left and right children from root.
-			r = _AlgebraicExpression_OperationRemoveRightmostChild((*root));
-			l = _AlgebraicExpression_OperationRemoveRightmostChild((*root));
-			assert(AlgebraicExpression_ChildCount(*root) == 0);
+			r = _AlgebraicExpression_OperationRemoveDest((*root));
+			l = _AlgebraicExpression_OperationRemoveDest((*root));
+			ASSERT(AlgebraicExpression_ChildCount(*root) == 0);
 
 			AlgebraicExpression *add = AlgebraicExpression_NewOperation(AL_EXP_ADD);
 			AlgebraicExpression *lMul = AlgebraicExpression_NewOperation(AL_EXP_MUL);
@@ -132,8 +132,8 @@ static bool __AlgebraicExpression_MulOverAdd(AlgebraicExpression **root) {
 				// Lefthand side is addition.
 				// (A + B) * C = (A * C) + (B * C)
 
-				A = _AlgebraicExpression_OperationRemoveLeftmostChild(l);
-				B = _AlgebraicExpression_OperationRemoveRightmostChild(l);
+				A = _AlgebraicExpression_OperationRemoveSource(l);
+				B = _AlgebraicExpression_OperationRemoveDest(l);
 				C = r;
 
 				AlgebraicExpression_Free(l);
@@ -145,8 +145,8 @@ static bool __AlgebraicExpression_MulOverAdd(AlgebraicExpression **root) {
 				// Righthand side is addition.
 				// C * (A + B) = (C * A) + (C * B)
 
-				A = _AlgebraicExpression_OperationRemoveLeftmostChild(r);
-				B = _AlgebraicExpression_OperationRemoveRightmostChild(r);
+				A = _AlgebraicExpression_OperationRemoveSource(r);
+				B = _AlgebraicExpression_OperationRemoveDest(r);
 				C = l;
 
 				AlgebraicExpression_Free(r);
@@ -203,7 +203,7 @@ static void _AlgebraicExpression_MulOverAdd(AlgebraicExpression **root) {
  * by flattening the expression both 1 and 2 are represented by the
  * same tree structure. */
 static void _AlgebraicExpression_FlattenMultiplications(AlgebraicExpression *root) {
-	assert(root);
+	ASSERT(root);
 	uint child_count;
 
 	switch(root->type) {
@@ -230,7 +230,7 @@ static void _AlgebraicExpression_FlattenMultiplications(AlgebraicExpression *roo
 
 			break;
 		default:
-			assert("Unknown algebraic operation type" && false);
+			ASSERT("Unknown algebraic operation type" && false);
 			break;
 		}
 	default:
@@ -275,8 +275,8 @@ static void _Pushdown_TransposeTranspose
 ) {
 	// T(T(A)) = A
 	// Expecting just a single operand.
-	assert(AlgebraicExpression_ChildCount(exp) == 1);
-	AlgebraicExpression *only_child = _AlgebraicExpression_OperationRemoveRightmostChild(exp);
+	ASSERT(AlgebraicExpression_ChildCount(exp) == 1);
+	AlgebraicExpression *only_child = _AlgebraicExpression_OperationRemoveDest(exp);
 
 	// Replace Transpose operation with its child.
 	_AlgebraicExpression_InplaceRepurpose(exp, only_child);
@@ -299,7 +299,7 @@ static void _Pushdown_TransposeOperation
 		_Pushdown_TransposeTranspose(exp);
 		break;
 	default:
-		assert("Unknown algebraic expression operation");
+		ASSERT("Unknown algebraic expression operation" && false);
 		break;
 	}
 }
@@ -334,7 +334,7 @@ static void _Pushdown_TransposeExp
 		_Pushdown_TransposeOperand(exp);
 		break;
 	default:
-		assert("unknown algebraic expression node type" && false);
+		ASSERT("unknown algebraic expression node type" && false);
 		break;
 	}
 }
@@ -367,7 +367,7 @@ static void _Pushdown_TransposeExp
  *    (transpose)     (transpose)
  *         (B)            (A)
  * */
-static void _AlgebraicExpression_PushDownTranspose(AlgebraicExpression *root) {
+void AlgebraicExpression_PushDownTranspose(AlgebraicExpression *root) {
 	uint i = 0;
 	uint child_count = 0;
 	AlgebraicExpression *child = NULL;
@@ -384,7 +384,7 @@ static void _AlgebraicExpression_PushDownTranspose(AlgebraicExpression *root) {
 			child_count = AlgebraicExpression_ChildCount(root);
 			for(; i < child_count; i++) {
 				AlgebraicExpression *child = root->operation.children[i];
-				_AlgebraicExpression_PushDownTranspose(child);
+				AlgebraicExpression_PushDownTranspose(child);
 			}
 			break;
 
@@ -397,20 +397,20 @@ static void _AlgebraicExpression_PushDownTranspose(AlgebraicExpression *root) {
 				_Pushdown_TransposeExp(child);
 				/* Replace Transpose root with transposed expression.
 				 * Remove root only child. */
-				_AlgebraicExpression_OperationRemoveRightmostChild(root);
+				_AlgebraicExpression_OperationRemoveDest(root);
 				_AlgebraicExpression_InplaceRepurpose(root, child);
 
 				/* It is possible for `root` to contain a transpose subexpression
 				 * push it further down. */
-				_AlgebraicExpression_PushDownTranspose(root);
+				AlgebraicExpression_PushDownTranspose(root);
 			}
 			break;
 		default:
-			assert("Unknown operation" && false);
+			ASSERT("Unknown operation" && false);
 		}
 		break;  // Break out of case AL_OPERATION.
 	default:
-		assert("Unknown algebraic expression node type" && false);
+		ASSERT("Unknown algebraic expression node type" && false);
 	}
 }
 
@@ -439,15 +439,19 @@ static void _AlgebraicExpression_TransposeOperand(AlgebraicExpression *operand) 
 	GxB_Matrix_type(&type, A);
 	GrB_Info info = GrB_Matrix_new(&replacement, type, nrows, ncols);
 	if(info != GrB_SUCCESS) {
-		fprintf(stderr, "%s", GrB_error());
-		assert(false);
+		const char *error_msg = NULL;
+		GrB_error(&error_msg, replacement);
+		fprintf(stderr, "%s", error_msg);
+		ASSERT(false);
 	}
 
 	// Populate the replacement with the transposed contents of the original.
 	info = GrB_transpose(replacement, GrB_NULL, GrB_NULL, A, GrB_NULL);
 	if(info != GrB_SUCCESS) {
-		fprintf(stderr, "%s", GrB_error());
-		assert(false);
+		const char *error_msg = NULL;
+		GrB_error(&error_msg, replacement);
+		fprintf(stderr, "%s", error_msg);
+		ASSERT(false);
 	}
 
 	// Update the matrix pointer.
@@ -500,11 +504,11 @@ static void _AlgebraicExpression_ApplyTranspose(AlgebraicExpression *root) {
 			break;
 
 		case AL_EXP_TRANSPOSE:
-			assert(AlgebraicExpression_ChildCount(root) == 1 &&
+			ASSERT(AlgebraicExpression_ChildCount(root) == 1 &&
 				   "transpose operation had invalid number of children");
-			child = _AlgebraicExpression_OperationRemoveRightmostChild(root);
+			child = _AlgebraicExpression_OperationRemoveDest(root);
 			// Transpose operands will currently always have an operand child.
-			assert(child->type == AL_OPERAND && "encountered unexpected operation as transpose child");
+			ASSERT(child->type == AL_OPERAND && "encountered unexpected operation as transpose child");
 			if (!AlgebraicExpression_OperandIsReference(child)) {
 				// Transpose the child operand.
 				_AlgebraicExpression_TransposeOperand(child);
@@ -513,11 +517,11 @@ static void _AlgebraicExpression_ApplyTranspose(AlgebraicExpression *root) {
 			}
 			break;
 		default:
-			assert("Unknown operation" && false);
+			ASSERT("Unknown operation" && false);
 		}
 		break;  // Break out of case AL_OPERATION.
 	default:
-		assert("Unknown algebraic expression node type" && false);
+		ASSERT("Unknown algebraic expression node type" && false);
 	}
 }
 
@@ -528,12 +532,9 @@ void AlgebraicExpression_Optimize
 (
 	AlgebraicExpression **exp
 ) {
-	assert(exp);
+	ASSERT(exp);
 
-	_AlgebraicExpression_PushDownTranspose(*exp);
-#ifdef PDD
-	printf("After _AlgebraicExpression_PushDownTranspose:\n\t%s\n", AlgebraicExpression_ToStringDebug(*exp));
-#endif
+	AlgebraicExpression_PushDownTranspose(*exp);
 	_AlgebraicExpression_MulOverAdd(exp);
 #ifdef PDD
 	printf("After _AlgebraicExpression_MulOverAdd:\n\t%s\n", AlgebraicExpression_ToStringDebug(*exp));
@@ -550,7 +551,9 @@ void AlgebraicExpression_Optimize
 #endif
 
 	// If we are maintaining transposed matrices, all transpose operations have already been replaced.
-	if(Config_MaintainTranspose() == false) {
+	bool maintain_transpose;
+	Config_Option_get(Config_MAINTAIN_TRANSPOSE, &maintain_transpose);
+	if(maintain_transpose == false) {
 		// Replace transpose operators with actual transposed operands.
 		_AlgebraicExpression_ApplyTranspose(*exp);
 	}

@@ -14,7 +14,7 @@
 static bool _highly_connected_node(const QueryGraph *qg, const char *alias) {
 	// Look up node in qg.
 	QGNode *n = QueryGraph_GetNodeByAlias(qg, alias);
-	return ((array_len(n->incoming_edges) + array_len(n->outgoing_edges)) > 2);
+	return n->highly_connected;
 }
 
 static inline bool _referred_entity(const char *alias) {
@@ -48,7 +48,7 @@ static bool _AlgebraicExpression_ContainsVariableLengthEdge
 		}
 		break;
 	default:
-		assert("Unknow algebraic expression node type" && false);
+		ASSERT("Unknow algebraic expression node type" && false);
 	}
 	return false;
 }
@@ -114,7 +114,7 @@ static AlgebraicExpression **_AlgebraicExpression_IsolateVariableLenExps(
 		// src is the destination of the previous expression.
 		if(expIdx == 0 && src->label) {
 			// Remove src node matrix from expression.
-			AlgebraicExpression *op = AlgebraicExpression_RemoveLeftmostNode(&exp);
+			AlgebraicExpression *op = AlgebraicExpression_RemoveSource(&exp);
 			res = array_append(res, op);
 		}
 
@@ -124,7 +124,7 @@ static AlgebraicExpression **_AlgebraicExpression_IsolateVariableLenExps(
 		QGNode *dest = QueryGraph_GetNodeByAlias(qg, AlgebraicExpression_Destination(exp));
 		if(dest->label) {
 			// Remove dest node matrix from expression.
-			AlgebraicExpression *op = AlgebraicExpression_RemoveRightmostNode(&exp);
+			AlgebraicExpression *op = AlgebraicExpression_RemoveDest(&exp);
 
 			/* See if dest mat can be prepended to the following expression.
 			 * If not create a new expression. */
@@ -441,7 +441,7 @@ static QGNode *_SharedNode
 	const QGEdge *a,
 	const QGEdge *b
 ) {
-	assert(a && b);
+	ASSERT(a && b);
 	if(a->dest == b->src) return a->dest;   // (a)-[E0]->(b)-[E1]->(c)
 	if(a->src == b->dest) return a->src;    // (a)<-[E0]-(b)<-[E1]-(c)
 	if(a->src == b->src) return a->src;     // (a)<-[E0]-(b)-[E1]->(c)
@@ -499,7 +499,7 @@ static void _normalizePath
 		QGEdge *e = path[i];
 		QGEdge *follow = path[i + 1];
 		QGNode *shared = _SharedNode(e, follow);
-		assert(shared);
+		ASSERT(shared);
 
 		/* The edge should be transposed if its destination is not shared.
 		 * (dest)<-[e]-(shared)-[follow]->()
@@ -535,11 +535,11 @@ static AlgebraicExpression *_AlgebraicExpression_FromPath
 	QGEdge **path,
 	bool *transpositions
 ) {
-	assert(path);
+	ASSERT(path);
 
 	QGEdge *e = NULL;
 	uint path_len = array_len(path);
-	assert(path_len > 0);
+	ASSERT(path_len > 0);
 	AlgebraicExpression *root = NULL;
 
 	/* Treating path as a chain
@@ -548,7 +548,7 @@ static AlgebraicExpression *_AlgebraicExpression_FromPath
 	 * e.g.
 	 * (A)-[E0]->(B)<-[E1]-(C)-[E2]->(D)
 	 * E1 will be transposed:
-	 * (A)-[E0]->(B)-[E1]->(C)-[E2]->(D) */
+	 * (A)-[E0]->(B)-[E1']->(C)-[E2]->(D) */
 
 	// Construct expression.
 	for(int i = 0; i < path_len; i++) {
@@ -581,7 +581,7 @@ AlgebraicExpression **AlgebraicExpression_FromQueryGraph
 (
 	const QueryGraph *qg    // Query-graph to process
 ) {
-	assert(qg);
+	ASSERT(qg);
 
 	/* Construct algebraic expression(s) from query-graph.
 	 * Trying to take advantage of long multiplications with as few
@@ -614,7 +614,7 @@ AlgebraicExpression **AlgebraicExpression_FromQueryGraph
 		// Get a path of length level, allow closing a cycle if the graph is not acyclic.
 		QGEdge **path = DFS(n, depth, !acyclic);
 		uint path_len = array_len(path);
-		assert(path_len == depth);
+		ASSERT(path_len == depth);
 
 		/* TODO:
 		 * In case path is a cycle, e.g. (b)-[]->(a)-[]->(b)
@@ -653,12 +653,12 @@ AlgebraicExpression **AlgebraicExpression_FromQueryGraph
 				if(src->label) {
 					/* exp[i] shares a label matrix with exp[i-1]
 					 * remove redundancy. */
-					AlgebraicExpression *redundent = AlgebraicExpression_RemoveLeftmostNode(&exp);
+					AlgebraicExpression *redundent = AlgebraicExpression_RemoveSource(&exp);
 					AlgebraicExpression_Free(redundent);
 				}
 			}
 			// Expression can not be empty.
-			assert(AlgebraicExpression_OperandCount(exp) > 0);
+			ASSERT(AlgebraicExpression_OperandCount(exp) > 0);
 		}
 
 		sub_exps = _AlgebraicExpression_IsolateVariableLenExps(qg, sub_exps);
@@ -688,6 +688,9 @@ AlgebraicExpression **AlgebraicExpression_FromQueryGraph
 	return exps;
 }
 
+<<<<<<< HEAD
 AlgebraicExpression *AlgebraicExpression_FromEbnf(const EBNFBase *ebnf) {
     return _AlgebraicExpression_OperandFromEbnf(ebnf, NULL, NULL, NULL);
 }
+=======
+>>>>>>> 01b22e1cce28f0860b6660f2eedcf361590fc3c4

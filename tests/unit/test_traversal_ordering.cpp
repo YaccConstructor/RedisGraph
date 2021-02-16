@@ -12,6 +12,7 @@ extern "C" {
 
 #include "../../src/util/rmalloc.h"
 #include "../../src/query_ctx.h"
+#include "../../src/arithmetic/funcs.h"
 #include "../../src/graph/query_graph.h"
 #include "../../src/filter_tree/filter_tree.h"
 #include "../../src/ast/ast_build_filter_tree.h"
@@ -27,12 +28,25 @@ class TraversalOrderingTest: public ::testing::Test {
 	static void SetUpTestCase() {
 		// Use the malloc family for allocations
 		Alloc_Reset();
-
-		// Prepare thread-local variables
-		ASSERT_TRUE(QueryCtx_Init());
+		_fake_graph_context();
 	}
 
 	static void TearDownTestCase() {
+	}
+
+	static void _fake_graph_context() {
+		/* Filter tree construction requires access to schemas,
+		 * those inturn resides within graph context
+		 * accessible via thread local storage, as such we're creating a
+		 * fake graph context and placing it within thread local storage. */
+		GraphContext *gc = (GraphContext *)calloc(1, sizeof(GraphContext));
+		gc->attributes = raxNew();
+		pthread_rwlock_init(&gc->_attribute_rwlock, NULL);
+
+		// Prepare thread-local variables
+		ASSERT_TRUE(QueryCtx_Init());
+		QueryCtx_SetGraphCtx(gc);
+		AR_RegisterFuncs();
 	}
 
 	AST *_build_ast(const char *query) {
@@ -260,3 +274,49 @@ TEST_F(TraversalOrderingTest, FilterFirst) {
 	QueryGraph_Free(qg);
 }
 
+TEST_F(TraversalOrderingTest, OptimalStartingPoint) {
+	/* Given the single algebraic expression that represents the traversal:
+	 * (A)->(B:L)->(C:L)
+	 * And a set of filters:
+	 * A.V = X, C.V = Y
+	 *
+	 * The starting point of the traversal should be C,
+	 * as it is both labeled and filtered. */
+
+	FT_FilterNode *filters;
+	QGNode *A  = QGNode_New("A");
+	QGNode *B  = QGNode_New("B");
+	QGNode *C  = QGNode_New("C");
+	QGEdge *AB = QGEdge_New(A, B, "E", "AB");
+	QGEdge *BC = QGEdge_New(B, C, "E", "BC");	
+
+	B->label = "L";
+	C->label = "L";
+
+	QueryGraph *qg = QueryGraph_New(3, 2);
+
+	QueryGraph_AddNode(qg, A);
+	QueryGraph_AddNode(qg, B);
+	QueryGraph_AddNode(qg, C);
+	QueryGraph_ConnectNodes(qg, A, B, AB);
+	QueryGraph_ConnectNodes(qg, B, C, BC);
+
+	AlgebraicExpression *root = AlgebraicExpression_NewOperation(AL_EXP_MUL);
+	AlgebraicExpression *ExpAB = AlgebraicExpression_NewOperand(GrB_NULL, false, "A", "B", NULL, NULL);
+	AlgebraicExpression *ExpBC = AlgebraicExpression_NewOperand(GrB_NULL, false, "B", "C", NULL, NULL);
+	AlgebraicExpression_AddChild(root, ExpAB);
+	AlgebraicExpression_AddChild(root, ExpBC);
+
+	filters = build_filter_tree_from_query(
+				  "MATCH (A {val: 'v1'})-[]-(B:L)-[]->(C:L {val: 'v3'}) RETURN A");
+
+	ASSERT_STRNE(AlgebraicExpression_Source(root), "C");
+	orderExpressions(qg, &root, 1, filters, NULL);
+	ASSERT_STREQ(AlgebraicExpression_Source(root), "C");
+
+	// Clean up.
+	FilterTree_Free(filters);
+	AlgebraicExpression_Free(ExpAB);
+	AlgebraicExpression_Free(ExpBC);
+	QueryGraph_Free(qg);
+}

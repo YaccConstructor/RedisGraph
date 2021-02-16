@@ -6,15 +6,18 @@
 */
 
 #include "funcs.h"
+#include "../RG.h"
 #include "../../deps/rax/rax.h"
-#include <assert.h>
 
 extern rax *__aeRegisteredFuncs;
 
 void AR_RegisterFuncs() {
-	assert(!__aeRegisteredFuncs);
+	ASSERT(__aeRegisteredFuncs == NULL);
 	__aeRegisteredFuncs = raxNew();
 
+	Register_AggFuncs();
+	Register_MapFuncs();
+	Register_PathFuncs();
 	Register_ListFuncs();
 	Register_TimeFuncs();
 	Register_EntityFuncs();
@@ -23,7 +26,6 @@ void AR_RegisterFuncs() {
 	Register_BooleanFuncs();
 	Register_ConditionalFuncs();
 	Register_ComprehensionFuncs();
-	Register_PathFuncs();
 	Register_PlaceholderFuncs();
 }
 

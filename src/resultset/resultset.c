@@ -5,16 +5,17 @@
 */
 
 #include "resultset.h"
+#include "RG.h"
 #include "../value.h"
+#include "../errors.h"
 #include "../util/arr.h"
 #include "../query_ctx.h"
 #include "../util/rmalloc.h"
 #include "../grouping/group_cache.h"
-#include "../arithmetic/aggregate.h"
 
 static void _ResultSet_ReplayStats(RedisModuleCtx *ctx, ResultSet *set) {
 	char buff[512] = {0};
-	size_t resultset_size = 2; /* query execution time and cached execution. */
+	size_t resultset_size = 2; // execution time, cached
 	int buflen;
 
 	if(set->stats.labels_added > 0) resultset_size++;
@@ -78,21 +79,19 @@ static void _ResultSet_ReplayStats(RedisModuleCtx *ctx, ResultSet *set) {
 /* Map each column to a record index
  * such that when resolving resultset row i column j we'll extract
  * data from record at position columns_record_map[j]. */
-static void _ResultSet_SetColToRecMap(ResultSet *set, const Record r) {
-	assert(set->columns_record_map == NULL);
-
-	set->columns_record_map = rm_malloc(sizeof(uint) * set->column_count);
+void ResultSet_MapProjection(ResultSet *set, const Record r) {
+	if(!set->columns_record_map) set->columns_record_map = rm_malloc(sizeof(uint) * set->column_count);
 
 	for(uint i = 0; i < set->column_count; i++) {
 		const char *column = set->columns[i];
 		uint idx = Record_GetEntryIdx(r, column);
-		assert(idx != INVALID_INDEX);
+		ASSERT(idx != INVALID_INDEX);
 		set->columns_record_map[i] = idx;
 	}
 }
 
 static void _ResultSet_ReplyWithPreamble(ResultSet *set, const Record r) {
-	assert(set->recordCount == 0);
+	ASSERT(set->recordCount == 0);
 
 	// Prepare a response containing a header, records, and statistics
 	RedisModule_ReplyWithArray(set->ctx, 3);
@@ -107,7 +106,7 @@ static void _ResultSet_ReplyWithPreamble(ResultSet *set, const Record r) {
 }
 
 static void _ResultSet_SetColumns(ResultSet *set) {
-	assert(!set->columns);
+	ASSERT(set->columns == NULL);
 
 	AST *ast = QueryCtx_GetAST();
 	const cypher_astnode_type_t root_type = cypher_astnode_type(ast->root);
@@ -153,6 +152,11 @@ ResultSet *NewResultSet(RedisModuleCtx *ctx, ResultSetFormatterType format) {
 	return set;
 }
 
+uint64_t ResultSet_RecordCount(const ResultSet *set) {
+	ASSERT(set != NULL);
+	return set->recordCount;
+}
+
 int ResultSet_AddRecord(ResultSet *set, Record r) {
 	// If result-set format is NOP, don't process record.
 	if(set->format == FORMATTER_NOP) return RESULTSET_OK;
@@ -160,7 +164,7 @@ int ResultSet_AddRecord(ResultSet *set, Record r) {
 	// If this is the first Record encountered
 	if(set->header_emitted == false) {
 		// Map columns to record indices.
-		_ResultSet_SetColToRecMap(set, r);
+		ResultSet_MapProjection(set, r);
 		// Prepare response arrays and emit the header.
 		_ResultSet_ReplyWithPreamble(set, r);
 	}
@@ -206,7 +210,7 @@ void ResultSet_Reply(ResultSet *set) {
 		// If we have emitted a header, set the number of elements in the preceding array.
 		RedisModule_ReplySetArrayLength(set->ctx, set->recordCount);
 	} else if(set->header_emitted == false && set->columns != NULL) {
-		assert(set->recordCount == 0);
+		ASSERT(set->recordCount == 0);
 		// Handle the edge case in which the query was intended to return results, but none were created.
 		_ResultSet_ReplyWithPreamble(set, NULL);
 		RedisModule_ReplySetArrayLength(set->ctx, 0);
@@ -217,7 +221,7 @@ void ResultSet_Reply(ResultSet *set) {
 
 	/* Check to see if we've encountered a run-time error.
 	 * If so, emit it as the last top-level response. */
-	if(QueryCtx_EncounteredError()) QueryCtx_EmitException();
+	if(ErrorCtx_EncounteredError()) ErrorCtx_EmitException();
 	else _ResultSet_ReplayStats(set->ctx, set); // Otherwise, the last response is query statistics.
 }
 
@@ -238,3 +242,4 @@ void ResultSet_Free(ResultSet *set) {
 
 	rm_free(set);
 }
+

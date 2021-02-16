@@ -8,6 +8,8 @@
 #include "../ops/ops.h"
 #include "../../util/arr.h"
 #include "../../query_ctx.h"
+#include "../../arithmetic/aggregate_funcs/agg_funcs.h"
+#include "../execution_plan_build/execution_plan_modify.h"
 
 static GrB_UnaryOp countMultipleEdges = NULL;
 
@@ -31,20 +33,18 @@ static int _identifyResultAndAggregateOps(OpBase *root, OpResult **opResult,
 
 	// Make sure aggregation performs counting.
 	if(exp->type != AR_EXP_OP ||
-	   exp->op.type != AR_OP_AGGREGATE ||
-	   AR_EXP_PerformDistinct(exp) ||
-	   strcasecmp(exp->op.func_name, "count")) return 0;
+	   exp->op.f->aggregate != true ||
+	   strcasecmp(exp->op.func_name, "count") ||
+	   Aggregate_PerformsDistinct(exp->op.f->privdata)) return 0;
 
 	// Make sure Count acts on an alias.
 	if(exp->op.child_count != 1) return 0;
+
 	AR_ExpNode *arg = exp->op.children[0];
-	if(arg->type != AR_EXP_OPERAND ||
-	   arg->operand.type != AR_EXP_VARIADIC ||
-	   arg->operand.variadic.entity_prop != NULL) return 0;
-
-	return 1;
-
+	return (arg->type == AR_EXP_OPERAND &&
+			arg->operand.type == AR_EXP_VARIADIC);
 }
+
 /* Checks if execution plan solely performs node count */
 static int _identifyNodeCountPattern(OpBase *root, OpResult **opResult, OpAggregate **opAggregate,
 									 OpBase **opScan, const char **label) {
@@ -67,8 +67,7 @@ static int _identifyNodeCountPattern(OpBase *root, OpResult **opResult, OpAggreg
 	*opScan = op;
 	if(op->type == OPType_NODE_BY_LABEL_SCAN) {
 		NodeByLabelScan *labelScan = (NodeByLabelScan *)op;
-		assert(labelScan->n->label);
-		*label = labelScan->n->label;
+		*label = labelScan->n.label;
 	}
 
 	return 1;
@@ -101,8 +100,7 @@ bool _reduceNodeCount(ExecutionPlan *plan) {
 		nodeCount = SI_LongVal(Graph_NodeCount(gc->g));
 	}
 
-	/* Construct a constant expression, used by a new
-	 * projection operation. */
+	// Construct a constant expression, used by a new projection operation
 	AR_ExpNode *exp = AR_EXP_NewConstOperandNode(nodeCount);
 	// The new expression must be aliased to populate the Record.
 	exp->resolved_name = opAggregate->aggregate_exps[0]->resolved_name;
@@ -112,13 +110,10 @@ bool _reduceNodeCount(ExecutionPlan *plan) {
 	OpBase *opProject = NewProjectOp(opAggregate->op.plan, exps);
 
 	// New execution plan: "Project -> Results"
-	ExecutionPlan *disconnected_plan = (ExecutionPlan *)opScan->plan;
-	ExecutionPlan_RemoveOp(disconnected_plan, opScan);
+	ExecutionPlan_RemoveOp(plan, opScan);
 	OpBase_Free(opScan);
-	// The plan segment that the scan and traverse op had been built with is now disconnected and should be freed.
-	ExecutionPlan_Free(disconnected_plan);
 
-	ExecutionPlan_RemoveOp(disconnected_plan, (OpBase *)opAggregate);
+	ExecutionPlan_RemoveOp(plan, (OpBase *)opAggregate);
 	OpBase_Free((OpBase *)opAggregate);
 
 	ExecutionPlan_AddOp((OpBase *)opResult, opProject);
@@ -126,7 +121,7 @@ bool _reduceNodeCount(ExecutionPlan *plan) {
 }
 
 /* Checks if execution plan solely performs edge count */
-static int _identifyEdgeCountPattern(OpBase *root, OpResult **opResult, OpAggregate **opAggregate,
+static bool _identifyEdgeCountPattern(OpBase *root, OpResult **opResult, OpAggregate **opAggregate,
 									 OpBase **opTraverse, OpBase **opScan) {
 	// Reset.
 	*opScan = NULL;
@@ -134,19 +129,19 @@ static int _identifyEdgeCountPattern(OpBase *root, OpResult **opResult, OpAggreg
 	*opResult = NULL;
 	*opAggregate = NULL;
 
-	if(!_identifyResultAndAggregateOps(root, opResult, opAggregate)) return 0;
+	if(!_identifyResultAndAggregateOps(root, opResult, opAggregate)) return false;
 	OpBase *op = ((OpBase *)*opAggregate)->children[0];
 
-	if(op->type != OPType_CONDITIONAL_TRAVERSE || op->childCount != 1) return 0;
+	if(op->type != OPType_CONDITIONAL_TRAVERSE || op->childCount != 1) return false;
 	*opTraverse = op;
 	op = op->children[0];
 
 	// Only a full node scan can be converted, as a labeled source acts as a filter
 	// that may invalidate some of the edges.
-	if(op->type != OPType_ALL_NODE_SCAN || op->childCount != 0) return 0;
+	if(op->type != OPType_ALL_NODE_SCAN || op->childCount != 0) return false;
 	*opScan = op;
 
-	return 1;
+	return true;
 }
 
 void _countEdges(void *z, const void *x) {
@@ -215,7 +210,7 @@ void _reduceEdgeCount(ExecutionPlan *plan) {
 	Graph *g = QueryCtx_GetGraph();
 
 	// If type is specified, count only labeled entities.
-	CondTraverse *condTraverse = (CondTraverse *)opTraverse;
+	OpCondTraverse *condTraverse = (OpCondTraverse *)opTraverse;
 	// The traversal op doesn't contain information about the traversed edge, cannot apply optimization.
 	if(!condTraverse->edge_ctx) return;
 
@@ -249,17 +244,13 @@ void _reduceEdgeCount(ExecutionPlan *plan) {
 	OpBase *opProject = NewProjectOp(opAggregate->op.plan, exps);
 
 	// New execution plan: "Project -> Results"
-	ExecutionPlan *disconnected_plan = (ExecutionPlan *)opScan->plan;
-	ExecutionPlan_RemoveOp(disconnected_plan, opScan);
+	ExecutionPlan_RemoveOp(plan, opScan);
 	OpBase_Free(opScan);
 
-	ExecutionPlan_RemoveOp(disconnected_plan, (OpBase *)opTraverse);
+	ExecutionPlan_RemoveOp(plan, (OpBase *)opTraverse);
 	OpBase_Free(opTraverse);
 
-	// The plan segment that the scan and traverse op had been built with is now disconnected and should be freed.
-	ExecutionPlan_Free(disconnected_plan);
-
-	ExecutionPlan_RemoveOp(disconnected_plan, (OpBase *)opAggregate);
+	ExecutionPlan_RemoveOp(plan, (OpBase *)opAggregate);
 	OpBase_Free((OpBase *)opAggregate);
 
 	ExecutionPlan_AddOp((OpBase *)opResult, opProject);

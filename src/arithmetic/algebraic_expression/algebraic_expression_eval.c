@@ -61,12 +61,12 @@ static GrB_Matrix _Eval_Transpose
 	PathPatternCtx *pathCtx
 ) {
 	// This function is currently unused.
-	assert(exp && AlgebraicExpression_ChildCount(exp) == 1);
+	ASSERT(exp && AlgebraicExpression_ChildCount(exp) == 1);
 
 	AlgebraicExpression *child = FIRST_CHILD(exp);
-	assert(child->type == AL_OPERAND);
+	ASSERT(child->type == AL_OPERAND);
 	GrB_Info info = GrB_transpose(res, GrB_NULL, GrB_NULL, child->operand.matrix, GrB_NULL);
-	assert(info == GrB_SUCCESS);
+	ASSERT(info == GrB_SUCCESS);
 	return res;
 }
 
@@ -74,6 +74,7 @@ static GrB_Matrix _Eval_Add(const AlgebraicExpression *exp, GrB_Matrix res, Path
 	assert(exp && AlgebraicExpression_ChildCount(exp) > 1);
 
 	GrB_Info info;
+	UNUSED(info);
 	GrB_Index nrows;                // Number of rows of operand.
 	GrB_Index ncols;                // Number of columns of operand.
 	bool res_in_use = false;        // Can we use `res` for intermediate evaluation.
@@ -92,6 +93,7 @@ static GrB_Matrix _Eval_Add(const AlgebraicExpression *exp, GrB_Matrix res, Path
 		a = left->operand.matrix;
 	} else {
 		if(left->operation.op == AL_EXP_TRANSPOSE) {
+			ASSERT(AlgebraicExpression_ChildCount(left) == 1);
 			a = left->operation.children[0]->operand.matrix;
 			if(desc == GrB_NULL) GrB_Descriptor_new(&desc);
 			GrB_Descriptor_set(desc, GrB_INP0, GrB_TRAN);
@@ -107,6 +109,7 @@ static GrB_Matrix _Eval_Add(const AlgebraicExpression *exp, GrB_Matrix res, Path
 		b = right->operand.matrix;
 	} else {
 		if(right->operation.op == AL_EXP_TRANSPOSE) {
+			ASSERT(AlgebraicExpression_ChildCount(right) == 1);
 			b = right->operation.children[0]->operand.matrix;
 			if(desc == GrB_NULL) GrB_Descriptor_new(&desc);
 			GrB_Descriptor_set(desc, GrB_INP1, GrB_TRAN);
@@ -115,10 +118,7 @@ static GrB_Matrix _Eval_Add(const AlgebraicExpression *exp, GrB_Matrix res, Path
 			GrB_Matrix_nrows(&nrows, a);
 			GrB_Matrix_ncols(&ncols, a);
 			info = GrB_Matrix_new(&inter, GrB_BOOL, nrows, ncols);
-			if(info != GrB_SUCCESS) {
-				fprintf(stderr, "%s", GrB_error());
-				assert(false);
-			}
+			ASSERT(info == GrB_SUCCESS);
 			b = _AlgebraicExpression_Eval(right, inter, pathCtx);
 		} else {
 			// `res` is not used just yet, use it for RHS evaluation.
@@ -127,11 +127,8 @@ static GrB_Matrix _Eval_Add(const AlgebraicExpression *exp, GrB_Matrix res, Path
 	}
 
 	// Perform addition.
-	if(GrB_eWiseAdd_Matrix_Semiring(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, a, b,
-									desc) != GrB_SUCCESS) {
-		printf("Failed adding operands, error:%s\n", GrB_error());
-		assert(false);
-	}
+	info = GrB_eWiseAdd(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, a, b, desc);
+	ASSERT(info == GrB_SUCCESS);
 
 	// Reset descriptor if non-null.
 	if(desc != GrB_NULL) GrB_Descriptor_set(desc, GrB_INP0, GxB_DEFAULT);
@@ -147,24 +144,27 @@ static GrB_Matrix _Eval_Add(const AlgebraicExpression *exp, GrB_Matrix res, Path
 			b = right->operand.matrix;
 		} else {
 			if(right->operation.op == AL_EXP_TRANSPOSE) {
+				ASSERT(AlgebraicExpression_ChildCount(right) == 1);
 				b = right->operation.children[0]->operand.matrix;
 				if(desc == GrB_NULL) GrB_Descriptor_new(&desc);
 				GrB_Descriptor_set(desc, GrB_INP1, GrB_TRAN);
-			} else if(inter == GrB_NULL) {
-				// Can't use `res`, use an intermidate matrix.
-				GrB_Matrix_nrows(&nrows, res);
-				GrB_Matrix_ncols(&ncols, res);
-				GrB_Matrix_new(&inter, GrB_BOOL, nrows, ncols);
+			} else {
+				// 'right' represents either + or * operation.
+				if(inter == GrB_NULL) {
+					// Can't use `res`, use an intermidate matrix.
+					GrB_Matrix_nrows(&nrows, res);
+					GrB_Matrix_ncols(&ncols, res);
+					info = GrB_Matrix_new(&inter, GrB_BOOL, nrows, ncols);
+					ASSERT(info == GrB_SUCCESS);
+				}
+				b = _AlgebraicExpression_Eval(right, inter);
 			}
 			b = _AlgebraicExpression_Eval(right, inter, pathCtx);
 		}
 
 		// Perform addition.
-		if(GrB_eWiseAdd_Matrix_Semiring(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, res, b,
-										GrB_NULL) != GrB_SUCCESS) {
-			printf("Failed adding operands, error:%s\n", GrB_error());
-			assert(false);
-		}
+		info = GrB_eWiseAdd(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, res, b, GrB_NULL);
+		ASSERT(info == GrB_SUCCESS);
 	}
 
 	if(inter != GrB_NULL) GrB_Matrix_free(&inter);
@@ -177,6 +177,8 @@ static GrB_Matrix _Eval_Mul(const AlgebraicExpression *exp, GrB_Matrix res, Path
 		   AlgebraicExpression_ChildCount(exp) > 1 &&
 		   AlgebraicExpression_OperationCount(exp, AL_EXP_MUL) == 1);
 
+	GrB_Info info;
+	UNUSED(info);
 	GrB_Matrix A;
 	bool A_trans = false;
 
@@ -190,7 +192,8 @@ static GrB_Matrix _Eval_Mul(const AlgebraicExpression *exp, GrB_Matrix res, Path
 	AlgebraicExpression *right = CHILD_AT(exp, 1);
 
 	if(left->type == AL_OPERATION) {
-		assert(left->operation.op == AL_EXP_TRANSPOSE);
+		ASSERT(left->operation.op == AL_EXP_TRANSPOSE);
+		ASSERT(AlgebraicExpression_ChildCount(left) == 1);
 		if(desc == GrB_NULL) GrB_Descriptor_new(&desc);
 		GrB_Descriptor_set(desc, GrB_INP0, GrB_TRAN);
 		left = CHILD_AT(left, 0);
@@ -199,7 +202,8 @@ static GrB_Matrix _Eval_Mul(const AlgebraicExpression *exp, GrB_Matrix res, Path
 	A = left->operand.matrix;
 
 	if(right->type == AL_OPERATION) {
-		assert(right->operation.op == AL_EXP_TRANSPOSE);
+		ASSERT(right->operation.op == AL_EXP_TRANSPOSE);
+		ASSERT(AlgebraicExpression_ChildCount(right) == 1);
 		if(desc == GrB_NULL) GrB_Descriptor_new(&desc);
 		GrB_Descriptor_set(desc, GrB_INP1, GrB_TRAN);
 		right = CHILD_AT(right, 0);
@@ -212,11 +216,7 @@ static GrB_Matrix _Eval_Mul(const AlgebraicExpression *exp, GrB_Matrix res, Path
 		if(desc != GrB_NULL) GrB_Descriptor_set(desc, GrB_INP1, GxB_DEFAULT);
 		// B is the identity matrix, Perform A * I.
 		info = GrB_Matrix_apply(res, GrB_NULL, GrB_NULL, GrB_IDENTITY_BOOL, A, desc);
-		if(info != GrB_SUCCESS) {
-			// If the multiplication failed, print error info to stderr and exit.
-			fprintf(stderr, "Encountered an error in matrix multiplication:\n%s\n", GrB_error());
-			assert(false);
-		}
+		ASSERT(info == GrB_SUCCESS);
 	} else {
 		// If B is matrix of named path pattern, add sources
 		if (AlgebraicExpression_OperandIsReference(right)) {
@@ -232,14 +232,10 @@ static GrB_Matrix _Eval_Mul(const AlgebraicExpression *exp, GrB_Matrix res, Path
 
 		// Perform multiplication.
 		info = GrB_mxm(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, A, B, desc);
-		if(info != GrB_SUCCESS) {
-			// If the multiplication failed, print error info to stderr and exit.
-			fprintf(stderr, "Encountered an error in matrix multiplication:\n%s\n", GrB_error());
-			assert(false);
-		}
+		ASSERT(info == GrB_SUCCESS);
 	}
 
-	GrB_Matrix_nvals(&nvals, res);
+	GrB_wait(&res);
 
 	// Reset descriptor if non-null.
 	if(desc != GrB_NULL) GrB_Descriptor_set(desc, GrB_INP0, GxB_DEFAULT);
@@ -251,7 +247,8 @@ static GrB_Matrix _Eval_Mul(const AlgebraicExpression *exp, GrB_Matrix res, Path
 
 		right = CHILD_AT(exp, i);
 		if(right->type == AL_OPERATION) {
-			assert(right->operation.op == AL_EXP_TRANSPOSE);
+			ASSERT(right->operation.op == AL_EXP_TRANSPOSE);
+			ASSERT(AlgebraicExpression_ChildCount(right) == 1);
 			if(desc == GrB_NULL) GrB_Descriptor_new(&desc);
 			GrB_Descriptor_set(desc, GrB_INP1, GrB_TRAN);
 			right = CHILD_AT(right, 0);
@@ -278,11 +275,7 @@ static GrB_Matrix _Eval_Mul(const AlgebraicExpression *exp, GrB_Matrix res, Path
 			// Perform multiplication.
 
 			info = GrB_mxm(res, GrB_NULL, GrB_NULL, GxB_ANY_PAIR_BOOL, res, B, desc);
-			if(info != GrB_SUCCESS) {
-				// If the multiplication failed, print error info to stderr and exit.
-				fprintf(stderr, "Encountered an error in matrix multiplication:\n%s\n", GrB_error());
-				assert(false);
-			}
+			ASSERT(info == GrB_SUCCESS);
 		}
 		GrB_Matrix_nvals(&nvals, res);
 		if(nvals == 0) break;
@@ -313,14 +306,14 @@ GrB_Matrix _AlgebraicExpression_Eval(const AlgebraicExpression *exp, GrB_Matrix 
 			break;
 
 		default:
-			assert("Unknown algebraic expression operation" && false);
+			ASSERT("Unknown algebraic expression operation" && false);
 		}
 		break;
 	case AL_OPERAND:
 		res = exp->operand.matrix;
 		break;
 	default:
-		assert("Unknown algebraic expression node type" && false);
+		ASSERT("Unknown algebraic expression node type" && false);
 	}
 
 	return res;

@@ -4,8 +4,6 @@
 * This file is available under the Redis Labs Source Available License Agreement
 */
 
-#include <assert.h>
-
 #include "op_cond_var_len_traverse.h"
 #include "shared/print_functions.h"
 #include "../../util/arr.h"
@@ -23,7 +21,7 @@ static void CondVarLenTraverseFree(OpBase *opBase);
 
 static void _setupTraversedRelations(CondVarLenTraverse *op) {
 	QGEdge *e = QueryGraph_GetEdgeByAlias(op->op.plan->query_graph, AlgebraicExpression_Edge(op->ae));
-	assert(e->minHops <= e->maxHops);
+	ASSERT(e->minHops <= e->maxHops);
 	op->minHops = e->minHops;
 	op->maxHops = e->maxHops;
 
@@ -56,15 +54,19 @@ static void _setupTraversedRelations(CondVarLenTraverse *op) {
 static inline void _setTraverseDirection(CondVarLenTraverse *op, const QGEdge *e) {
 	if(e->bidirectional) {
 		op->traverseDir = GRAPH_EDGE_DIR_BOTH;
-	} else if(AlgebraicExpression_Transposed(op->ae)) {
-		// If the sole operand in the AlgebraicExpression is transposed, we are traversing right-to-left.
-		op->traverseDir = GRAPH_EDGE_DIR_INCOMING;
 	} else {
-		op->traverseDir = GRAPH_EDGE_DIR_OUTGOING;
+		if(AlgebraicExpression_Transposed(op->ae)) {
+			// traverse in the opposite direction, (dest)->(src) incoming edges
+			op->traverseDir = GRAPH_EDGE_DIR_INCOMING;
+		} else {
+			op->traverseDir = GRAPH_EDGE_DIR_OUTGOING;
+		}
 	}
 }
 
 static inline int CondVarLenTraverseToString(const OpBase *ctx, char *buf, uint buf_len) {
+	// TODO: tmp, improve TraversalToString
+	AlgebraicExpression_Optimize(&((CondVarLenTraverse *)ctx)->ae);
 	return TraversalToString(ctx, buf, buf_len, ((const CondVarLenTraverse *)ctx)->ae);
 }
 
@@ -77,7 +79,8 @@ void CondVarLenTraverseOp_ExpandInto(CondVarLenTraverse *op) {
 }
 
 OpBase *NewCondVarLenTraverseOp(const ExecutionPlan *plan, Graph *g, AlgebraicExpression *ae) {
-	assert(ae && g);
+	ASSERT(g != NULL);
+	ASSERT(ae != NULL);
 
 	CondVarLenTraverse *op = rm_malloc(sizeof(CondVarLenTraverse));
 	op->g = g;
@@ -91,10 +94,11 @@ OpBase *NewCondVarLenTraverseOp(const ExecutionPlan *plan, Graph *g, AlgebraicEx
 				"Conditional Variable Length Traverse", NULL, CondVarLenTraverseConsume, CondVarLenTraverseReset,
 				CondVarLenTraverseToString, CondVarLenTraverseClone, CondVarLenTraverseFree, false, plan);
 
-	assert(OpBase_Aware((OpBase *)op, AlgebraicExpression_Source(ae), &op->srcNodeIdx));
+	bool aware = OpBase_Aware((OpBase *)op, AlgebraicExpression_Source(ae), &op->srcNodeIdx);
+	ASSERT(aware);
 	op->destNodeIdx = OpBase_Modifies((OpBase *)op, AlgebraicExpression_Destination(ae));
 
-	// Populate edge value in record only if it is referenced.
+	// populate edge value in record only if it is referenced
 	AST *ast = QueryCtx_GetAST();
 	QGEdge *e = QueryGraph_GetEdgeByAlias(plan->query_graph, AlgebraicExpression_Edge(op->ae));
 	op->edgesIdx = AST_AliasIsReferenced(ast, e->alias) ? OpBase_Modifies((OpBase *)op, e->alias) : -1;
@@ -117,6 +121,15 @@ static Record CondVarLenTraverseConsume(OpBase *opBase) {
 		if(op->r) OpBase_DeleteRecord(op->r);
 		op->r = childRecord;
 
+		Node *srcNode = Record_GetNode(op->r, op->srcNodeIdx);
+		if(srcNode == NULL) {
+			/* The child Record may not contain the source node in scenarios like
+			 * a failed OPTIONAL MATCH. In this case, delete the Record and try again. */
+			OpBase_DeleteRecord(op->r);
+			op->r = NULL;
+			continue;
+		}
+
 		// Create edge relation type array on first call to consume.
 		if(!op->edgeRelationTypes) {
 			_setupTraversedRelations(op);
@@ -128,7 +141,6 @@ static Record CondVarLenTraverseConsume(OpBase *opBase) {
 		}
 
 		Node *destNode = NULL;
-		Node *srcNode = Record_GetNode(op->r, op->srcNodeIdx);
 		// The destination node is known in advance if we're performing an ExpandInto.
 		if(op->expandInto) destNode = Record_GetNode(op->r, op->destNodeIdx);
 
@@ -164,7 +176,7 @@ static OpResult CondVarLenTraverseReset(OpBase *ctx) {
 }
 
 static OpBase *CondVarLenTraverseClone(const ExecutionPlan *plan, const OpBase *opBase) {
-	assert(opBase->type == OPType_CONDITIONAL_VAR_LEN_TRAVERSE);
+	ASSERT(opBase->type == OPType_CONDITIONAL_VAR_LEN_TRAVERSE);
 	CondVarLenTraverse *op = (CondVarLenTraverse *) opBase;
 	OpBase *op_clone = NewCondVarLenTraverseOp(plan, QueryCtx_GetGraph(),
 											   AlgebraicExpression_Clone(op->ae));

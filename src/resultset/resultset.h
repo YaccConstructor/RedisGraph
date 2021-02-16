@@ -12,7 +12,6 @@
 #include "rax.h"
 #include "./formatters/resultset_formatters.h"
 
-#define RESULTSET_UNLIMITED UINT_MAX
 #define RESULTSET_OK 1
 #define RESULTSET_FULL 0
 
@@ -30,7 +29,12 @@ typedef struct {
 	ResultSetFormatter *formatter;  /* ResultSet data formatter. */
 } ResultSet;
 
+void ResultSet_MapProjection(ResultSet *set, const Record r);
+
 ResultSet *NewResultSet(RedisModuleCtx *ctx, ResultSetFormatterType format);
+
+// returns number of records in result-set
+uint64_t ResultSet_RecordCount(const ResultSet *set);
 
 int ResultSet_AddRecord(ResultSet *set, Record r);
 
@@ -45,3 +49,4 @@ void ResultSet_Reply(ResultSet *set);
 void ResultSet_ReportQueryRuntime(RedisModuleCtx *ctx);
 
 void ResultSet_Free(ResultSet *set);
+

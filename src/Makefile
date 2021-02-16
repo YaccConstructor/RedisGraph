@@ -4,6 +4,7 @@ uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 # Paths to deps.
 RAX_DIR = ../deps/rax
 XXHASH_DIR = ../deps/xxHash
+GRAPHBLAS_DIR = ../deps/GraphBLAS
 REDISEARCH_DIR = ../deps/RediSearch/src
 LIBCYPHER-PARSER_DIR = ../deps/libcypher-parser/lib/src
 
@@ -16,7 +17,7 @@ endif
 # Default CFLAGS
 CFLAGS = \
 	-Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-result \
-	-fPIC \
+	-fPIC -fcommon -fopenmp \
 	-D_GNU_SOURCE -DREDIS_MODULE_TARGET -DREDISMODULE_EXPERIMENTAL_API -DXXH_STATIC_LINKING_ONLY
 CFLAGS += $(DEBUGFLAGS)
 
@@ -37,6 +38,7 @@ SOURCEDIR=$(shell pwd -P)
 CC_SOURCES = $(wildcard $(SOURCEDIR)/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/algorithms/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/*.c)
+CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/map_funcs/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/path_funcs/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/list_funcs/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/placeholder_funcs/*.c)
@@ -45,6 +47,7 @@ CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/entity_funcs/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/string_funcs/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/boolean_funcs/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/numeric_funcs/*.c)
+CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/aggregate_funcs/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/conditional_funcs/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/comprehension_funcs/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/arithmetic/algebraic_expression/*.c)
@@ -56,6 +59,7 @@ CC_SOURCES += $(wildcard $(SOURCEDIR)/execution_plan/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/execution_plan/ops/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/execution_plan/ops/shared/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/execution_plan/optimizations/*.c)
+CC_SOURCES += $(wildcard $(SOURCEDIR)/execution_plan/execution_plan_build/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/filter_tree/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/graph/*.c)
 CC_SOURCES += $(wildcard $(SOURCEDIR)/graph/entities/*.c)
@@ -119,7 +123,7 @@ endif
 # Compile C file while generating a .d file for it
 %.o: %.c
 %.o: %.c
-	$(REDISGRAPH_CC) $(CFLAGS) -I. -I$(RAX_DIR) -I$(LIBCYPHER-PARSER_DIR) -I$(XXHASH_DIR) -I$(REDISEARCH_DIR) -c $< -o $@ -MMD -MF $(@:.o=.d)
+	$(REDISGRAPH_CC) $(CFLAGS) -I. -I$(GRAPHBLAS_DIR)/Include -I$(RAX_DIR) -I$(LIBCYPHER-PARSER_DIR) -I$(XXHASH_DIR) -I$(REDISEARCH_DIR) -c $< -o $@ -MMD -MF $(@:.o=.d)
 
 all: redisgraph.so
 
@@ -157,7 +161,7 @@ ifeq (,$(wildcard $(LIBCYPHER-PARSER)))
 	cd ../deps/libcypher-parser; \
 	sh ./autogen.sh; \
 	./configure --disable-shared;
-	$(MAKE) CFLAGS="-fPIC -DYY_BUFFER_SIZE=1048576" clean check -C ../deps/libcypher-parser
+	$(MAKE) CFLAGS="-O3 -fPIC -DYY_BUFFER_SIZE=1048576" clean check -C ../deps/libcypher-parser
 endif
 .PHONY: $(LIBCYPHER-PARSER)
 

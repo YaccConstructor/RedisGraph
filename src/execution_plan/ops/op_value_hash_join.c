@@ -9,7 +9,6 @@
 #include "../../util/arr.h"
 #include "../../util/rmalloc.h"
 #include "../../util/qsort.h"
-#include <assert.h>
 
 /* Forward declarations. */
 static OpResult ValueHashJoinInit(OpBase *opBase);
@@ -33,8 +32,8 @@ static bool _record_islt(Record l, Record r, uint idx) {
 
 // Performs binary search, returns the leftmost index of a match.
 static bool _binarySearchLeftmost(uint *idx, Record *array, uint array_len,
-		int join_key_idx, SIValue v) {
-	assert(idx != NULL);
+								  int join_key_idx, SIValue v) {
+	ASSERT(idx != NULL);
 
 	SIValue x;
 	uint pos = 0;
@@ -64,7 +63,7 @@ static bool _binarySearchLeftmost(uint *idx, Record *array, uint array_len,
 // assuming 'v' exists in 'array'
 static bool _binarySearchRightmost(uint *idx, Record *array, uint array_len, int join_key_idx,
 								   SIValue v) {
-	assert(idx != NULL);
+	ASSERT(idx != NULL);
 
 	SIValue x;
 	uint pos = 0;
@@ -109,7 +108,7 @@ static bool _set_intersection_idx(OpValueHashJoin *op, SIValue v) {
 	uint rightmost_idx = 0;
 
 	if(!_binarySearchLeftmost(&leftmost_idx, op->cached_records,
-				array_len(op->cached_records), op->join_value_rec_idx, v)) {
+							  array_len(op->cached_records), op->join_value_rec_idx, v)) {
 		return false;
 	}
 
@@ -121,15 +120,17 @@ static bool _set_intersection_idx(OpValueHashJoin *op, SIValue v) {
 
 	/* Count how many records share the same node.
 	 * reduce search space by truncating left bound */
-	assert(_binarySearchRightmost(&rightmost_idx, op->cached_records +
+	bool found = _binarySearchRightmost(&rightmost_idx, op->cached_records +
 								  leftmost_idx, record_count - leftmost_idx,
-								  op->join_value_rec_idx, v) == true);
+								  op->join_value_rec_idx, v);
+	UNUSED(found);
+	ASSERT(found == true);
 
 	// Compensate index.
 	rightmost_idx += leftmost_idx;
 	// +1 consider rightmost_idx == leftmost_idx.
 	op->number_of_intersections = rightmost_idx - leftmost_idx + 1;
-	assert(op->number_of_intersections > 0);
+	ASSERT(op->number_of_intersections > 0);
 
 	return true;
 }
@@ -143,7 +144,7 @@ void _sort_cached_records(OpValueHashJoin *op) {
 
 /* Caches all records coming from left branch. */
 void _cache_records(OpValueHashJoin *op) {
-	assert(op->cached_records == NULL);
+	ASSERT(op->cached_records == NULL);
 
 	OpBase *left_child = op->op.children[0];
 	op->cached_records = array_new(Record, 32);
@@ -175,6 +176,11 @@ static int ValueHashJoinToString(const OpBase *ctx, char *buff, uint buff_len) {
 
 	int offset = 0;
 	offset += snprintf(buff + offset, buff_len - offset, "%s | ", op->op.name);
+
+	/* Return early if we don't have arithmetic expressions to print.
+	 * This can occur when an upstream op like MERGE has
+	 * already freed this operation with PropagateFree. */
+	if(!(op->lhs_exp && op->rhs_exp)) return offset;
 
 	AR_EXP_ToString(op->lhs_exp, &exp_str);
 	offset += snprintf(buff + offset, buff_len - offset, "%s", exp_str);
@@ -209,7 +215,7 @@ OpBase *NewValueHashJoin(const ExecutionPlan *plan, AR_ExpNode *lhs_exp, AR_ExpN
 }
 
 static OpResult ValueHashJoinInit(OpBase *ctx) {
-	assert(ctx->childCount == 2);
+	ASSERT(ctx->childCount == 2);
 	return OP_OK;
 }
 
@@ -305,7 +311,7 @@ static OpResult ValueHashJoinReset(OpBase *ctx) {
 }
 
 static inline OpBase *ValueHashJoinClone(const ExecutionPlan *plan, const OpBase *opBase) {
-	assert(opBase->type == OPType_VALUE_HASH_JOIN);
+	ASSERT(opBase->type == OPType_VALUE_HASH_JOIN);
 	OpValueHashJoin *op = (OpValueHashJoin *)opBase;
 	return NewValueHashJoin(plan, AR_EXP_Clone(op->lhs_exp), AR_EXP_Clone(op->rhs_exp));
 }

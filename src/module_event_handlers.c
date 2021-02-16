@@ -5,14 +5,15 @@
 */
 
 #include "module_event_handlers.h"
+#include "RG.h"
 #include <pthread.h>
-#include <assert.h>
 #include <stdbool.h>
 #include "graph/graphcontext.h"
 #include "serializers/graphcontext_type.h"
 #include "serializers/graphmeta_type.h"
 #include "config.h"
 #include "util/redis_version.h"
+#include "util/thpool/pools.h"
 #include "util/uuid.h"
 
 // Global array tracking all extant GraphContexts.
@@ -76,9 +77,11 @@ static bool _GraphContext_NameContainsTag(const GraphContext *gc) {
 
 // Calculate how many virtual keys are needed to represent the graph.
 static uint64_t _GraphContext_RequiredMetaKeys(const GraphContext *gc) {
-	uint64_t vkey_entity_count = Config_GetVirtualKeyEntityCount();
+	uint64_t vkey_entity_count;
+	Config_Option_get(Config_VKEY_MAX_ENTITY_COUNT, &vkey_entity_count);
+
 	// If no limitation, return 0. The graph can be encoded in a single key.
-	if(vkey_entity_count == UNLIMITED) return 0;
+	if(vkey_entity_count == VKEY_ENTITY_COUNT_UNLIMITED) return 0;
 	uint64_t entities_count = Graph_NodeCount(gc->g) + Graph_EdgeCount(gc->g) + Graph_DeletedNodeCount(
 								  gc->g) + Graph_DeletedEdgeCount(gc->g);
 	if(entities_count == 0) return 0;
@@ -200,36 +203,25 @@ static void _PersistenceEventHandler(RedisModuleCtx *ctx, RedisModuleEvent eid, 
 	else if(_IsEventPersistenceEnd(eid, subevent)) _ClearKeySpaceMetaKeys(ctx, false);
 }
 
+// Perform clean-up upon server shutdown.
+static void _ShutdownEventHandler(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t subevent,
+		void *data) {
+	// Wait for all wokrer threads to exit.
+	// `thpool_destroy` will block for one second (at most)
+	// giving all worker threads a chance to exit.
+	// after which it will simply call `thread_destroy` and continue.
+	ThreadPools_Destroy();
+
+	// Server is shutting down, finalize GraphBLAS.
+	GrB_finalize();
+}
+
 static void _RegisterServerEvents(RedisModuleCtx *ctx) {
 	RedisModule_SubscribeToKeyspaceEvents(ctx, REDISMODULE_NOTIFY_GENERIC, _RenameGraphHandler);
 	if(Redis_Version_GreaterOrEqual(6, 0, 0)) {
 		RedisModule_SubscribeToServerEvent(ctx, RedisModuleEvent_FlushDB, _FlushDBHandler);
 		RedisModule_SubscribeToServerEvent(ctx, RedisModuleEvent_Persistence, _PersistenceEventHandler);
-	}
-}
-
-static void RG_ForkPrepare() {
-	/* At this point, a fork call has been issued. (We assume that this is because BGSave was called.)
-	 * Acquire the read-write lock of each graph to ensure that no graph is being modified, or else
-	 * the child process will deadlock when attempting to acquire that lock.
-	 * 1. If a writer thread is active, we'll wait until the writer finishes and releases the lock.
-	 * 2. Otherwise, no write in progress. Acquire the lock and release it immediately after forking. */
-
-	uint graph_count = array_len(graphs_in_keyspace);
-	for(uint i = 0; i < graph_count; i++) {
-		// Acquire each read-write lock as a reader to guarantee that no graph is being modified.
-		Graph_AcquireReadLock(graphs_in_keyspace[i]->g);
-	}
-}
-
-static void RG_AfterForkParent() {
-	/* The process has forked, and the parent process is continuing.
-	 * Release all locks. */
-
-	uint graph_count = array_len(graphs_in_keyspace);
-	for(uint i = 0; i < graph_count; i++) {
-		// Release each read-write lock.
-		Graph_ReleaseLock(graphs_in_keyspace[i]->g);
+		RedisModule_SubscribeToServerEvent(ctx, RedisModuleEvent_Shutdown, _ShutdownEventHandler);
 	}
 }
 
@@ -246,8 +238,9 @@ static void RG_AfterForkChild() {
 
 static void _RegisterForkHooks() {
 	/* Register handlers to control the behavior of fork calls.
-	 * The child process does not require a handler. */
-	assert(pthread_atfork(RG_ForkPrepare, RG_AfterForkParent, RG_AfterForkChild) == 0);
+	 * Only the child process requires a handler, to prevent the acquisition of locks it doesn't own. */
+	int res = pthread_atfork(NULL, NULL, RG_AfterForkChild);
+	ASSERT(res == 0);
 }
 
 static void _ModuleEventHandler_TryClearKeyspace(void) {

@@ -11,6 +11,46 @@
 #include "../graph/graph.h"
 #include "algebraic_expression/algebraic_expression_structs.h"
 
+static GrB_Matrix IDENTITY_MATRIX = (GrB_Matrix)0x31032017;  // Identity matrix.
+
+// Matrix, vector operations.
+typedef enum {
+	AL_EXP_ADD = 1,                 // Matrix addition.
+	AL_EXP_MUL = (1 << 1),          // Matrix multiplication.
+	AL_EXP_POW = (1 << 2),          // Matrix raised to a power.
+	AL_EXP_TRANSPOSE = (1 << 3),    // Matrix transpose.
+} AL_EXP_OP;
+
+#define AL_EXP_ALL (AL_EXP_ADD | AL_EXP_MUL | AL_EXP_POW | AL_EXP_TRANSPOSE)
+
+// Type of node within an algebraic expression
+typedef enum {
+	AL_OPERAND = 1,
+	AL_OPERATION  = (1 << 1),
+} AlgebraicExpressionType;
+
+/* Forward declarations. */
+typedef struct AlgebraicExpression AlgebraicExpression;
+
+struct AlgebraicExpression {
+	AlgebraicExpressionType type;   // Type of node, either an operation or an operand.
+	union {
+		struct {
+			bool diagonal;          // Diagonal matrix.
+			bool bfree;             // If the matrix is scoped to this expression, it should be freed with it.
+			GrB_Matrix matrix;      // Matrix operand.
+			const char *src;        // Alias given to operand's rows (src node).
+			const char *dest;       // Alias given to operand's columns (destination node).
+			const char *edge;       // Alias given to operand (edge).
+			const char *label;      // Label attached to matrix.
+		} operand;
+		struct {
+			AL_EXP_OP op;                   // Operation: `*`,`+`,`transpose`
+			AlgebraicExpression **children; // Child nodes.
+		} operation;
+	};
+};
+
 //------------------------------------------------------------------------------
 // AlgebraicExpression construction.
 //------------------------------------------------------------------------------
@@ -145,14 +185,14 @@ void AlgebraicExpression_AddChild
 	AlgebraicExpression *child  // Child node to attach.
 );
 
-// Remove leftmost child node from root.
-AlgebraicExpression *AlgebraicExpression_RemoveLeftmostNode
+// Remove source of algebraic expression from root.
+AlgebraicExpression *AlgebraicExpression_RemoveSource
 (
 	AlgebraicExpression **root   // Root from which to remove a child.
 );
 
-// Remove rightmost child node from root.
-AlgebraicExpression *AlgebraicExpression_RemoveRightmostNode
+// Remove destination of algebraic expression from root.
+AlgebraicExpression *AlgebraicExpression_RemoveDest
 (
 	AlgebraicExpression **root   // Root from which to remove a child.
 );
@@ -210,6 +250,21 @@ GrB_Matrix AlgebraicExpression_EvalArbitrary
 (
     const AlgebraicExpression *exp
 );
+
+// Locates operand based on row,column domain and edge
+// sets 'operand' to if found otherwise set it to NULL
+// sets 'parent' if requested, parent can still be set to NULL
+// if 'root' is the seeked operand
+bool AlgebraicExpression_LocateOperand
+(
+	AlgebraicExpression *root,       // Root to search
+	AlgebraicExpression **operand,   // [output] set to operand, NULL if missing
+	AlgebraicExpression **parent,    // [output] set to operand parent
+	const char *row_domain,          // operand row domain
+	const char *column_domain,       // operand column domain
+	const char *edge                 // operand edge name
+);
+
 //------------------------------------------------------------------------------
 // AlgebraicExpression debugging utilities.
 //------------------------------------------------------------------------------
@@ -256,6 +311,12 @@ void AlgebraicExpression_TotalShow
 void AlgebraicExpression_Optimize
 (
 	AlgebraicExpression **exp   // Expression to optimize.
+);
+
+// Push down transpose operations to individual operands.
+void AlgebraicExpression_PushDownTranspose
+(
+	AlgebraicExpression *root   // Expression to modify
 );
 
 //------------------------------------------------------------------------------

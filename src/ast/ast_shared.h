@@ -14,30 +14,33 @@
 
 struct AR_ExpNode;
 
+/* Updates to this enum require parallel updates to the
+ * OpName array in arithmetic_expression_construct.c */
 typedef enum {
-	OP_NULL,
-	OP_OR,
-	OP_XOR,
-	OP_AND,
-	OP_NOT,
-	OP_EQUAL,
-	OP_NEQUAL,
-	OP_LT,
-	OP_GT,
-	OP_LE,
-	OP_GE,
-	OP_PLUS,
-	OP_MINUS,
-	OP_MULT,
-	OP_DIV,
-	OP_MOD,
-	OP_POW,
-	OP_CONTAINS,
-	OP_STARTSWITH,
-	OP_ENDSWITH,
-	OP_IN,
-	OP_IS_NULL,
-	OP_IS_NOT_NULL
+	OP_UNKNOWN = 0,
+	OP_NULL = 1,
+	OP_OR = 2,
+	OP_XOR = 3,
+	OP_AND = 4,
+	OP_NOT = 5,
+	OP_EQUAL = 6,
+	OP_NEQUAL = 7,
+	OP_LT = 8,
+	OP_GT = 9,
+	OP_LE = 10,
+	OP_GE = 11,
+	OP_PLUS = 12,
+	OP_MINUS = 13,
+	OP_MULT = 14,
+	OP_DIV = 15,
+	OP_MOD = 16,
+	OP_POW = 17,
+	OP_CONTAINS = 18,
+	OP_STARTSWITH = 19,
+	OP_ENDSWITH = 20,
+	OP_IN = 21,
+	OP_IS_NULL = 22,
+	OP_IS_NOT_NULL = 23
 } AST_Operator;
 
 typedef struct {
@@ -48,26 +51,32 @@ typedef struct {
 
 // Context describing an update expression.
 typedef struct {
-	const char *alias;          /* Alias of entity being updated. */
-	Attribute_ID attribute_id;  /* ID of attribute to update. */
-	int record_idx;             /* Record offset this entity is stored at. */
-	struct AR_ExpNode *exp;     /* Expression to evaluate. */
+	const char *alias;          // alias of entity being updated
+	Attribute_ID attribute_id;  // id of attribute to update
+	int record_idx;             // record offset this entity is stored at
+	struct AR_ExpNode *exp;     // expression to evaluate
 } EntityUpdateEvalCtx;
 
 // Context describing a node in a CREATE or MERGE clause
 typedef struct {
-	QGEdge *edge;
-	PropertyMap *properties;
-	int edge_idx;
-	int src_idx;
-	int dest_idx;
+	int src_idx;                // source node record index
+	int dest_idx;               // destination node record index
+	int edge_idx;               // edge record index
+	int reltypeId;              // edge relationship type id
+	const char *src;            // source node alias
+	const char *dest;           // destination node alias
+	const char *alias;          // edge alias
+	const char *relation;       // edge relationship type
+	PropertyMap *properties;    // edge properties set
 } EdgeCreateCtx;
 
 // Context describing a relationship in a CREATE or MERGE clause
 typedef struct {
-	QGNode *node;
-	PropertyMap *properties;
-	int node_idx;
+	int labelId;                // node label id
+	int node_idx;               // node record index
+	const char *alias;          // node alias
+	const char *label;          // node label
+	PropertyMap *properties;    // node properties set
 } NodeCreateCtx;
 
 AST_Operator AST_ConvertOperatorNode(const cypher_operator_t *op);
