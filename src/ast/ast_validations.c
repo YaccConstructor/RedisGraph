@@ -1400,30 +1400,21 @@ static void _AST_ReferredPathPatterns(const cypher_astnode_t *node, rax *referen
 }
 
 static AST_Validation _Validate_Aliases_DefinedInClause(const cypher_astnode_t *clause,
-														rax *defined_aliases) {
+														rax *defined_aliases, rax *defined_path_patterns) {
 	AST_Validation res = AST_VALID;
 	rax *referred_identifiers = raxNew();
-
-	rax *defined_path_patterns = raxNew();
 	rax *referred_path_patterns = raxNew();
 
-    if (cypher_astnode_type(clause) == CYPHER_AST_NAMED_PATH) {
-        // Get defined named path patterns
-        _AST_GetDefinedPathPatterns(clause, defined_path_patterns);
-
-        // Get referred named path patterns
-        _AST_ReferredPathPatterns(clause, referred_path_patterns);
-    }
-    else {
+    if (cypher_astnode_type(clause) != CYPHER_AST_NAMED_PATH) {
         // Get defined identifiers.
         _AST_GetDefinedIdentifiers(clause, defined_aliases);
 
         // Get referred identifiers.
         _AST_GetReferredIdentifiers(clause, referred_identifiers);
-
-        // Get referred named path patterns
-        _AST_ReferredPathPatterns(clause, referred_path_patterns);
     }
+
+    // Get referred named path patterns
+    _AST_ReferredPathPatterns(clause, referred_path_patterns);
 
 	raxIterator it_alias;
 	_prepareIterateAll(referred_identifiers, &it_alias);
@@ -1441,6 +1432,7 @@ static AST_Validation _Validate_Aliases_DefinedInClause(const cypher_astnode_t *
 
     raxIterator it_reference;
     _prepareIterateAll(referred_path_patterns, &it_reference);
+
 	while(raxNext(&it_reference)) {
         int len = it_reference.key_len;
         unsigned char *reference = it_reference.key;
@@ -1453,8 +1445,6 @@ static AST_Validation _Validate_Aliases_DefinedInClause(const cypher_astnode_t *
 	// Clean up:
 	raxStop(&it_alias);
 	raxStop(&it_reference);
-	raxFree(defined_aliases);
-    raxFree(defined_path_patterns);
     raxFree(referred_identifiers);
     raxFree(referred_path_patterns);
 	return res;
@@ -1468,10 +1458,15 @@ static AST_Validation _Validate_Aliases_Defined(const AST *ast) {
 	// If the query does not have a WITH clause, there is only one scope.
 	uint end_offset = cypher_ast_query_nclauses(ast->root);
 	rax *defined_aliases = raxNew();
+    rax *defined_path_patterns = raxNew();
 	for(uint i = 0; i < end_offset; i++) {
 		const cypher_astnode_t *clause = cypher_ast_query_get_clause(ast->root, i);
+        if (cypher_astnode_type(clause) == CYPHER_AST_NAMED_PATH) {
+            // Get defined named path patterns
+            _AST_GetDefinedPathPatterns(clause, defined_path_patterns);
+        }
 		// For each clause, confirm that all referred aliases have been previously defined.
-		res = _Validate_Aliases_DefinedInClause(clause, defined_aliases);
+		res = _Validate_Aliases_DefinedInClause(clause, defined_aliases, defined_path_patterns);
 		if(res != AST_VALID) break;
 		if(cypher_astnode_type(clause) == CYPHER_AST_WITH) {
 			// Each WITH clause marks the beginning of a new scope for defined aliases.
@@ -1481,6 +1476,7 @@ static AST_Validation _Validate_Aliases_Defined(const AST *ast) {
 		}
 	}
 	raxFree(defined_aliases);
+    raxFree(defined_path_patterns);
 	return res;
 }
 
